@@ -190,6 +190,12 @@ The optional dashboard in `server/` needs its own `server/.env` with `BITCOIN_AP
 
 ## Usage manual (A to Z)
 
+<div align="center"><img src="images/useage.png" alt="How an investigator uses the platform" width="960"></div>
+
+<sub>The workflow end to end. Steps 1–4 and 6 are what the platform does today; step 5's branch
+controls (pause, exclude, pin, notes) and the JSON/CSV/ZIP exports are planned — the shipped report
+formats are HTML and PDF.</sub>
+
 ### A · Starting an investigation
 
 **From the UI** — open http://localhost:8000/ and fill in the form:
