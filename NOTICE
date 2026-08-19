@@ -8,17 +8,24 @@ License (see LICENSE).
 THIRD-PARTY COMPONENTS IN THIS REPOSITORY
 =========================================
 
-client/  — React dashboard
-server/  — Express API
+client/  — React front end: landing page, login, signup, dashboard
+server/  — Express API: bitcoin, ethereum and tron lookup routes
 
     Author: Abeera Zainab (github.com/abeera-zainab)
     Origin: github.com/abeera-zainab/crypto-analysis-platform
 
     These two directories were NOT written by the copyright holder above and
-    are included here for completeness, so the platform can be run end to end
-    as filmed in the README. They remain the work of their author and are
-    credited to her. The MIT grant in LICENSE covers this repository's own
-    code — principally backend/ — and is not asserted over client/ or server/.
+    are included here for completeness, so the platform can be run end to end.
+    They remain the work of their author and are credited to her. The MIT grant
+    in LICENSE covers this repository's own code and is not asserted over
+    client/ or server/.
+
+    To be unambiguous about which interface is whose: the investigation UI
+    served on port 8000 — the one shown in every screenshot and GIF in the
+    README — is backend/static/index.html, 2,171 lines, and is the work of the
+    copyright holder above. Abeera Zainab's front end is the separate React
+    application in client/ (landing, login, signup and dashboard, served on port
+    5173), which is optional and is not required to run an investigation.
 
     Anyone redistributing or relying on those two directories should seek the
     author's terms directly rather than assuming this repository's licence

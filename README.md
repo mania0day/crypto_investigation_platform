@@ -122,12 +122,16 @@ It checks the toolchain, creates the Python venv, installs both npm trees, bring
 migrations, imports ~75,000 labels, starts the services, and follows their logs.
 **Ctrl-C stops everything it started.**
 
-| | URL |
-|---|---|
-| **Investigation UI** — start here | http://localhost:8000/ |
-| **API docs** (OpenAPI) | http://localhost:8000/docs |
-| **Dashboard** (optional, see [NOTICE](NOTICE)) | http://localhost:5173/ |
-| **Dashboard API** | http://localhost:4000/api/health |
+| | URL | |
+|---|---|---|
+| **Investigation UI** — start here | http://localhost:8000/ | this repository |
+| **API docs** (OpenAPI) | http://localhost:8000/docs | this repository |
+| Dashboard front end *(optional)* | http://localhost:5173/ | Abeera Zainab — see [NOTICE](NOTICE) |
+| Dashboard API *(optional)* | http://localhost:4000/api/health | Abeera Zainab — see [NOTICE](NOTICE) |
+
+> Everything shown in the screenshots and GIFs above is the investigation UI on **port 8000**
+> (`backend/static/index.html`) — part of this project. The React dashboard on port 5173 is a
+> separate, optional front end by another author and is not needed to run an investigation.
 
 ```bash
 ./start.sh --no-follow   # start, print the URLs, hand the terminal back
@@ -412,8 +416,10 @@ crypto_investigation_platform/
 ├── bridges/                     cross-chain bridge reference data
 ├── docs/                        API reference, case study, research notes
 ├── images/                      README media
-├── client/                      React dashboard — Abeera Zainab, see NOTICE
-├── server/                      Express API — Abeera Zainab, see NOTICE
+│
+│   NOT this project's code — included so the stack runs end to end:
+├── client/                      React landing/login/signup/dashboard — Abeera Zainab, see NOTICE
+├── server/                      Express bitcoin/ethereum/tron routes — Abeera Zainab, see NOTICE
 └── start.sh                     one command from a fresh clone to a running stack
 ```
 
@@ -537,8 +543,9 @@ being tested are the product. The suite picks a free port per session, so concur
 
 **MIT** — see [LICENSE](LICENSE).
 
-`client/` and `server/` are the work of **Abeera Zainab** and are credited in [NOTICE](NOTICE); the
-MIT grant covers this repository's own code, principally `backend/`.
+`client/` and `server/` are the work of **Abeera Zainab** and are credited in [NOTICE](NOTICE). The
+MIT grant covers this repository's own code — the investigation engine in `backend/`, including the
+port-8000 UI at `backend/static/index.html` that every screenshot here shows.
 
 ---
 
