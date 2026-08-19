@@ -246,6 +246,33 @@
     box-shadow: 0 0 12px rgba(0, 240, 255, .14); }
   .grouphead a.verify { margin-top: 0; padding: 2px 8px; font-size: 10px; }
   .empty { color: var(--muted); font-size: 14px; }
+
+  /* ── Sync panel ────────────────────────────────────────────────────────────
+     Its own collapsible box rather than a line in the header. The question it
+     answers ("is the label store current?") is asked at a different moment
+     from anything about a running trace, and it stays true when no
+     investigation is open — so it must not live inside a panel that hides. */
+  .syncwrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .syncdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .sd-syncing { background: var(--accent-2); animation: sdpulse 1.4s ease-in-out infinite; }
+  .sd-idle { background: var(--ok); }
+  .sd-stalled, .sd-failed { background: var(--bad); }
+  .sd-stale { background: var(--warn); }
+  .sd-never_run { background: var(--muted); }
+  @keyframes sdpulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  .syncsrc { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .syncsrc th { text-align: left; color: var(--muted); font-weight: 500;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 0 10px 6px 0; border-bottom: 1px solid var(--line); }
+  .syncsrc td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line);
+    vertical-align: top; }
+  .syncsrc tr:last-child td { border-bottom: 0; }
+  .tp { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); }
+  .tp-automatic, .tp-fetch_or_drop { color: var(--ok); border-color: rgba(52,211,153,.35); }
+  .tp-manual_drop { color: var(--warn); border-color: rgba(251,191,36,.35); }
+  .syncatt { margin-top: 12px; font-size: 13px; line-height: 1.6; color: var(--warn); }
+  .syncatt div { padding-left: 16px; text-indent: -16px; }
+  .syncatt div::before { content: "▸ "; color: var(--warn); }
   .err { color: var(--bad); font-size: 14px; }
   /* The run-level coverage statement. Amber and full width, beside the status
      badge rather than under the graph: "completed" is also the status of a run
@@ -444,16 +471,45 @@
       </div>
 
       <label for="depth">Max depth</label>
-      <input id="depth" type="number" value="3" min="1" max="10">
+      <input id="depth" type="number" value="3" min="1">
 
       <label for="calls">API call budget</label>
-      <input id="calls" type="number" value="25" min="1" max="500">
+      <input id="calls" type="number" value="25" min="1">
+
+      <label for="nodes">Max nodes</label>
+      <input id="nodes" type="number" value="500" min="1">
+
+      <label for="seconds">Time limit (seconds)</label>
+      <input id="seconds" type="number" value="300" min="1">
     </div>
     <button id="start">Start investigation</button>
     <button id="stop" class="ghost hidden">Stop polling</button>
     <button id="refreshNow" class="ghost hidden">Refresh</button>
+    <div class="hint" id="costHint"></div>
     <div class="examples" id="examples"></div>
     <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="panel" id="syncPanel">
+    <h2>Label sync
+      <button id="syncToggle" class="ghost" style="float:right;font-size:12px;padding:3px 10px">hide</button>
+      <button id="syncNow" class="ghost" style="float:right;font-size:12px;padding:3px 10px;margin-right:8px">Sync now</button>
+    </h2>
+    <div id="syncBody">
+      <div class="syncwrap">
+        <span class="syncdot sd-never_run" id="syncDot"></span>
+        <span class="badge" id="syncBadge">&hellip;</span>
+        <span class="stat" id="syncWhen"></span>
+        <span class="stat">Labels <b id="syncLabels">0</b></span>
+        <span class="stat" id="syncChains"></span>
+      </div>
+      <div class="syncatt hidden" id="syncAttention"></div>
+      <table class="syncsrc hidden" id="syncSources">
+        <thead><tr><th>Source</th><th>Transport</th><th>Published</th><th>Last cycle</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="hint" id="syncHint"></div>
+    </div>
   </div>
 
   <div class="panel hidden" id="statusPanel">
@@ -1983,12 +2039,7 @@ async function start(forcedChain) {
       address: address,          // chain omitted: the backend detects it
       ...(forcedChain ? { chain: forcedChain } : {}),
       objectives: objectives,
-      budgets: {
-        api_calls: Number($("calls").value) || 25,
-        seconds: 300,
-        max_depth: Number($("depth").value) || 3,
-        max_nodes: 500,
-      },
+      budgets: budgetsFromForm(),
     };
     const started = await api("/investigations", {
       method: "POST",
@@ -2152,6 +2203,227 @@ async function openExisting(id) {
   }
 }
 
+
+// ── Budgets ─────────────────────────────────────────────────────────────────
+// All four are read from the form. Two of them used to be hardcoded here
+// (seconds: 300, max_nodes: 500), which made the depth field mostly decorative:
+// asking for depth 10 still stopped at 500 nodes — 2000 once pursuit had spent
+// every extension — and a Tron trace reaches roughly 1,700 addresses by hop 3.
+// Two real runs in this database show the result: both asked for depth 3, both
+// burned all 8 extensions widening at that depth, and both ended unanswered.
+function budgetsFromForm() {
+  const n = (id, fallback) => {
+    const value = Number($(id).value);
+    return Number.isFinite(value) && value >= 1 ? value : fallback;
+  };
+  return {
+    api_calls: n("calls", 25),
+    seconds: n("seconds", 300),
+    max_depth: n("depth", 3),
+    max_nodes: n("nodes", 500),
+  };
+}
+
+// Measured fan-out from a real Tron trace in this repo: hops 0-4 held 1, 20,
+// 153, 1732 and 12737 addresses — a multiplier of roughly 9 per hop. Beyond the
+// measured range the estimate keeps applying 9, which is why it is shown as an
+// order of magnitude and not a number with a decimal point.
+const FANOUT = [1, 20, 153, 1732, 12737];
+const FANOUT_RATIO = 9;
+// 1,462 addresses opened in 2,872 s on a free TronGrid key, fallback tiers behind it.
+const OPENS_PER_HOUR = 1800;
+
+function addressesAtHop(hop) {
+  if (hop < FANOUT.length) return FANOUT[hop];
+  return Math.round(FANOUT[FANOUT.length - 1] * Math.pow(FANOUT_RATIO, hop - FANOUT.length + 1));
+}
+
+function approx(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(n < 1e7 ? 1 : 0) + "M";
+  if (n >= 1e3) return Math.round(n / 1e3) + "k";
+  return String(n);
+}
+
+function renderCostHint() {
+  const b = budgetsFromForm();
+  // To REACH depth N you must open every address found at depth N-1.
+  let opens = 0;
+  for (let hop = 0; hop < b.max_depth; hop++) opens += addressesAtHop(hop);
+  const discovered = addressesAtHop(b.max_depth);
+  const hours = opens / OPENS_PER_HOUR;
+  const time = hours < 1 ? Math.max(1, Math.round(hours * 60)) + " min"
+    : hours < 48 ? hours.toFixed(hours < 10 ? 1 : 0) + " h"
+    : Math.round(hours / 24) + " days";
+
+  // Which budget actually stops this run first. Naming it is the whole point:
+  // the depth field is the one people raise, and it is usually not the binding
+  // constraint — a run can burn every extension widening at a shallow depth.
+  const limits = [];
+  if (b.api_calls < opens) limits.push("API calls");
+  if (b.max_nodes < discovered) limits.push("max nodes");
+  if (b.seconds < hours * 3600) limits.push("time limit");
+
+  const parts = [
+    "Depth " + b.max_depth + " means opening about " + approx(opens) + " addresses ("
+      + time + " at the measured rate) and finding roughly " + approx(discovered) + " more.",
+  ];
+  if (limits.length) {
+    parts.push("This run will stop on " + limits.join(" / ")
+      + " before reaching that depth — the engine may raise those automatically, up to 8 times.");
+  }
+  $("costHint").textContent = parts.join(" ");
+}
+
+["depth", "calls", "nodes", "seconds"].forEach(id =>
+  $(id).addEventListener("input", renderCostHint));
+renderCostHint();
+
+// ── Label sync panel ────────────────────────────────────────────────────────
+// Polls /harvest/status on a slow timer. Slow on purpose: the thing it watches
+// is a once-a-day cycle whose slowest source is a 28 MB download, so a 1.5s
+// beat like the investigation poller would be thousands of pointless queries
+// a day to render a value that changes once. 30s is fast enough that a cycle
+// starting while somebody watches shows up as "syncing" within a beat.
+const SYNC_POLL_MS = 30000;
+
+// Rendered as prose, not as a raw timestamp. "3 hours ago" is the form the
+// question is asked in — nobody looks at this panel wanting an ISO string.
+function ago(iso) {
+  if (!iso) return "";
+  const secs = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (secs < 90) return "just now";
+  if (secs < 5400) return Math.round(secs / 60) + "m ago";
+  if (secs < 172800) return Math.round(secs / 3600) + "h ago";
+  return Math.round(secs / 86400) + "d ago";
+}
+
+const SYNC_WORDS = {
+  syncing:   ["syncing", "b-running"],
+  idle:      ["idle", "b-completed"],
+  stalled:   ["stalled", "b-failed"],
+  never_run: ["never run", "b-partial"],
+};
+
+function renderSync(st) {
+  // A finished run's OUTCOME outranks the idle state for colour: a cycle that
+  // completed having failed every source is still 'idle', and painting that
+  // green would be the exact lie this panel exists to prevent.
+  let key = st.state;
+  if (st.state === "idle" && st.outcome && st.outcome !== "ok") key = st.outcome;
+  const [word, cls] = SYNC_WORDS[key] || [key, st.outcome === "stale" ? "b-partial" : "b-failed"];
+  $("syncDot").className = "syncdot sd-" + key;
+  const badge = $("syncBadge");
+  badge.textContent = word;
+  badge.className = "badge " + cls;
+
+  $("syncWhen").textContent = st.state === "syncing"
+    ? "started " + ago(st.started_at)
+    : (st.finished_at ? "last cycle " + ago(st.finished_at) : "");
+  $("syncLabels").textContent = (st.labels_total || 0).toLocaleString();
+  $("syncChains").textContent = Object.entries(st.labels_by_chain || {})
+    .map(([c, n]) => c + " " + n.toLocaleString()).join(" · ");
+
+  const att = $("syncAttention");
+  att.innerHTML = "";
+  (st.attention || []).forEach(line => {
+    const d = document.createElement("div");
+    d.textContent = line;   // textContent, not innerHTML: this string carries a
+                            // publisher's error message straight from upstream.
+    // Waiting for a first drop is a setup step, so it is muted rather than
+    // amber. Everything else here is something that changed for the worse.
+    if (line.includes("waiting for its first drop")) d.style.color = "var(--muted)";
+    att.appendChild(d);
+  });
+  att.classList.toggle("hidden", !(st.attention || []).length);
+
+  const table = $("syncSources"), body = table.querySelector("tbody");
+  body.innerHTML = "";
+  (st.sources || []).forEach(src => {
+    const tr = document.createElement("tr");
+    const cell = (text, cls) => {
+      const td = document.createElement("td");
+      if (cls) { const span = document.createElement("span"); span.className = cls;
+                 span.textContent = text; td.appendChild(span); }
+      else td.textContent = text;
+      return td;
+    };
+    tr.appendChild(cell(src.source));
+    tr.appendChild(cell(src.transport === "manual_drop" ? "manual drop"
+      : src.transport === "fetch_or_drop" ? "auto (drop fallback)" : "automatic",
+      "tp tp-" + src.transport));
+    // The publication date, aged. Not retrieved_at — re-reading a stale file at
+    // 03:15 says nothing about the file, which is the whole staleness argument.
+    tr.appendChild(cell(src.published_at
+      ? src.published_at.slice(0, 10) + (src.age_days != null ? "  (" + Math.round(src.age_days) + "d)" : "")
+      : "—"));
+    // ok === null is "this run said nothing about it", which is neither a tick
+    // nor a cross — a source added since the last cycle would otherwise read
+    // as broken.
+    // not_supplied is checked BEFORE ok, because a never-supplied source is
+    // also ok === false. Grading it as "failed" is what made the panel red
+    // every morning on any deployment that had not done the manual downloads.
+    tr.appendChild(cell(src.not_supplied ? "awaiting first drop"
+      : src.ok == null ? "not yet run"
+      : src.ok === false ? "failed"
+      : src.stale ? "ok, publisher quiet"
+      : (src.added || 0) + " added, " + (src.updated || 0) + " updated"));
+    body.appendChild(tr);
+  });
+  table.classList.toggle("hidden", !(st.sources || []).length);
+
+  // Disabled while a cycle is in flight — the server refuses a second one with
+  // 409 anyway, and a button that returns an error is worse than one that is
+  // visibly unavailable.
+  $("syncNow").disabled = st.state === "syncing";
+  $("syncHint").textContent = st.state === "never_run"
+    ? "No cycle has run against this database — every label in it was imported by hand. "
+      + "Enable the timer: backend/deploy/README.md"
+    : (st.host ? "last cycle ran on " + st.host : "");
+}
+
+async function pollSync() {
+  try { renderSync(await api("/harvest/status")); }
+  catch (e) {
+    // A failed poll must not paint a healthy panel. It also must not shout —
+    // the API being briefly down is not a label-coverage problem.
+    $("syncBadge").textContent = "unknown";
+    $("syncBadge").className = "badge b-partial";
+    $("syncHint").textContent = "Could not read sync status: " + e.message;
+  }
+}
+
+// Starts a cycle on the SERVER, not in the browser. The response is 202 as
+// soon as the child process exists; the cycle itself takes minutes, and the
+// panel reports its progress because the child writes the same run row the
+// timer-fired cycle writes.
+$("syncNow").addEventListener("click", async () => {
+  const button = $("syncNow");
+  button.disabled = true;
+  const previous = button.textContent;
+  button.textContent = "starting…";
+  try {
+    await api("/harvest/run", { method: "POST" });
+    // Read the row back immediately rather than waiting up to 30s for the next
+    // beat — the button must visibly do something or it gets pressed again.
+    await pollSync();
+    $("syncHint").textContent = "Cycle started. The sanctions list alone takes "
+      + "several minutes; this panel updates as it goes.";
+  } catch (e) {
+    // 409 is not an error the operator caused, so it is not worded as one.
+    $("syncHint").textContent = e.message.includes("already running")
+      ? "A cycle is already running — watch this panel."
+      : "Could not start a cycle: " + e.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = previous;
+  }
+});
+
+$("syncToggle").addEventListener("click", () => {
+  const body = $("syncBody"), hidden = body.classList.toggle("hidden");
+  $("syncToggle").textContent = hidden ? "show" : "hide";
+});
+
 fetch(API + "/healthz").then(r => r.json()).then(() => {
   $("engineStatus").textContent = "ONLINE";
   $("engineStatus").className = "hdr-ok";
@@ -2161,6 +2433,10 @@ fetch(API + "/healthz").then(r => r.json()).then(() => {
   // has a URL; the way you want to LOOK at it belongs in that URL too.
   if (params.get("full") === "1") setGraphFullscreen(true);
   if (existing) openExisting(existing);
+  // Started only after /healthz answered. Polling a backend that is down would
+  // paint "unknown" over the panel before the page has finished loading.
+  pollSync();
+  setInterval(pollSync, SYNC_POLL_MS);
 }).catch(() => {
   $("engineStatus").textContent = "OFFLINE";
   $("engineStatus").className = "hdr-bad";

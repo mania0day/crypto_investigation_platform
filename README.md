@@ -257,16 +257,19 @@ this page.
 There is no cap in the software — the API accepts any depth ≥ 1, and the `max="10"` on the form is
 just an input hint. The arithmetic is the cap.
 
-Reaching depth *N* means opening every address found at depth *N−1*. The same trace measured
+Reaching depth *N* means opening every address found at every hop before it. The same trace measured
 **1,462 addresses opened in 2,872 seconds — about 1,800 per hour**, on a free TronGrid key with the
 fallback tiers behind it. From those two measurements:
 
 | Reach depth | Addresses to open | At ~1,800/hour | Verdict |
 |---:|---:|---|---|
-| 4 | 1,732 | ~1 hour | measured — this is the run above |
-| 5 | ~12,700 | **~7 hours** | the practical ceiling on one machine |
-| 6 | ~115,000 | ~2.5 days | possible, rarely worth it |
-| 7 | ~1,000,000 | ~3 weeks | not realistic without a cluster |
+| 4 | 1,906 | ~1 hour | measured — this is the run above |
+| 5 | ~14,600 | **~8 hours** | the practical ceiling on one machine |
+| 6 | ~129,000 | ~3 days | possible, rarely worth it |
+| 7 | ~1,200,000 | ~4 weeks | not realistic without a cluster |
+
+The New investigation form shows this estimate live as you change the numbers, and names which of
+your four budgets will stop the run first.
 
 A paid provider key raises the rate limit and moves those numbers, but not the shape: each hop still
 costs 8–11× the one before it, so one extra hop is always roughly one extra order of magnitude.
@@ -278,14 +281,22 @@ costs 8–11× the one before it, so one extra hop is always roughly one extra o
 
 #### The other five
 
-| Budget | Default | Raised automatically? | What one unit buys |
-|---|---:|---|---|
-| `max_depth` | 6 | **NEVER** | one more hop — see above |
-| `api_calls` | 100 | yes | **one address opened**, not one HTTP request |
-| `seconds` | 300 | yes | one second of wall clock |
-| `max_nodes` | 500 | yes | one address held in the trace |
-| `max_extensions` | 8 | — | one automatic raise of the three above |
-| `pursue_until_answered` | `true` | — | switch off for a fixed, predictable spend |
+| Budget | Min | Max | Default | Raised automatically? | What one unit buys |
+|---|---:|---|---:|---|---|
+| `max_depth` | 1 | **none** | 6 | **NEVER** | one more hop — see above |
+| `api_calls` | 1 | **none** | 100 | yes | **one address opened**, not one HTTP request |
+| `seconds` | >0 | **none** | 300 | yes | one second of wall clock |
+| `max_nodes` | 1 | **none** | 500 | yes | one address held in the trace |
+| `max_extensions` | 0 | **none** | 8 | — | one automatic raise of the three above |
+| `pursue_until_answered` | — | — | `true` | — | switch off for a fixed, predictable spend |
+
+**There is no upper limit on any of them.** The engine validates only that they are positive
+(`max_extensions` may be 0, meaning "never raise anything"). `max_depth: 40` is accepted; it will
+simply never finish. The ceilings that matter are the ones in the table above this one, and they are
+arithmetic, not policy.
+
+All four spending budgets are on the New investigation form. Set them together — three of them
+defend each other and the fourth, `max_depth`, is usually the one that actually binds.
 
 **`api_calls` is the one most often misread.** It charges **one unit per address expanded**, not per
 network request. Opening one address fetches up to 100 transactions and can create dozens of new
