@@ -1,0 +1,2171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CipherChain — Wallet Intelligence</title>
+<style>
+  /* Theme matched to the CipherChain dashboard this page is reached from:
+     deep-navy HUD, cyan signal color, tracked uppercase headings. */
+  :root {
+    --bg: #02050c; --panel: rgba(7, 15, 27, .88); --panel-2: rgba(10, 21, 36, .9);
+    --line: rgba(56, 189, 248, .16); --line-strong: rgba(56, 189, 248, .38);
+    --text: #dbe9f7; --muted: #7f95ae; --accent: #00f0ff; --accent-2: #38bdf8;
+    --ok: #34d399; --warn: #fbbf24; --bad: #fb7185; --info: #a78bfa;
+    /* --panel-2 flattened to fully opaque. A sticky header keeps painting while
+       finding cards scroll underneath it, and at .9 alpha the rows ghost
+       through the address it is naming. */
+    --sticky: #0a1524;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background-image:
+      radial-gradient(60% 45% at 50% 0%, rgba(56, 189, 248, .09), transparent 70%),
+      radial-gradient(45% 35% at 85% 100%, rgba(0, 240, 255, .05), transparent 70%),
+      linear-gradient(rgba(56, 189, 248, .035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, .035) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+    background-attachment: fixed;
+  }
+  /* boot sweep — one bright line pass on load, same as the dashboard hero */
+  body::before {
+    content: ""; position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 90;
+    background: linear-gradient(90deg, transparent, rgba(56,189,248,.55) 30%,
+      rgba(125,211,252,.9) 50%, rgba(56,189,248,.55) 70%, transparent);
+    filter: blur(1px); animation: sweep 1.1s ease-out .15s both; pointer-events: none;
+  }
+  @keyframes sweep { from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(100vh); opacity: 0; } }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  ::selection { background: rgba(0, 240, 255, .25); }
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 22px 20px 64px; }
+
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 24px; }
+  .hdr-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .backlink {
+    color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 700;
+    letter-spacing: .18em; text-transform: uppercase; transition: color .15s;
+  }
+  .backlink:hover { color: var(--accent); }
+  .hdr-status { font-size: 12px; letter-spacing: .12em; color: var(--muted); }
+  .hdr-ok { color: var(--ok); } .hdr-bad { color: var(--bad); }
+  h1 {
+    margin: 0; font-size: 27px; font-weight: 900; text-transform: uppercase;
+    letter-spacing: .2em; color: #fff;
+    text-shadow: 0 0 18px rgba(0, 240, 255, .35);
+  }
+  h1 span { color: var(--accent); }
+  .tagline { color: var(--muted); margin-top: 8px; font-size: 13.5px; letter-spacing: .02em; }
+  .chains { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chainpill {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .14em; color: var(--accent-2);
+    border: 1px solid var(--line); border-radius: 3px; padding: 3px 8px;
+    background: rgba(56, 189, 248, .05); font-family: ui-monospace, Menlo, monospace;
+  }
+
+  .panel {
+    position: relative; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 20px; margin-bottom: 18px;
+    backdrop-filter: blur(6px);
+  }
+  /* HUD corner brackets — diagonal pair */
+  .panel::before, .panel::after {
+    content: ""; position: absolute; width: 18px; height: 18px; pointer-events: none;
+    border: 0 solid var(--line-strong);
+  }
+  .panel::before { left: -1px; top: -1px; border-left-width: 2px; border-top-width: 2px; }
+  .panel::after { right: -1px; bottom: -1px; border-right-width: 2px; border-bottom-width: 2px; }
+  .panel h2 {
+    margin: 0 0 16px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: .22em; color: var(--muted); font-weight: 700;
+  }
+  .panel h2::before { content: "// "; color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: 170px 1fr; gap: 13px; align-items: center; }
+  label { color: var(--muted); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; }
+  input, select {
+    width: 100%; padding: 10px 12px; background: rgba(2, 8, 16, .8); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px; font-size: 14px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  input:focus, select:focus {
+    outline: none; border-color: var(--accent-2);
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, .25), 0 0 14px rgba(0, 240, 255, .08);
+  }
+  input::placeholder { color: rgba(127, 149, 174, .55); }
+  .checks { display: flex; gap: 18px; flex-wrap: wrap; }
+  .checks label { display: flex; align-items: center; gap: 7px; color: var(--text); cursor: pointer;
+    text-transform: none; letter-spacing: 0; font-size: 14px; }
+  input[type=checkbox] { width: auto; accent-color: var(--accent-2); }
+
+  button {
+    margin-top: 16px; padding: 11px 22px; background: rgba(0, 240, 255, .08);
+    color: var(--accent); border: 1px solid var(--line-strong); border-radius: 4px;
+    font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  button:hover:not(:disabled) {
+    background: rgba(0, 240, 255, .16);
+    box-shadow: 0 0 18px rgba(0, 240, 255, .18); text-shadow: 0 0 8px rgba(0, 240, 255, .5);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.ghost { background: transparent; color: var(--muted); border-color: var(--line); font-weight: 600; }
+  button.ghost:hover:not(:disabled) { color: var(--accent); box-shadow: none; }
+
+  .hint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .examples button { margin: 0; padding: 5px 12px; font-size: 11px; letter-spacing: .1em;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line); font-weight: 600; }
+
+  .statusbar { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
+  .badge {
+    padding: 3px 12px; border-radius: 3px; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .16em; border: 1px solid transparent;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .b-running { background: rgba(56,189,248,.12); color: var(--accent-2); border-color: rgba(56,189,248,.35); }
+  .b-completed { background: rgba(52,211,153,.12); color: var(--ok); border-color: rgba(52,211,153,.35); }
+  .b-partial { background: rgba(251,191,36,.12); color: var(--warn); border-color: rgba(251,191,36,.35); }
+  .b-failed { background: rgba(251,113,133,.12); color: var(--bad); border-color: rgba(251,113,133,.35); }
+  .stat { font-size: 13px; color: var(--muted); }
+  .stat b { color: var(--text); font-weight: 600; font-family: ui-monospace, Menlo, monospace; }
+
+  .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .answers { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } }
+  .answer { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 16px; }
+  .answer .dir { font-size: 11px; text-transform: uppercase; letter-spacing: .18em; color: var(--muted); margin-bottom: 10px; }
+  .answer .entity { font-size: 16.5px; font-weight: 700; }
+  /* Two answers can share one box — "what is closest" and "what can be acted
+     on". The label must survive being read quickly by someone who did not
+     build this tool, so it is never smaller or fainter than the answer. */
+  .ansrow + .ansrow { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .anslabel {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent-2); margin-bottom: 6px; font-family: ui-monospace, Menlo, monospace;
+  }
+  /* Specificity matters here, not style: `.answer.found .entity` paints every
+     answer green, and an unnamed behavioural guess rendered in the same green
+     as a sourced label is the picture claiming more than the finding does.
+     This rule must outrank it. */
+  .answer.found .entity.unnamed, .answer .entity.unnamed {
+    color: var(--warn); font-size: 15px; text-shadow: none; font-weight: 600;
+  }
+  .answer.found { border-color: rgba(52,211,153,.5); box-shadow: 0 0 22px rgba(52,211,153,.08) inset; }
+  .answer.found .entity { color: var(--ok); text-shadow: 0 0 12px rgba(52,211,153,.3); }
+  .answer.none .entity { color: var(--muted); font-size: 14px; font-weight: 500; }
+  /* A best-effort lead: orange, the same "unconfirmed, worth checking" hue the
+     graph gives a suspected VASP — never the sanctioned rose, and never the
+     green of a traced answer. It is the headline of its box because a report
+     whose headline is "no named endpoint" is not usable by the body it is
+     written for, but it must never look like the green box next to it. */
+  .answer.lead { border-color: rgba(251,146,60,.5); box-shadow: 0 0 22px rgba(251,146,60,.07) inset; }
+  .answer.lead .entity:not(.unnamed) { color: #fb923c; text-shadow: none; }
+  /* On the card, never behind a hover. The name and its caveat are one
+     statement, and the tooltip half is the half that is lost the moment the
+     line is copied into a filing. */
+  .weakness {
+    margin-top: 8px; padding: 7px 10px; font-size: 12.5px; line-height: 1.5;
+    color: #ffd2a8; background: rgba(251,146,60,.08);
+    border: 1px solid rgba(251,146,60,.35); border-left-width: 3px; border-radius: 4px;
+    overflow-wrap: anywhere;
+  }
+  .answer .why { color: var(--muted); font-size: 13px; margin-top: 7px; }
+  .addr { font-size: 12.5px; color: var(--accent-2); word-break: break-all; margin-top: 8px;
+    font-family: ui-monospace, Menlo, monospace; }
+
+  /* ---------- findings list ----------
+     373 findings rendered inline made the page ~40 screens tall and pushed the
+     graph above them out of reach — the panel gets its own box and its own
+     scrollbar. Nothing is dropped or truncated to make it fit: every finding,
+     and every piece of evidence under it, is still in here. */
+  .findscroll {
+    max-height: 62vh; overflow-y: auto; overflow-x: hidden;
+    border: 1px solid var(--line); border-radius: 5px; background: rgba(3, 9, 18, .5);
+    /* Hitting the end of the evidence must not then scroll the page out from
+       under the reader. */
+    overscroll-behavior: contain;
+  }
+  /* Height is fixed because .grouphead sticks directly below it — see `top`. */
+  .findbar {
+    position: sticky; top: 0; z-index: 3; height: 33px; padding: 8px 12px;
+    background: var(--sticky); border-bottom: 1px solid var(--line);
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    white-space: nowrap; overflow: hidden;
+  }
+  .findbar b { color: var(--accent-2); font-weight: 700; }
+  /* Sticky under the count bar: 373 findings scroll for a long time, and a
+     card whose address header has left the box is a finding about nobody. */
+  .grouphead { position: sticky; top: 33px; z-index: 2;
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; margin: 0; padding: 7px 12px 6px; background: var(--sticky);
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    font-size: 12.5px; color: var(--accent-2); overflow-wrap: anywhere; }
+  .grouphead:first-child { border-top: 0; }
+  .grouphead .stat { white-space: nowrap; }
+  /* A row in a list, not a card on a pile: the border and the gap between
+     every pair of findings were costing more vertical space than the finding. */
+  .finding { border-bottom: 1px solid var(--line); padding: 10px 12px; }
+  .finding:last-child { border-bottom: 0; }
+  .finding:hover { background: var(--panel-2); }
+  .finding .top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .kind { padding: 2px 9px; border-radius: 3px; font-size: 10.5px; font-weight: 800;
+    letter-spacing: .1em; text-transform: uppercase; font-family: ui-monospace, Menlo, monospace; }
+  .k-vasp_endpoint { background: rgba(52,211,153,.14); color: var(--ok); }
+  .k-sanctioned_address { background: rgba(251,113,133,.14); color: var(--bad); }
+  .k-sweep_pattern { background: rgba(251,191,36,.14); color: var(--warn); }
+  .k-terminal { background: rgba(127,149,174,.14); color: var(--muted); }
+  .k-mixer_interaction, .k-bridge_crossing { background: rgba(167,139,250,.14); color: var(--info); }
+  .k-obfuscation_pattern { background: rgba(251,191,36,.1); color: var(--warn); }
+  .conf { margin-left: auto; font-size: 12px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+  /* chain-derived text can carry long unbroken hashes — never let one
+     push the card past its edge */
+  .summary, .answer .entity, .answer .why, .ev .evtext { overflow-wrap: anywhere; }
+  .summary { margin-top: 8px; }
+  details { margin-top: 9px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+  .ev { border-left: 2px solid var(--line); padding: 8px 0 8px 12px; margin-top: 9px; }
+  .ev .evkind { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .5px; }
+  .e-onchain_fact { color: var(--ok); }
+  .e-heuristic_inference { color: var(--warn); }
+  .e-third_party_claim { color: var(--info); }
+  /* A statement about the run itself, not about the chain — deliberately
+     muted so it never reads as on-chain corroboration. */
+  .e-engine_observation { color: var(--muted); }
+  .ev .evtext { font-size: 13.5px; margin-top: 3px; }
+  .ev .meta { font-size: 12px; color: var(--muted); margin-top: 4px; word-break: break-all; }
+  a.verify {
+    display: inline-block; margin-top: 10px; padding: 5px 12px; font-size: 11px;
+    font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent-2); text-decoration: none; border: 1px solid var(--line);
+    border-radius: 3px; transition: all .15s;
+  }
+  a.verify:hover { border-color: var(--line-strong); color: var(--accent);
+    box-shadow: 0 0 12px rgba(0, 240, 255, .14); }
+  .grouphead a.verify { margin-top: 0; padding: 2px 8px; font-size: 10px; }
+  .empty { color: var(--muted); font-size: 14px; }
+  .err { color: var(--bad); font-size: 14px; }
+  /* The run-level coverage statement. Amber and full width, beside the status
+     badge rather than under the graph: "completed" is also the status of a run
+     that hit a page limit, a depth horizon and a supernode cap on the way to
+     draining its frontier, and this is the line that stops the badge from
+     being read as "the trace saw everything". */
+  .cov { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--warn);
+         border-left: 2px solid rgba(251,191,36,.5); padding-left: 10px; }
+  .cov.clean { color: var(--muted); border-left-color: rgba(52,211,153,.45); }
+  .hidden { display: none; }
+
+  /* ---------- graph view ----------
+     Deterministic hop-column layout, drawn by hand. A force simulation was
+     the obvious choice and is the wrong one: it settles differently on every
+     load, so the same investigation would never render twice the same way.
+     hop_distance and direction already impose a total order — use it. */
+  /* The rest of the page is a 1020px reading column. A graph is not prose and
+     must not inherit a prose measure — a trace 2400px wide was being fitted
+     into a third of the screen and then blamed on the zoom. It breaks out to
+     the viewport here, and goes edge to edge on demand. */
+  #graphPanel { width: min(96vw, 1920px); margin-left: 50%; transform: translateX(-50%); }
+  #graphPanel.fullscreen {
+    position: fixed; inset: 0; z-index: 60;
+    width: auto; margin: 0; transform: none; border-radius: 0;
+    padding: 14px 18px 16px; display: flex; flex-direction: column;
+    background: #030711; backdrop-filter: none;
+  }
+  /* The stage takes every pixel the bar and legend do not need. */
+  #graphPanel.fullscreen .stagewrap { flex: 1 1 auto; max-height: none; }
+  #graphPanel.fullscreen h2 { margin-top: 0; }
+  body.graphfull { overflow: hidden; }
+
+  /* ---------- folding ----------
+     Two panels this tall cannot both be on screen. Folding is what lets a
+     reader put 1500 nodes away to read the evidence, or put 373 findings away
+     to work on the graph — each panel keeps its heading and its counts while
+     folded, so nothing that was said about coverage disappears with it. */
+  #findingsPanel.collapsed .findscroll { display: none; }
+  #graphPanel.collapsed .stagewrap, #graphPanel.collapsed .glegend { display: none; }
+  /* Fit, zoom and Expand frontier all act on a box that is not being laid out —
+     a fit measured against a folded stage reads 0px wide, which is what the
+     guard in fitGraph() is for; these are hidden so the guard is never the only
+     thing standing between a fold and a wrecked zoom. The note stays: what the
+     picture is NOT showing is still true while the picture is folded. */
+  #graphPanel.collapsed .graphbar > :not(#gMin):not(.graphnote) { display: none; }
+  /* Full screen and folded are contradictory: the pair renders as an empty
+     black overlay with no way back except Escape. */
+  #graphPanel.fullscreen #gMin { display: none; }
+  /* The findings panel has no toolbar to put this in, so it hangs off the
+     panel's own corner — outside .findscroll, or folding would hide the only
+     control that unfolds it. */
+  .minbtn { position: absolute; top: 15px; right: 16px; margin: 0; z-index: 4;
+    padding: 4px 11px; font-size: 10.5px; letter-spacing: .12em; }
+
+  .graphbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .graphbar button { margin: 0; padding: 5px 11px; font-size: 11px; letter-spacing: .1em; }
+  .graphnote { font-size: 12px; color: var(--muted); margin-left: auto; text-align: right; }
+  .graphnote b { color: var(--warn); font-weight: 600; }
+
+  .stagewrap {
+    position: relative; overflow: auto; border: 1px solid var(--line); border-radius: 5px;
+    background:
+      linear-gradient(rgba(56,189,248,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,.045) 1px, transparent 1px),
+      radial-gradient(80% 60% at 50% 40%, rgba(10,26,44,.75), rgba(2,6,13,.95));
+    background-size: 40px 40px, 40px 40px, 100% 100%;
+    /* A 1500-node trace is a picture of a whole case, and 74vh gave it a strip
+       to be read through: at fit zoom two hop columns filled the box and every
+       other hop was found by scrolling. The stage takes the screen it needs
+       and the panels below it fold out of the way — see .minbtn. */
+    /* HEIGHT, not max-height. A growing trace made the box grow with it, which
+       resized the panel, which reflowed everything below — so the page crept
+       under the reader every poll and whatever they were looking at moved. A
+       viewport-relative fixed height never changes as nodes arrive, so the only
+       thing that moves inside the box is what the reader moves. min-height
+       keeps it stable rather than tiny on a short screen. */
+    height: 88vh;
+    min-height: 380px;
+  }
+  .stage { position: absolute; top: 0; left: 0; transform-origin: top left; }
+  .stage svg { position: absolute; inset: 0; pointer-events: none; }
+  /* Zoom is a transform, which does not resize the scroll box — this spacer
+     carries the scaled dimensions so scrollbars stay honest. */
+  .stagesizer { position: relative; pointer-events: none; }
+
+  .gcol {
+    position: absolute; font-family: ui-monospace, Menlo, monospace; font-size: 10px;
+    letter-spacing: .2em; color: var(--muted); text-transform: uppercase;
+    white-space: nowrap; transform: translateX(-50%);
+  }
+
+  .gnode {
+    position: absolute; box-sizing: border-box; display: flex; gap: 10px; align-items: center;
+    padding: 0 12px; border-radius: 6px; background: linear-gradient(180deg, rgba(12,22,38,.97), rgba(6,12,22,.97));
+    border: 1px solid var(--line); border-left-width: 3px;
+    box-shadow: 0 8px 22px rgba(0,0,0,.55); cursor: default;
+  }
+  /* Border STYLE carries evidence kind, border COLOR carries role — two
+     independent channels. A VASP named by a sourced label and one guessed
+     from behaviour are the same color and visibly different weight, so the
+     picture cannot imply more certainty than the finding has. */
+  .gnode.inferred { border-style: dashed; border-left-style: solid; }
+  /* Speculative is a claim about the PATH, not about the address, so it is
+     drawn on the box rather than on the role bar: this node was reached by a
+     link CipherChain selected (a withdrawal out of a mixer's crowd) instead of one
+     it watched happen. Orange for caution, never the sanctioned rose — "we
+     guessed our way here" and "this is on an OFAC list" must not be readable
+     as each other. */
+  .gnode.speculative { border-style: dashed; border-left-style: solid; }
+  .gnode .gspec { color: #fb923c; font-weight: 700; }
+  /* A folded pile of frontier addresses reads as a stack, never as one wallet. */
+  .gnode.gbundle {
+    box-shadow: 0 8px 22px rgba(0,0,0,.55), 5px 5px 0 -1px rgba(56,189,248,.10),
+                10px 10px 0 -2px rgba(56,189,248,.06);
+  }
+  .gnode.gbundle .gaddr { color: var(--accent-2); }
+  .gnode .gdot { width: 9px; height: 9px; flex: none; border-radius: 50%; }
+  .gnode .gbody { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .gnode .gaddr {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; font-weight: 700;
+    color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gnode .gcap {
+    font-family: ui-monospace, Menlo, monospace; font-size: 9.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: #c6d4e2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gnode .gmeta {
+    font-family: ui-monospace, Menlo, monospace; font-size: 10px; letter-spacing: .04em;
+    color: var(--muted); display: flex; gap: 7px; align-items: center; white-space: nowrap;
+  }
+  .gnode .gmeta .gval { color: var(--accent-2); font-weight: 600; }
+  .gnode .gmeta .gzero { color: var(--warn); }
+  .gnode .gcut { color: var(--warn); font-weight: 700; flex: none; }
+  .grole {
+    font-family: ui-monospace, Menlo, monospace; font-size: 8.5px; letter-spacing: .12em;
+    padding: 1px 5px; border-radius: 3px; border: 1px solid currentColor; opacity: .85;
+  }
+
+  /* Edge labels are placed by collision search, never by the midpoint alone —
+     see placeEdgeLabels(). Nothing here may overlap a card or another label. */
+  .glabel {
+    position: absolute; z-index: 4; white-space: nowrap; pointer-events: none;
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 18px;
+    padding: 0 7px; border-radius: 3px; border: 1px solid rgba(56,189,248,.4);
+    background: rgba(4,10,18,.96); color: #e8f6ff;
+  }
+  .glabel .gasset { color: var(--accent-2); }
+  .glabel.unverified { border-color: rgba(251,191,36,.45); color: #f6e7c4; }
+  .glabel.bridge { border-color: rgba(167,139,250,.5); color: #ded4ff; border-style: dashed; }
+  /* A returning edge keeps its own colour whatever else it also is. */
+  .glabel.loop { border-color: rgba(232,121,249,.55); color: #f7d5fd; }
+  /* Except this one, which is last on purpose. Loop, bridge and unverified all
+     describe a link that HAPPENED; speculative says the link may not have. That
+     outranks every other thing a label can be. */
+  .glabel.speculative { border-color: rgba(251,146,60,.6); color: #ffd2a8; border-style: dashed; }
+
+  .glegend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px;
+    font-size: 11.5px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+  .glegend span { display: flex; gap: 7px; align-items: center; }
+  .glegend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .glegend .swatch { width: 16px; height: 10px; border-radius: 2px; border: 1px solid var(--muted); }
+  .spin { display: inline-block; width: 11px; height: 11px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: sp .8s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="hdr-top">
+      <a id="backLink" class="backlink" href="http://localhost:5173/dashboard">&#9666; CipherChain</a>
+      <div class="hdr-status mono">ENGINE: <span id="engineStatus">&hellip;</span></div>
+    </div>
+    <h1>CipherChain<span> //</span> Wallet Intelligence</h1>
+    <div class="tagline">Autonomous blockchain investigation — traces funds to the nearest VASP, with evidence for every conclusion.</div>
+    <div class="chains">
+      <span class="chainpill">BITCOIN</span><span class="chainpill">ETHEREUM</span><span class="chainpill">POLYGON</span><span class="chainpill">SOLANA</span><span class="chainpill">TRON</span>
+      <span class="chainpill" style="border-style:dashed">CHAIN AUTO-DETECTED</span>
+    </div>
+  </header>
+
+  <div class="panel">
+    <h2>New investigation</h2>
+    <div class="grid">
+      <label for="address">Address</label>
+      <input id="address" placeholder="Paste any address — 0x…, bc1…, 1…, 3…, T…"
+             spellcheck="false" autocomplete="off">
+
+      <label id="chainPickLabel" class="hidden">Which chain?</label>
+      <div id="chainPick" class="examples hidden"></div>
+
+      <label>Objectives</label>
+      <div class="checks">
+        <label><input type="checkbox" id="objPrev" checked> Find previous VASP (funding)</label>
+        <label><input type="checkbox" id="objNext" checked> Find next VASP (cash-out)</label>
+      </div>
+
+      <label for="depth">Max depth</label>
+      <input id="depth" type="number" value="3" min="1" max="10">
+
+      <label for="calls">API call budget</label>
+      <input id="calls" type="number" value="25" min="1" max="500">
+    </div>
+    <button id="start">Start investigation</button>
+    <button id="stop" class="ghost hidden">Stop polling</button>
+    <button id="refreshNow" class="ghost hidden">Refresh</button>
+    <div class="examples" id="examples"></div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="panel hidden" id="statusPanel">
+    <h2>Status</h2>
+    <div class="statusbar">
+      <span class="badge b-running" id="statusBadge">running</span>
+      <span class="stat">API calls <b id="sCalls">0</b></span>
+      <span class="stat">Transactions <b id="sTxs">0</b></span>
+      <span class="stat">Nodes <b id="sNodes">0</b></span>
+      <span class="stat" id="sSpin"><span class="spin"></span></span>
+    </div>
+    <div class="cov hidden" id="covLine"></div>
+    <div class="hint mono" id="invId"></div>
+    <div class="err hidden" id="errBox"></div>
+  </div>
+
+  <div class="panel hidden" id="answerPanel">
+    <h2>The answer</h2>
+    <div class="answers">
+      <div class="answer none" id="ansBack"></div>
+      <div class="answer none" id="ansFwd"></div>
+    </div>
+    <div class="graphbar" id="reportBar">
+      <button id="dlPdf" class="ghost" disabled>Download PDF</button>
+      <span class="graphnote" id="dlNote"></span>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="graphPanel">
+    <h2>Trace graph <span id="gCount" class="stat"></span></h2>
+    <div class="graphbar">
+      <button id="gFit" class="ghost">Fit</button>
+      <button id="gOut" class="ghost">&minus;</button>
+      <button id="gIn" class="ghost">+</button>
+      <span class="stat mono" id="gZoom">100%</span>
+      <button id="gExpand" class="ghost">Expand frontier</button>
+      <button id="gFull" class="ghost">Full screen</button>
+      <button id="gMin" class="ghost" aria-expanded="true" aria-controls="stageWrap">Minimize</button>
+      <span class="graphnote" id="gNote"></span>
+    </div>
+    <div class="stagewrap" id="stageWrap"><div class="stage" id="stage"></div></div>
+    <div class="glegend" id="gLegend"></div>
+  </div>
+
+  <div class="panel hidden" id="findingsPanel">
+    <h2>All findings <span id="fCount" class="stat"></span></h2>
+    <button id="fMin" class="ghost minbtn" aria-expanded="true" aria-controls="findScroll">Minimize</button>
+    <div class="findscroll" id="findScroll">
+      <div class="findbar"><span id="fBarCount"></span></div>
+      <div id="findings"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const API = "";               // same origin as this page
+let pollTimer = null;
+
+// Generation token. clearInterval() stops future ticks but cannot cancel a
+// fetch already in flight, so a slow response from a previous investigation
+// could otherwise land on top of the current one. Every render checks this.
+let runToken = 0;
+let pollTicks = 0;
+const MAX_TICKS = 400;                     // ~10 min at 1.5s, then stop cleanly
+const TERMINAL = ["completed", "partial", "failed"];
+let lastFindingsSig = null;                // skip re-render when nothing changed
+let currentChain = null;                   // set when an investigation starts
+
+// Independent verification: the same address on a public block explorer,
+// where full history and community tags are visible. CipherChain's inference can
+// be checked against a source it does not control — and an explorer tag is
+// exactly the kind of sourced label that belongs in labels/ afterwards.
+const EXPLORERS = {
+  ethereum: (a) => "https://etherscan.io/address/" + encodeURIComponent(a),
+  polygon:  (a) => "https://polygonscan.com/address/" + encodeURIComponent(a),
+  bitcoin:  (a) => "https://mempool.space/address/" + encodeURIComponent(a),
+  solana:   (a) => "https://solscan.io/account/" + encodeURIComponent(a),
+  tron:     (a) => "https://tronscan.org/#/address/" + encodeURIComponent(a),
+};
+
+function verifyLink(address, label) {
+  const build = EXPLORERS[currentChain];
+  if (!build) return null;
+  const a = el("a", "verify", label || "Verify on explorer ↗");
+  a.href = build(address);
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  return a;
+}
+
+const EXAMPLES = [
+  { label: "ETH · small wallet", chain: "ethereum", address: "0x6bd0b42faf093541b31f94a041774d5eb30906ad" },
+  { label: "BTC · small wallet", chain: "bitcoin",  address: "3PeVz6zCzRWsRq9YfZYbfbP92ZYDNyMUCC" },
+];
+
+// ---------- rendering helpers (textContent only — never innerHTML with
+// chain-derived data: an address or label could contain markup) ----------
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+function shortAddr(a) { return a.length > 22 ? a.slice(0, 10) + "…" + a.slice(-8) : a; }
+function pct(x) { return Math.round((x || 0) * 100) + "%"; }
+
+// ---------- the core query answer ----------
+// CipherChain's whole purpose is this: nearest previous VASP / nearest next VASP.
+// A VASP finding answers it. When there is none, the engine still produced an
+// explicit TERMINAL finding saying why the trail ended — that is an ANSWER,
+// not an absence, and this is where we surface it.
+// One entry of an answer: the endpoint, what backs it, and how to check it.
+function renderAnswerEntry(box, label, entry) {
+  const row = el("div", "ansrow");
+  row.appendChild(el("div", "anslabel", label));
+  const headline = entry.named
+    ? entry.claim
+    : "Service endpoint — operator unnamed (inferred from behaviour)";
+  // The engine writes the hop into its own summary prose; hop is rendered
+  // separately from the structured field, so strip it rather than say it twice.
+  const detail = (entry.named
+    ? entry.summary
+    : entry.summary.replace(/^service endpoint \(operator unnamed\):\s*/i, "")
+  ).replace(/\s*\(?\b\d+ hop\(s\) away\)?/i, "").replace(/\s*\(root itself\)/i, "");
+  const name = el("div", "entity" + (entry.named ? "" : " unnamed"), headline);
+  row.appendChild(name);
+  row.appendChild(el("div", "addr mono", entry.address));
+  row.appendChild(el("div", "why",
+    detail + " · " + (entry.hop === 0 ? "the root itself" : entry.hop + " hop(s) away") +
+    " · confidence " + pct(entry.confidence)));
+  // The caveat rides WITH the name, on the card. A best-effort entry always
+  // carries one (the API model rejects an empty weakness); an entry that is
+  // merely marked speculative gets the general sentence, because an older
+  // payload may carry the flag without the text. Never a tooltip: the whole
+  // point of this line is that it survives being read quickly and copied.
+  if (entry.weakness) {
+    row.appendChild(el("div", "weakness", "⚠ " + entry.weakness));
+  } else if (entry.speculative) {
+    row.appendChild(el("div", "weakness",
+      "⚠ Reached only by following a speculative branch — the link into it was inferred, "
+      + "not observed. A lead, not an attribution."));
+  }
+  const verify = verifyLink(entry.address);
+  if (verify) row.appendChild(verify);
+  box.appendChild(row);
+}
+
+// "Nearest" and "nearest NAMED" are different questions — what is closest, and
+// what can actually be acted on. A run routinely answers them differently, so
+// both are shown. Which one leads is not this page's call to make: the API
+// selects both (investigation/answers.py) and every consumer states the same
+// thing. Picking one here is what used to hide a named exchange behind a 61%
+// guess whenever traversal order happened to file the guess first.
+//
+// A third slot, `best_effort`, answers a question the first two cannot: "you
+// found nothing solid — what have you got?". It arrives only when there is no
+// traced endpoint at all, and only with a weakness sentence attached, so this
+// function never has to decide whether a guess has earned the headline.
+function renderAnswer(box, direction, title, findings, runStatus, answers) {
+  clear(box);
+  const answer = (answers || []).find(a => a.direction === direction);
+  // Prefer this direction's own terminal; fall back to an undirected one
+  // (a budget-exhausted run records a single terminal for the whole trace,
+  // not one per direction) so a finished run never reads as "still going".
+  const terminal = findings.find(f => f.kind === "terminal" && f.direction === direction)
+                || findings.find(f => f.kind === "terminal" && !f.direction);
+  const finished = TERMINAL.includes(runStatus);
+
+  box.appendChild(el("div", "dir", title));
+
+  if (answer && answer.nearest) {
+    box.className = "answer found";
+    if (answer.same) {
+      // The closest endpoint is itself named — one answer, printed once.
+      renderAnswerEntry(box, "Nearest endpoint — named", answer.nearest);
+    } else {
+      renderAnswerEntry(box, "Nearest reached", answer.nearest);
+      if (answer.nearest_named) {
+        renderAnswerEntry(box, "Nearest NAMED endpoint", answer.nearest_named);
+      } else {
+        const row = el("div", "ansrow");
+        row.appendChild(el("div", "anslabel", "Nearest NAMED endpoint"));
+        row.appendChild(el("div", "entity unnamed", "None reached"));
+        row.appendChild(el("div", "why",
+          "No endpoint in this direction carries a sourced label, so no operator can be named."));
+        box.appendChild(row);
+      }
+    }
+    return;
+  }
+
+  // No traced endpoint — but the run may still hold a lead. It is printed in
+  // the HEADLINE position (REACHING_THE_VASP.md §4): the reader of this box is
+  // someone who needs a VASP to act on, and burying the only name a weak run
+  // produced under "no named endpoint" makes the report unusable to them.
+  // The honest terminal is not dropped for it; it is printed underneath.
+  // `best_effort` is only ever populated where `nearest` is empty — the API
+  // refuses to build the pair — so this branch cannot steal a real answer's
+  // headline, and it is reached only after the branch above has returned.
+  if (answer && answer.best_effort) {
+    box.className = "answer lead";
+    renderAnswerEntry(box, "Best effort — a lead, not an answer", answer.best_effort);
+    const row = el("div", "ansrow");
+    row.appendChild(el("div", "anslabel", "Traced endpoint"));
+    row.appendChild(el("div", "entity unnamed", "None reached"));
+    row.appendChild(el("div", "why", terminal
+      ? terminal.summary
+      : "Nothing in this direction was reached by observed movement, so the lead above "
+        + "is the best this run can offer."));
+    box.appendChild(row);
+    return;
+  }
+
+  // Not a blank result: the engine produced an explicit reason the trail
+  // stopped here, and stating it plainly IS the answer. Presenting this as
+  // an empty box would misrepresent an evidenced conclusion as a failure.
+  box.className = "answer none";
+  if (terminal) {
+    box.appendChild(el("div", "entity", "Trail ends here"));
+    box.appendChild(el("div", "why", terminal.summary));
+  } else if (finished) {
+    box.appendChild(el("div", "entity", "No endpoint reached"));
+    box.appendChild(el("div", "why", "The trace finished without reaching an attributed endpoint in this direction."));
+  } else {
+    box.appendChild(el("div", "entity", "Tracing…"));
+    box.appendChild(el("div", "why", "No conclusion for this direction yet."));
+  }
+}
+
+// Identity of a finding, for state that must survive a rebuild. Position
+// cannot be used: the list is re-grouped and re-ranked on every rebuild, so a
+// new finding about a high-ranking address shifts every card below it.
+function findingKey(f) {
+  return f.subject_address + "\u0001" + f.kind + "\u0001" + f.summary;
+}
+
+function renderFindings(findings) {
+  const host = $("findings");
+  const box = $("findScroll");
+  // Rebuilding every poll would slam shut any Evidence panel the presenter
+  // has open. Only rebuild when the data actually changed, and restore which
+  // panels were expanded.
+  const sig = JSON.stringify(findings.map(f => [f.kind, f.subject_address, f.summary]));
+  if (sig === lastFindingsSig) return;
+  const wasOpen = new Set();
+  for (const card of host.querySelectorAll(".finding")) {
+    const d = card.querySelector("details");
+    if (d && d.open) wasOpen.add(card.dataset.fkey);
+  }
+  // Emptying the list collapses the scroll box, which clamps scrollTop to 0:
+  // a poll landing while someone reads finding 200 of 373 would throw them
+  // back to the top of the list every 1.5 seconds.
+  const keepScroll = box.scrollTop;
+  lastFindingsSig = sig;
+
+  clear(host);
+  if (!findings.length) {
+    $("fCount").textContent = "";
+    $("fBarCount").textContent = "no findings recorded";
+    host.appendChild(el("div", "empty", "No findings recorded."));
+    return;
+  }
+
+  // Group by address. A busy trace produces many findings about a handful of
+  // wallets; a flat list buries the important ones (a VASP, a mixer) among
+  // dozens of structural notes about the same address. Grouping keeps the
+  // report about ADDRESSES, which is how an investigator reads it.
+  const RANK = {
+    vasp_endpoint: 0, mixer_interaction: 1, sanctioned_address: 2,
+    bridge_crossing: 3, terminal: 4, sweep_pattern: 5, obfuscation_pattern: 6,
+  };
+  const groups = new Map();
+  for (const f of findings) {
+    if (!groups.has(f.subject_address)) groups.set(f.subject_address, []);
+    groups.get(f.subject_address).push(f);
+  }
+  // Addresses carrying the most significant finding come first.
+  const ordered = Array.from(groups.entries()).sort((a, b) => {
+    const best = (g) => Math.min(...g.map(f => RANK[f.kind] ?? 9));
+    return best(a[1]) - best(b[1]) || b[1].length - a[1].length;
+  });
+  $("fCount").textContent =
+    "(" + findings.length + " across " + ordered.length + " addresses)";
+  // The same count again, inside the scroll box and pinned to its top: the
+  // heading above the box has been off screen for 300 findings by the time
+  // anyone is deep enough in the list to wonder how much of it is left.
+  const bar = $("fBarCount");
+  clear(bar);
+  bar.appendChild(el("b", null, String(findings.length)));
+  bar.appendChild(el("span", null, " findings · "));
+  bar.appendChild(el("b", null, String(ordered.length)));
+  bar.appendChild(el("span", null, " addresses · most significant first"));
+
+  for (const [addr, group] of ordered) {
+    const header = el("div", "grouphead");
+    header.appendChild(el("span", "mono", shortAddr(addr)));
+    const right = el("span", "stat");
+    right.appendChild(el("span", null, group.length + " finding" + (group.length > 1 ? "s" : "") + "  "));
+    const verify = verifyLink(addr, "explorer ↗");
+    if (verify) right.appendChild(verify);
+    header.appendChild(right);
+    host.appendChild(header);
+    for (const f of group.sort((a, b) => (RANK[a.kind] ?? 9) - (RANK[b.kind] ?? 9))) {
+      renderFindingCard(host, f, wasOpen);
+    }
+  }
+  box.scrollTop = keepScroll;
+}
+
+function renderFindingCard(host, f, wasOpen) {
+  const card = el("div", "finding");
+  card.dataset.fkey = findingKey(f);
+  const top = el("div", "top");
+  top.appendChild(el("span", "kind k-" + f.kind, f.kind.replace(/_/g, " ")));
+  // address omitted here — the group header above already names it
+  if (f.direction) top.appendChild(el("span", "stat", f.direction));
+  top.appendChild(el("span", "conf", "confidence " + pct(f.confidence)));
+  card.appendChild(top);
+  card.appendChild(el("div", "summary", f.summary));
+
+  if (f.evidence && f.evidence.length) {
+    const d = document.createElement("details");
+    if (wasOpen.has(card.dataset.fkey)) d.open = true;   // keep the presenter's panel open
+    d.appendChild(el("summary", null, "Evidence (" + f.evidence.length + ")"));
+    for (const e of f.evidence) {
+      const ev = el("div", "ev");
+      ev.appendChild(el("div", "evkind e-" + e.kind, e.kind.replace(/_/g, " ")));
+      ev.appendChild(el("div", "evtext", e.summary));
+      const bits = [];
+      if (e.source) bits.push("source: " + e.source);
+      if (e.source_date) bits.push("dated: " + String(e.source_date).slice(0, 10));
+      if (e.heuristic) bits.push("heuristic: " + e.heuristic);
+      if (e.confidence != null) bits.push("confidence: " + pct(e.confidence));
+      if (e.refs && e.refs.length) bits.push("refs: " + e.refs.join(", "));
+      if (bits.length) ev.appendChild(el("div", "meta mono", bits.join("  ·  ")));
+      d.appendChild(ev);
+    }
+    card.appendChild(d);
+  }
+  host.appendChild(card);
+}
+
+// ==================== trace graph ====================
+// Deterministic hop-column layout, written by hand rather than delegated to a
+// force simulation. A force layout settles differently on every load, so the
+// same investigation would never draw twice the same way — which is exactly
+// the property this project cannot afford. hop_distance and direction already
+// impose a total order; the layout just reads it.
+//
+// Column = SIGNED hop: backward hops sit left of the root, forward hops right.
+// Value therefore always flows toward increasing level, whichever objective
+// found the edge, so every arrow points the same way and the picture reads as
+// one story instead of two traces glued together.
+
+const CARD_W = 210, CARD_H = 74;
+// Both gaps are tuned against a real 181-edge trace, not guessed. ROW_GAP is
+// the binding constraint on label legibility: labels stack in the vertical
+// band between card rows, so 108 -> 124 (a 50px clear band, room for two label
+// rows) took unplaced labels from 21% to 1%. COL_GAP barely mattered.
+const COL_GAP = 380;
+const ROW_GAP = 124;
+const PAD_X = 46, PAD_Y = 64;
+const LABEL_H = 20;
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+let graphZoom = 1;
+let lastGraphSig = null;
+let lastGraphSize = null;     // {w, h} — for Fit
+let expandFrontier = false;   // fold unexplored siblings by default
+let lastGraphData = null;     // so the toggle can redraw without refetching
+let fittedWidth = null;       // stage width the current zoom was fitted to
+let userZoomed = false;       // a deliberate zoom is never overridden by a poll
+
+// Role drives border COLOR, evidence kind drives border STYLE. Keeping them on
+// separate channels is the whole point: a VASP named by a sourced label and one
+// guessed from behaviour must not look identically certain.
+const TONES = {
+  root:        { color: "#00f0ff", legend: "Root — address under investigation" },
+  vasp:        { color: "#34d399", legend: "VASP endpoint — named" },
+  // Orange, NOT the sanctioned rose. "Might be an exchange" and "is on an OFAC
+  // list" are different claims with different consequences, and an investigator
+  // scanning the graph must not read one as the other. Orange is the only
+  // caution-family hue this view had left: amber is obfuscation, rose is
+  // sanctioned, magenta is a loop.
+  suspected:   { color: "#fb923c", legend: "Suspected VASP — unconfirmed, worth checking" },
+  sanctioned:  { color: "#fb7185", legend: "Sanctioned" },
+  mixer:       { color: "#a78bfa", legend: "Mixer contact" },
+  bridge:      { color: "#a78bfa", legend: "Bridge crossing" },
+  obfuscation: { color: "#fbbf24", legend: "Obfuscation pattern" },
+  terminal:    { color: "#7f95ae", legend: "Trail ends here" },
+  plain:       { color: "#38bdf8", legend: "Unattributed" },
+};
+
+// Magenta is the one hue nothing else in this view claims: sanctioned is rose,
+// obfuscation amber, bridge purple, movement blue. A returning edge must not
+// borrow any of their meanings — it is a shape of flow, not a verdict.
+const LOOP_COLOR = "#e879f9";
+
+// Speculative branches borrow the `suspected` orange deliberately: both say
+// "unconfirmed, check this", and neither may be confused with the sanctioned
+// rose. Colour alone would not be enough at low zoom, so the real signal is the
+// DASH — a broken line reads as a link that was inferred rather than observed
+// without needing a legend at all.
+const SPEC_COLOR = "#fb923c";
+
+function svgEl(tag, attrs) {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+// value_share and amount arrive as decimal STRINGS — they routinely exceed
+// 2^53 and Number() would round them silently. Compare as strings.
+function cmpAmount(a, b) {
+  const x = (a == null ? "0" : String(a)).replace(/^0+(?=\d)/, "");
+  const y = (b == null ? "0" : String(b)).replace(/^0+(?=\d)/, "");
+  if (x.length !== y.length) return x.length - y.length;
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+// Smallest units -> integer and fractional halves, as strings. Never a float:
+// these values routinely exceed what a double can hold exactly.
+function splitUnits(raw, decimals) {
+  let s = String(raw == null ? "0" : raw);
+  const neg = s[0] === "-";
+  if (neg) s = s.slice(1);
+  if (!/^\d+$/.test(s)) return null;
+  const d = Number.isInteger(decimals) && decimals >= 0 ? decimals : 0;
+  const padded = s.padStart(d + 1, "0");
+  return {
+    neg: neg,
+    int: padded.slice(0, padded.length - d).replace(/^0+(?=\d)/, ""),
+    frac: d ? padded.slice(padded.length - d) : "",
+  };
+}
+
+function formatUnits(raw, decimals) {
+  if (raw == null) return null;
+  const parts = splitUnits(raw, decimals);
+  if (!parts) return String(raw);
+  const sign = parts.neg ? "-" : "";
+  // A poisoning token can name 1e42 units. Printing 43 digits would blow the
+  // label apart; exponent form is the same magnitude, honestly stated.
+  if (parts.int.length > 15) {
+    return sign + parts.int[0] + "." + parts.int.slice(1, 3) + "e" + (parts.int.length - 1);
+  }
+  const grouped = parts.int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const shown = parts.frac.slice(0, 4).replace(/0+$/, "");
+  if (shown) return sign + grouped + "." + shown;
+  // Non-zero but below the shown precision — say that, never round it to 0.
+  if (/[1-9]/.test(parts.frac) && parts.int === "0") return sign + "<0.0001";
+  return sign + grouped;
+}
+
+// Compare two amounts as REAL quantities rather than as raw smallest units.
+// Comparing units directly lets an 18-decimal asset outrank a 6-decimal one by
+// 10^12 before any value is considered — the same dimensional error the
+// traversal ranking already had to correct.
+function cmpScaled(aRaw, aDec, bRaw, bDec) {
+  const a = splitUnits(aRaw, aDec), b = splitUnits(bRaw, bDec);
+  if (!a || !b) return 0;
+  if (a.int.length !== b.int.length) return a.int.length - b.int.length;
+  if (a.int !== b.int) return a.int < b.int ? -1 : 1;
+  const n = Math.max(a.frac.length, b.frac.length);
+  const af = a.frac.padEnd(n, "0"), bf = b.frac.padEnd(n, "0");
+  return af < bf ? -1 : af > bf ? 1 : 0;
+}
+
+function levelOf(n) {
+  if (n.hop === 0) return 0;
+  return n.direction === "backward" ? -n.hop : n.hop;
+}
+
+// What this node IS, read only from structured finding/evidence data.
+function classifyNode(node, group) {
+  const find = (k) => group.find(f => f.kind === k);
+  const sourced = (f) => !!(f && f.evidence.some(e => e.kind === "third_party_claim"));
+  const claimText = (f) => (f.evidence.find(e => e.kind === "third_party_claim") || {}).summary;
+
+  const sanctioned = find("sanctioned_address");
+  const vasp = find("vasp_endpoint");
+  const mixer = find("mixer_interaction");
+  const bridge = find("bridge_crossing");
+  const pattern = find("obfuscation_pattern") || find("sweep_pattern");
+  const terminal = find("terminal");
+
+  let tone = "plain", caption = "unattributed", basis = null, role = null;
+  if (sanctioned) {
+    tone = "sanctioned"; basis = sanctioned;
+    caption = claimText(sanctioned) || "sanctioned address";
+  } else if (vasp) {
+    basis = vasp;
+    if (sourced(vasp)) {
+      tone = "vasp";
+      caption = claimText(vasp);
+    } else {
+      // Behaviour says custodial, nothing names the operator. It is a LEAD:
+      // shown, coloured for attention, and never coloured like a named
+      // exchange — the trace also keeps going past it now, so this marks a
+      // node the walk went through rather than stopped at.
+      tone = "suspected";
+      caption = "seems VASP — unconfirmed";
+      // The confidence rides in the CHIP, not the caption: at card width the
+      // caption truncates ("SEEMS VASP — UNCONFI…") and the number is the
+      // first thing lost — which is the one thing this node exists to say.
+      const pct = Math.round((vasp.confidence || 0) * 100);
+      role = pct ? `CHECK · ${pct}%` : "CHECK";
+    }
+  } else if (mixer) {
+    tone = "mixer"; basis = mixer; caption = "mixer interaction";
+  } else if (bridge) {
+    tone = "bridge"; basis = bridge; caption = "bridge crossing";
+  } else if (pattern) {
+    tone = "obfuscation"; basis = pattern; caption = "obfuscation pattern";
+  } else if (node.hop === 0) {
+    // The root is the QUESTION. A trace that exhausted its budget records an
+    // undirected terminal finding, and hanging "trail ends here" on the address
+    // under investigation would read as a conclusion about it.
+    caption = "address under investigation";
+  } else if (terminal || node.state === "terminal") {
+    tone = "terminal";
+    caption = node.terminal_reason ? node.terminal_reason.replace(/_/g, " ") : "trail ends here";
+  } else if (node.state === "frontier") {
+    caption = "unexplored — still on the frontier";
+  }
+  if (node.hop === 0) tone = "root";     // keeps its own colour whatever was found
+
+  // Dashed means THIS CARD'S CAPTION rests on a heuristic. A sourced label and
+  // an OFAC hit are solid; a behavioural guess is not. A node stating only a
+  // traversal fact ("unexplored", "root") makes no identity claim, so nothing
+  // about it is being inferred and it stays solid too.
+  const inferred = !!basis && !sourced(basis);
+
+  // Deposit vs operational is decided by the engine but reaches the API only
+  // inside the finding's prose (engine.py _vasp_finding). Matching those two
+  // engine-authored phrases is a deliberate shortcut; the proper fix is to
+  // expose AddressRole as a structured field on the finding.
+  // Declared with `tone` above so the suspected branch can set it; a sourced
+  // label overwrites it here with the real role.
+  if (vasp && /customer deposit address/i.test(vasp.summary)) role = "DEPOSIT";
+  else if (vasp && /operator-controlled wallet/i.test(vasp.summary)) role = "OPERATIONAL";
+
+  return { tone, caption, inferred, role };
+}
+
+// A frontier node that carries no finding states nothing except "seen, never
+// looked at". On a real trace 92 of 120 nodes were exactly that, and drawing
+// each one as its own card buried the 28 that HAD a conclusion. Siblings from
+// the same parent collapse into one card that says how many were folded — the
+// count is on screen, and "Expand frontier" puts every one of them back.
+function bundleFrontier(nodes, edges, byAddress) {
+  const info = new Map(nodes.map(n => [n.id, n]));
+  const level = new Map(nodes.map(n => [n.id, levelOf(n)]));
+  const foldable = (n) =>
+    n.state === "frontier" && n.hop > 0 && !(byAddress.get(n.address) || []).length;
+
+  // Parent = the neighbour nearer the root; where there are several, the one
+  // that sent the most.
+  const parentOf = new Map();
+  for (const e of edges) {
+    const a = info.get(e.src), b = info.get(e.dst);
+    if (!a || !b) continue;
+    for (const [child, parent] of [[a, b], [b, a]]) {
+      if (!foldable(child)) continue;
+      if (Math.abs(level.get(parent.id)) >= Math.abs(level.get(child.id))) continue;
+      const cur = parentOf.get(child.id);
+      if (!cur || cmpScaled(e.amount, e.asset_decimals, cur.amount, cur.decimals) > 0) {
+        parentOf.set(child.id, { id: parent.id, amount: e.amount, decimals: e.asset_decimals });
+      }
+    }
+  }
+
+  const groups = new Map();
+  for (const [childId, p] of parentOf) {
+    const key = p.id + "@" + level.get(childId);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(childId);
+  }
+
+  const remap = new Map();
+  const bundles = [];
+  for (const [key, members] of groups) {
+    if (members.length < 2) continue;      // one node is not a pile
+    const first = info.get(members[0]);
+    const id = "bundle:" + key;
+    bundles.push({
+      id, bundle: true, count: members.length,
+      members: members.map(m => info.get(m).address),
+      chain: first.chain, address: null, direction: first.direction, hop: first.hop,
+      value_share: null, state: "frontier",
+      history_truncated: members.some(m => info.get(m).history_truncated),
+      terminal_reason: null, discovered_reason: first.discovered_reason,
+      // A pile containing one guessed address is a guessed pile. Folding must
+      // never launder speculation — the fold is for legibility, and legibility
+      // is not a reason to drop the one flag that says "this may not be real".
+      speculative: members.some(m => !!info.get(m).speculative),
+      speculative_basis: null,
+    });
+    for (const m of members) remap.set(m, id);
+  }
+  if (!bundles.length) return { nodes, edges, collapsed: 0, bundles: 0 };
+
+  // Parallel edges into one bundle become a single edge that reports how many
+  // transfers it stands for and the largest of them.
+  const merged = new Map();
+  const plain = [];
+  for (const e of edges) {
+    const src = remap.get(e.src) || e.src;
+    const dst = remap.get(e.dst) || e.dst;
+    if (src === dst) continue;
+    if (typeof src === "number" && typeof dst === "number") { plain.push(e); continue; }
+    const key = src + "->" + dst;
+    const cur = merged.get(key);
+    if (!cur) { merged.set(key, Object.assign({}, e, { src, dst, merged: 1 })); continue; }
+    cur.merged++;
+    if (cmpScaled(e.amount, e.asset_decimals, cur.amount, cur.asset_decimals) > 0) {
+      cur.amount = e.amount; cur.asset_symbol = e.asset_symbol;
+      cur.asset_decimals = e.asset_decimals; cur.asset_verified = e.asset_verified;
+      cur.tx_hash = e.tx_hash;
+    }
+  }
+  return {
+    nodes: nodes.filter(n => !remap.has(n.id)).concat(bundles),
+    edges: plain.concat(Array.from(merged.values())),
+    collapsed: remap.size, bundles: bundles.length,
+  };
+}
+
+// Hierarchical layout with barycentric row assignment. Columns are fixed by
+// hop; rows are placed by pulling each node toward the average height of the
+// neighbours already placed, then pushing apart to keep a minimum gap. Without
+// this, columns centre independently — a one-node column sits dead centre
+// beside a fifty-node wall, and every edge crosses every other.
+function layoutGraph(nodes, edges) {
+  const byLevel = new Map();
+  for (const n of nodes) {
+    const lv = levelOf(n);
+    if (!byLevel.has(lv)) byLevel.set(lv, []);
+    byLevel.get(lv).push(n);
+  }
+  const levels = Array.from(byLevel.keys()).sort((a, b) => a - b);
+  const present = new Set(nodes.map(n => n.id));
+  const adj = new Map();
+  for (const e of edges) {
+    if (!present.has(e.src) || !present.has(e.dst)) continue;
+    if (!adj.has(e.src)) adj.set(e.src, []);
+    if (!adj.has(e.dst)) adj.set(e.dst, []);
+    adj.get(e.src).push(e.dst);
+    adj.get(e.dst).push(e.src);
+  }
+
+  // Sweep outward from the root so every column is anchored to one already
+  // placed, rather than to whichever end the sort happened to start from.
+  const yOf = new Map();
+  const sweep = levels.slice().sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
+  for (const lv of sweep) {
+    const scored = byLevel.get(lv).map(n => {
+      const ys = (adj.get(n.id) || []).filter(m => yOf.has(m)).map(m => yOf.get(m));
+      return { n, want: ys.length ? ys.reduce((s, y) => s + y, 0) / ys.length : null };
+    });
+    const anchored = scored.filter(s => s.want !== null).sort((a, b) => a.want - b.want);
+    // Nothing placed to pull on yet: fall back to the engine's own ranking.
+    const loose = scored.filter(s => s.want === null).sort((a, b) =>
+      cmpAmount(b.n.value_share, a.n.value_share) ||
+      (String(a.n.id) < String(b.n.id) ? -1 : 1));
+    let cursor = anchored.length ? anchored[anchored.length - 1].want + ROW_GAP : 0;
+    for (const s of loose) { s.want = cursor; cursor += ROW_GAP; }
+    const col = anchored.concat(loose);
+
+    const ys = col.map(s => s.want);
+    for (let i = 1; i < ys.length; i++) {
+      if (ys[i] < ys[i - 1] + ROW_GAP) ys[i] = ys[i - 1] + ROW_GAP;
+    }
+    // Pushing apart only ever moves rows DOWN, which would drag each column
+    // off its anchors — recentre on where the column wanted to be.
+    const wantMean = col.reduce((s, x) => s + x.want, 0) / col.length;
+    const gotMean = ys.reduce((s, y) => s + y, 0) / ys.length;
+    const shift = wantMean - gotMean;
+    col.forEach((s, i) => yOf.set(s.n.id, ys[i] + shift));
+    byLevel.set(lv, col.map(s => s.n));
+  }
+
+  let minY = Infinity, maxY = -Infinity;
+  for (const y of yOf.values()) { if (y < minY) minY = y; if (y > maxY) maxY = y; }
+  const offset = PAD_Y + CARD_H / 2 - minY;
+  const height = (maxY - minY) + CARD_H + PAD_Y * 2;
+  const width = PAD_X * 2 + levels.length * CARD_W + Math.max(0, levels.length - 1) * COL_GAP;
+
+  const placed = new Map();
+  levels.forEach((lv, ci) => {
+    for (const n of byLevel.get(lv)) {
+      placed.set(n.id, {
+        node: n, level: lv,
+        cx: PAD_X + CARD_W / 2 + ci * (CARD_W + COL_GAP),
+        cy: yOf.get(n.id) + offset,
+      });
+    }
+  });
+  return { placed, levels, width, height };
+}
+
+function bezierAt(g, t) {
+  const m = 1 - t;
+  return {
+    x: m*m*m*g.x1 + 3*m*m*t*g.cx1 + 3*m*t*t*g.cx2 + t*t*t*g.x2,
+    y: m*m*m*g.y1 + 3*m*m*t*g.cy1 + 3*m*t*t*g.cy2 + t*t*t*g.y2,
+  };
+}
+
+function rectAt(cx, cy, w, h) {
+  return { x1: cx - w / 2, y1: cy - h / 2, x2: cx + w / 2, y2: cy + h / 2 };
+}
+
+// An edge that advances: leaves the right of the payer, enters the left of the
+// payee, with control points pulled horizontally so it leaves and arrives flat.
+function flowGeom(from, to) {
+  const right = to.cx >= from.cx;
+  const x1 = from.cx + (right ? CARD_W / 2 + 3 : -(CARD_W / 2 + 3));
+  const x2 = to.cx + (right ? -(CARD_W / 2 + 10) : CARD_W / 2 + 10);
+  const dx = (x2 - x1) * 0.55;
+  return { x1, y1: from.cy, cx1: x1 + dx, cy1: from.cy, cx2: x2 - dx, cy2: to.cy, x2, y2: to.cy };
+}
+
+// An edge that returns. Drawn as an arc bowing well clear of the straight line,
+// so it reads as a detour rather than as one more strand of the flow, and so
+// two loops between the same pair of columns do not lie on top of each other.
+// Both cases leave the payer's LEFT side, which is the side nothing else uses:
+// with orientation correct, every advancing edge leaves on the right.
+// ``lane`` nests returns that share a gutter. Without it, 22 same-column
+// returns on a real trace all bowed to the same depth and fused into one
+// magenta smear that read as a single enormous edge.
+const LOOP_LANES = [0, 46, 92, 138];
+
+function loopGeom(from, to, lane) {
+  const x1 = from.cx - (CARD_W / 2 + 3);
+  const step = LOOP_LANES[lane % LOOP_LANES.length];
+  if (to.level === from.level) {
+    // Same column: the cards are stacked vertically, so there is no horizontal
+    // run to bow through. Bulge sideways into the gutter instead — a C opening
+    // backwards, which is the only shape that stays off the column. COL_GAP is
+    // 380px of empty space, so even the outermost lane stays clear of the
+    // column to the left.
+    const x2 = to.cx - (CARD_W / 2 + 10);
+    const bulge = 64 + step + Math.min(70, Math.abs(from.cy - to.cy) * 0.06);
+    return {
+      x1, y1: from.cy, cx1: x1 - bulge, cy1: from.cy,
+      cx2: x2 - bulge, cy2: to.cy, x2, y2: to.cy,
+    };
+  }
+  // Travelling right to left across at least one column: sag underneath, so it
+  // cannot be mistaken for one more strand of the left-to-right flow.
+  const x2 = to.cx + (CARD_W / 2 + 10);
+  const sag = 60 + step * 0.6 + Math.min(90, Math.abs(x1 - x2) * 0.12);
+  return {
+    x1, y1: from.cy, cx1: x1 - 40, cy1: from.cy + sag,
+    cx2: x2 + 40, cy2: to.cy + sag, x2, y2: to.cy,
+  };
+}
+function collides(a, list, pad) {
+  for (const b of list) {
+    if (a.x2 + pad >= b.x1 && b.x2 + pad >= a.x1 && a.y2 + pad >= b.y1 && b.y2 + pad >= a.y1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// The requirement that shapes this whole view: every edge's data must be
+// READABLE — never under a card, never on top of another label. Rather than
+// trust a midpoint and hope, search: small perpendicular offsets first (so
+// labels stay near their line), sliding along the curve before giving up and
+// stepping further out. Edges are fed in value order, so the biggest flows
+// win the best slots.
+function placeEdgeLabels(edges, obstacles) {
+  const T_STOPS = [0.5, 0.46, 0.54, 0.42, 0.58, 0.37, 0.63, 0.32, 0.68,
+                   0.27, 0.73, 0.22, 0.78, 0.17, 0.83];
+  const OFFSETS = [];
+  for (let k = 1; k <= 14; k++) { OFFSETS.push(-(k * 18 - 4)); OFFSETS.push(k * 18 - 4); }
+  const taken = [];
+  const out = [];
+  let unplaced = 0;
+  for (const e of edges) {
+    let hit = null;
+    for (const dy of OFFSETS) {
+      for (const t of T_STOPS) {
+        const pt = bezierAt(e.geom, t);
+        const r = rectAt(pt.x, pt.y + dy, e.labelW, LABEL_H);
+        if (collides(r, obstacles, 9) || collides(r, taken, 6)) continue;
+        hit = { rect: r, anchor: pt, dy: dy };
+        break;
+      }
+      if (hit) break;
+    }
+    if (!hit) { unplaced++; continue; }
+    taken.push(hit.rect);
+    out.push({ edge: e, rect: hit.rect, anchor: hit.anchor, dy: hit.dy });
+  }
+  return { labels: out, unplaced: unplaced };
+}
+
+function renderGraph(graph, findings) {
+  lastGraphData = { graph: graph, findings: findings };
+  // Re-rendering every poll would throw away the user's scroll position mid-
+  // trace. Only rebuild when the picture would actually differ.
+  const sig = JSON.stringify([
+    // `speculative` is part of the signature: a node can be marked mid-run when
+    // a branch is found to descend from a mixer crossing, and that changes the
+    // picture without changing state, hop or any finding.
+    graph.nodes.map(n => [n.id, n.state, n.history_truncated, n.terminal_reason,
+                          !!n.speculative]),
+    graph.edges.map(e => e.id),
+    findings.map(f => [f.kind, f.subject_address]),
+    expandFrontier,
+  ]);
+  if (sig === lastGraphSig) return;
+  lastGraphSig = sig;
+
+  const stage = $("stage");
+  const wrap = $("stageWrap");
+  // Emptying a scroll container clamps its offsets to 0. The signature guard
+  // above spares an IDLE graph that rebuild, but a live trace genuinely changes
+  // every poll, so the guard stops matching and this runs — which yanked the
+  // reader back to the top-left of the graph every 1.5 seconds while they were
+  // trying to read it.
+  //
+  // Held in GRAPH coordinates rather than pixels because the rebuild may also
+  // re-fit the zoom below: restoring a pixel offset under a new scale lands
+  // somewhere else entirely, which reads as the same bug with extra steps.
+  const keepCentre = lastGraphSize && wrap.clientWidth ? {
+    x: (wrap.scrollLeft + wrap.clientWidth / 2) / graphZoom,
+    y: (wrap.scrollTop + wrap.clientHeight / 2) / graphZoom,
+  } : null;
+  clear(stage);
+  const oldSizer = wrap.querySelector(".stagesizer");
+  if (oldSizer) wrap.removeChild(oldSizer);
+
+  if (!graph.nodes.length) {
+    $("gCount").textContent = "";
+    $("gNote").textContent = "";
+    stage.appendChild(el("div", "empty", "No nodes yet."));
+    return;
+  }
+
+  const byAddress = new Map();
+  for (const f of findings) {
+    if (!byAddress.has(f.subject_address)) byAddress.set(f.subject_address, []);
+    byAddress.get(f.subject_address).push(f);
+  }
+
+  const folded = expandFrontier
+    ? { nodes: graph.nodes, edges: graph.edges, collapsed: 0, bundles: 0 }
+    : bundleFrontier(graph.nodes, graph.edges, byAddress);
+  const { placed, levels, width, height } = layoutGraph(folded.nodes, folded.edges);
+  lastGraphSize = { w: width, h: height };
+
+  // ---- geometry: orient every edge along value flow (increasing level) ----
+  const drawable = [];
+  let loopCount = 0;
+  const loopLanes = new Map();
+  for (const e of folded.edges) {
+    const src = placed.get(e.src), dst = placed.get(e.dst);
+    if (!src || !dst) continue;
+    // Stored edges run in TRAVERSAL order (expanded node -> counterparty). On a
+    // BACKWARD branch the expanded node's INCOMING history is what was read, so
+    // the money went counterparty -> expanded: the reverse of the stored order.
+    // This used to be inferred by swapping whenever dst sat at a lower level,
+    // which is only the same answer for tree edges. For the 172 edges in the
+    // stored traces that return to an already-placed node, it silently drew the
+    // arrow backwards. The branch's direction is the actual fact — use it.
+    const branch = src.node.direction || dst.node.direction;
+    const from = branch === "backward" ? dst : src;
+    const to   = branch === "backward" ? src : dst;
+
+    // Value flows left to right across the whole picture, by construction:
+    // columns are signed hops, sources negative, destinations positive. So an
+    // edge that does not advance rightward is money returning to an address the
+    // trace has already placed — a loop, and it must not be drawn as progress.
+    const loop = to.level <= from.level;
+    let geom;
+    if (loop) {
+      loopCount++;
+      const gutter = from.level + ">" + to.level;
+      const lane = loopLanes.get(gutter) || 0;
+      loopLanes.set(gutter, lane + 1);
+      geom = loopGeom(from, to, lane);
+    } else {
+      geom = flowGeom(from, to);
+    }
+
+    const bridge = e.kind === "bridge";
+    // An edge touching a speculative node is part of a branch CipherChain chose
+    // rather than watched — including the crossing edge itself, whose payer
+    // (the mixer) is a perfectly real address. Either endpoint, therefore, not
+    // just the destination. `!!` because an older payload has no such field.
+    const speculative = !!(src.node.speculative || dst.node.speculative);
+    const amount = formatUnits(e.amount, e.asset_decimals);
+    let text = bridge ? "bridge link"
+      : (amount ? amount + " " + (e.asset_symbol || "") : (e.asset_symbol || "movement"));
+    // A merged edge stands for several transfers; saying so beats printing one
+    // amount that looks like the whole story.
+    if (e.merged > 1) text = e.merged + " transfers · max " + text;
+    if (loop) text = "↩ " + text;
+    if (speculative) text = "? " + text;
+    drawable.push({
+      row: e, geom, bridge, loop, speculative, text: text.trim(),
+      // 11px monospace ≈ 6.65px/char, plus horizontal padding and border.
+      labelW: Math.round(text.trim().length * 6.65) + 18,
+    });
+  }
+  // Placement order decides which labels get the clearest slots, so it is a
+  // form of emphasis — and emphasis must not be purchasable. Ranking by raw
+  // nominal size would hand the best positions to whoever sprayed the largest
+  // spam amounts, which is the same steering vector the traversal ranking
+  // already closed (docs/research/BUDGET_EXHAUSTION.md §3). Verified assets
+  // first, then real quantity, decimals accounted for.
+  drawable.sort((p, q) => {
+    const pv = p.bridge || p.row.asset_verified;
+    const qv = q.bridge || q.row.asset_verified;
+    if (pv !== qv) return pv ? -1 : 1;
+    return cmpScaled(q.row.amount, q.row.asset_decimals, p.row.amount, p.row.asset_decimals);
+  });
+
+  const nodeRects = [];
+  for (const p of placed.values()) nodeRects.push(rectAt(p.cx, p.cy, CARD_W, CARD_H));
+  const { labels, unplaced } = placeEdgeLabels(drawable, nodeRects);
+
+  // ---- draw ----
+  stage.style.width = width + "px";
+  stage.style.height = height + "px";
+
+  const svg = svgEl("svg", { width, height, viewBox: "0 0 " + width + " " + height });
+  const defs = svgEl("defs", {});
+  for (const [id, fill] of [["gArrow", "#4fb6e0"], ["gArrowB", "#a78bfa"],
+                            ["gArrowL", LOOP_COLOR], ["gArrowS", SPEC_COLOR]]) {
+    const marker = svgEl("marker", {
+      id, viewBox: "0 0 10 10", refX: "9", refY: "5",
+      markerWidth: "6", markerHeight: "6", orient: "auto-start-reverse",
+    });
+    marker.appendChild(svgEl("path", { d: "M 0 1 L 10 5 L 0 9 z", fill }));
+    defs.appendChild(marker);
+  }
+  svg.appendChild(defs);
+
+  for (const d of drawable) {
+    const g = d.geom;
+    const path = svgEl("path", {
+      d: `M ${g.x1} ${g.y1} C ${g.cx1} ${g.cy1} ${g.cx2} ${g.cy2} ${g.x2} ${g.y2}`,
+      fill: "none",
+      // Dashed = a link CipherChain inferred rather than witnessed as one transfer.
+      // An unverified-asset amount is a real event with an untrustworthy
+      // quantity, so it is drawn faintly rather than hidden.
+      // A return is called out by colour as well as shape, because at low zoom
+      // the arc flattens and shape alone stops carrying it.
+      // Speculative is tested FIRST, above every other kind an edge can be: the
+      // others qualify a link that happened, this one says it may not have. A
+      // guessed hop drawn as a solid blue movement is the single worst frame
+      // this view can produce, so it takes the dash and the colour outright.
+      stroke: d.speculative ? SPEC_COLOR
+        : (d.loop ? LOOP_COLOR
+          : (d.bridge ? "#a78bfa" : (d.row.asset_verified ? "#4fb6e0" : "#6d7f93"))),
+      "stroke-width": d.loop ? 1.2 : (d.bridge ? 1.4 : (d.row.asset_verified ? 1.4 : 1)),
+      "stroke-linecap": "round",
+      // Shorter dashes than a bridge link's: two different inferences, and at a
+      // glance the gappier line is the one that may not correspond to anything.
+      "stroke-dasharray": d.speculative ? "4 5" : (d.bridge ? "6 5" : "none"),
+      // Returns are secondary to the flow they interrupt: distinct, not loud.
+      // At full weight, 29 of them buried the 48 edges that answer the query.
+      opacity: d.speculative ? 0.85 : (d.loop ? 0.62 : (d.row.asset_verified || d.bridge ? 0.9 : 0.5)),
+      "marker-end": d.speculative ? "url(#gArrowS)"
+        : (d.loop ? "url(#gArrowL)"
+          : (d.bridge ? "url(#gArrowB)" : "url(#gArrow)")),
+    });
+    svg.appendChild(path);
+  }
+  // Leader lines keep a pushed-away label tied to its own edge.
+  for (const l of labels) {
+    if (Math.abs(l.dy) <= 22) continue;
+    svg.appendChild(svgEl("line", {
+      x1: l.anchor.x, y1: l.anchor.y,
+      x2: l.anchor.x, y2: l.rect.y1 + (l.dy < 0 ? LABEL_H : 0),
+      stroke: "rgba(56,189,248,.35)", "stroke-width": "1", "stroke-dasharray": "2 3",
+    }));
+  }
+  stage.appendChild(svg);
+
+  // column captions
+  levels.forEach((lv, ci) => {
+    const cap = el("div", "gcol",
+      lv === 0 ? "ROOT" : (lv < 0 ? "SOURCE · HOP " + Math.abs(lv) : "DESTINATION · HOP " + lv));
+    cap.style.left = (PAD_X + CARD_W / 2 + ci * (CARD_W + COL_GAP)) + "px";
+    cap.style.top = "22px";
+    stage.appendChild(cap);
+  });
+
+  // node cards
+  let truncatedCount = 0;
+  let speculativeCount = 0;
+  for (const p of placed.values()) {
+    const n = p.node;
+    const group = n.bundle ? [] : (byAddress.get(n.address) || []);
+    const meta = n.bundle
+      ? { tone: "plain", caption: "unexplored — still on the frontier", inferred: false, role: null }
+      : classifyNode(n, group);
+    const tone = TONES[meta.tone];
+    // `!!` throughout: a payload from an older backend has no `speculative`
+    // field at all, and undefined must read as "traced", never as a guess.
+    const speculative = !!n.speculative;
+    const card = el("div", "gnode" + (meta.inferred ? " inferred" : "")
+      + (speculative ? " speculative" : "") + (n.bundle ? " gbundle" : ""));
+    card.style.left = (p.cx - CARD_W / 2) + "px";
+    card.style.top = (p.cy - CARD_H / 2) + "px";
+    card.style.width = CARD_W + "px";
+    card.style.height = CARD_H + "px";
+    // Box colour = how we got here; the left bar keeps the role colour. A
+    // sourced label on a guessed branch is still a sourced label, so the bar
+    // stays green — it is the box around it that says the route is a lead.
+    card.style.borderColor = speculative
+      ? "rgba(251,146,60,.6)"
+      : (meta.inferred ? "rgba(127,149,174,.5)" : "rgba(56,189,248,.18)");
+    card.style.borderLeftColor = tone.color;
+
+    const dot = el("div", "gdot");
+    dot.style.background = tone.color;
+    dot.style.boxShadow = "0 0 9px " + tone.color;
+    card.appendChild(dot);
+
+    const body = el("div", "gbody");
+    body.appendChild(el("div", "gaddr",
+      n.bundle ? n.count + " addresses" : shortAddr(n.address)));
+    body.appendChild(el("div", "gcap", meta.caption));
+
+    const metaRow = el("div", "gmeta");
+    metaRow.appendChild(el("span", null, n.hop === 0 ? "root" : "hop " + n.hop));
+    if (meta.role) {
+      const chip = el("span", "grole", meta.role);
+      chip.style.color = tone.color;
+      metaRow.appendChild(chip);
+    }
+    // In the meta row, never appended to the caption. The caption is one
+    // ellipsised line and a qualifier put there is the first thing lost at card
+    // width — that is how "SEEMS VASP — UNCONFI…" happened. This row does not
+    // truncate, and "speculative" already implies "inferred", so it replaces it
+    // rather than crowding the row with both.
+    if (speculative) { speculativeCount++; metaRow.appendChild(el("span", "gspec", "speculative")); }
+    else if (meta.inferred) metaRow.appendChild(el("span", null, "inferred"));
+    // Ranked zero means every movement that reached this node was in an asset
+    // whose provenance is unverified, so it could not influence exploration
+    // order. Saying so beats printing a "0" that reads like no money moved.
+    if (n.hop > 0 && (n.value_share === null || cmpAmount(n.value_share, "0") === 0)) {
+      metaRow.appendChild(el("span", "gzero", "ranked 0"));
+    }
+    body.appendChild(metaRow);
+    card.appendChild(body);
+
+    if (n.history_truncated) {
+      truncatedCount++;
+      const cut = el("div", "gcut", "⋯");
+      cut.title = "History truncated — this address had more activity than the trace read.";
+      card.appendChild(cut);
+    }
+    const bits = n.bundle
+      ? [n.count + " unexplored addresses, folded into one card:"].concat(n.members.slice(0, 20))
+          .concat(n.members.length > 20 ? ["… and " + (n.members.length - 20) + " more"] : [])
+      : [n.address, "state: " + n.state, "discovered: " + n.discovered_reason];
+    if (!n.bundle && n.terminal_reason) bits.push("terminal: " + n.terminal_reason);
+    if (n.history_truncated) bits.push("history truncated");
+    // The engine's own reason, in full. The card says THAT this is a guess in
+    // a way nobody can miss; the tooltip is where the arithmetic behind it
+    // fits — it is detail, not the warning itself.
+    if (speculative) {
+      bits.push("SPECULATIVE — " + (n.speculative_basis
+        || "reached by following a link CipherChain inferred rather than observed"));
+    }
+    card.title = bits.join("\n");
+    stage.appendChild(card);
+  }
+
+  // edge labels
+  for (const l of labels) {
+    const cls = "glabel" + (l.edge.loop ? " loop" : "")
+      + (l.edge.bridge ? " bridge" : (l.edge.row.asset_verified ? "" : " unverified"))
+      + (l.edge.speculative ? " speculative" : "");
+    const box = el("div", cls);
+    box.style.left = l.rect.x1 + "px";
+    box.style.top = l.rect.y1 + "px";
+    box.appendChild(el("span", null, l.edge.text));
+    if (!l.edge.bridge && !l.edge.row.asset_verified) {
+      // The provenance floor, stated on the picture: this quantity is named by
+      // a contract CipherChain has not verified, so it is not a trustworthy number.
+      const warn = el("span", null, " ⚠");
+      warn.title = "Amount named by an unverified token contract — a real event, "
+                 + "but not a trustworthy quantity.";
+      box.appendChild(warn);
+    }
+    if (l.edge.row.tx_hash) box.title = "tx " + l.edge.row.tx_hash;
+    stage.appendChild(box);
+  }
+
+  const sizer = el("div", "stagesizer");
+  wrap.appendChild(sizer);
+  // A growing trace changes the stage's width as new hops appear, and a zoom
+  // computed for the old width leaves the graph a quarter of its readable size.
+  // Re-fit when the width actually changes; never on every poll, which would
+  // fight a user who has zoomed in deliberately.
+  if (userZoomed && width === fittedWidth) applyZoom();
+  else { fittedWidth = width; userZoomed = false; fitGraph(); }
+
+  // Restored after the zoom is settled, so the centre maps through whatever
+  // scale this rebuild ended on.
+  if (keepCentre) {
+    wrap.scrollLeft = Math.max(0, keepCentre.x * graphZoom - wrap.clientWidth / 2);
+    wrap.scrollTop = Math.max(0, keepCentre.y * graphZoom - wrap.clientHeight / 2);
+  }
+
+  // ---- what this picture is NOT showing ----
+  $("gCount").textContent = "(" + graph.nodes.length +
+    (graph.truncated ? " of " + graph.node_total : "") +
+    " addresses · " + drawable.length + " edges" +
+    (loopCount ? " · " + loopCount + " returning" : "") + ")";
+  const notes = [];
+  if (graph.truncated) {
+    notes.push("showing the " + graph.nodes.length + " nearest of " +
+      graph.node_total + " addresses — bounded for legibility, not for coverage");
+  }
+  if (folded.collapsed) {
+    notes.push(folded.collapsed + " unexplored frontier addresses folded into " +
+      folded.bundles + " card(s) — press Expand frontier to see each one");
+  }
+  if (unplaced) notes.push(unplaced + " edge label(s) had no clear space and are not drawn");
+  if (truncatedCount) notes.push(truncatedCount + " address(es) had history truncated (⋯)");
+  // Said in words as well as drawn, because the count is the part a reader
+  // needs before deciding how much of this picture is a trace at all.
+  if (speculativeCount) {
+    notes.push(speculativeCount + " address(es) were reached by following a speculative "
+      + "branch and are drawn dashed — leads, not traced hops");
+  }
+  const note = $("gNote");
+  clear(note);
+  if (notes.length) {
+    note.appendChild(el("b", null, "⚠ "));
+    note.appendChild(el("span", null, notes.join(" · ")));
+  }
+
+  renderLegend(placed, byAddress, drawable);
+}
+
+function renderLegend(placed, byAddress, drawable) {
+  const host = $("gLegend");
+  clear(host);
+  const seen = new Set();
+  for (const p of placed.values()) {
+    seen.add(classifyNode(p.node, byAddress.get(p.node.address) || []).tone);
+  }
+  // Only legend what is actually on screen — a key for absent categories
+  // suggests the trace looked for things it did not find.
+  for (const key of Object.keys(TONES)) {
+    if (!seen.has(key)) continue;
+    const row = el("span");
+    const i = el("i");
+    i.style.background = TONES[key].color;
+    row.appendChild(i);
+    row.appendChild(el("span", null, TONES[key].legend));
+    host.appendChild(row);
+  }
+  const styleNotes = [
+    ["dashed border", "claim rests on inference only (no sourced label)"],
+    ["⋯", "history truncated — read in part"],
+  ];
+  if (drawable.some(d => !d.row.asset_verified && !d.bridge)) {
+    styleNotes.push(["⚠", "amount in an unverified asset"]);
+  }
+  if (drawable.some(d => d.bridge)) {
+    styleNotes.push(["dashed edge", "inferred bridge link, not one witnessed transfer"]);
+  }
+  for (const [glyph, text] of styleNotes) {
+    const row = el("span");
+    const sw = el("span", "swatch");
+    sw.textContent = glyph.length <= 2 ? glyph : "";
+    if (glyph.length <= 2) {
+      sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = "var(--warn)";
+    } else {
+      sw.style.borderStyle = "dashed";
+    }
+    row.appendChild(sw);
+    row.appendChild(el("span", null, text));
+    host.appendChild(row);
+  }
+  // What "speculative" means, in one sentence, for a reader who has never seen
+  // this tool before. Legended from either channel: a run can hold a marked
+  // node whose incoming edge was dropped by the node cap, and vice versa.
+  if (Array.from(placed.values()).some(p => !!p.node.speculative)
+      || drawable.some(d => d.speculative)) {
+    const row = el("span");
+    const sw = el("span", "swatch");
+    sw.style.border = "none";
+    sw.style.borderTop = "2px dashed " + SPEC_COLOR;
+    sw.style.height = "6px";
+    row.appendChild(sw);
+    row.appendChild(el("span", null,
+      "speculative — CipherChain picked this link (one withdrawal out of a mixer's crowd) "
+      + "instead of witnessing it, so everything past it is a lead, not a traced path"));
+    host.appendChild(row);
+  }
+  // Stated as flow, not as a verdict. Funds returning to an address the trace
+  // already placed is a fact about the shape of the movement; calling it
+  // "cycling" or "layering" would be a conclusion the engine never drew.
+  if (drawable.some(d => d.loop)) {
+    const row = el("span");
+    const sw = el("span", "swatch");
+    sw.style.border = "none";
+    sw.style.borderTop = "2px solid " + LOOP_COLOR;
+    sw.style.borderRadius = "9px 9px 0 0";
+    sw.style.height = "6px";
+    row.appendChild(sw);
+    row.appendChild(el("span", null,
+      "↩ returns to an address already placed at the same or a nearer hop"));
+    host.appendChild(row);
+  }
+}
+
+function applyZoom() {
+  const stage = $("stage");
+  const sizer = $("stageWrap").querySelector(".stagesizer");
+  if (!lastGraphSize) return;
+  stage.style.transform = "scale(" + graphZoom + ")";
+  if (sizer) {
+    sizer.style.width = (lastGraphSize.w * graphZoom) + "px";
+    sizer.style.height = (lastGraphSize.h * graphZoom) + "px";
+  }
+  $("gZoom").textContent = Math.round(graphZoom * 100) + "%";
+}
+
+function setZoom(z) {
+  graphZoom = Math.max(0.2, Math.min(2, z));
+  applyZoom();
+}
+
+function fitGraph() {
+  if (!lastGraphSize) return;
+  const wrap = $("stageWrap");
+  // A folded or hidden panel measures 0px wide, and a fit computed against it
+  // hits the 0.4 floor below — the graph then comes back from the fold at
+  // stamp size with no indication of why.
+  if (!wrap.clientWidth) return;
+  // Never below 40%: a wide graph shrunk to fit becomes unreadable, and an
+  // unreadable overview is worse than one the user has to scroll.
+  setZoom(Math.max(0.4, Math.min(1, (wrap.clientWidth - 8) / lastGraphSize.w)));
+  fittedWidth = lastGraphSize.w;
+  userZoomed = false;
+}
+
+// Every limit that closed a branch without reading it, in the order an
+// investigator asks about them. Keyed off the API's own coverage block so the
+// page cannot drift from the counters the report prints.
+const COVERAGE_GAPS = [
+  ["truncated_histories", "address(es) read only in part"],
+  ["depth_horizon_stops", "address(es) stopped at the depth horizon"],
+  ["unexplored_frontier", "address(es) queued but never explored"],
+  ["capped_expansions", "high-degree address(es) expanded only in part"],
+  ["counterparties_dropped", "onward branch(es) never followed"],
+  ["mixer_stops", "branch(es) ended at a mixer"],
+  ["mixer_crossings", "branch(es) continued past a mixer on a heuristic"],
+];
+
+// The status badge is not a coverage statement, and this is the consumer the
+// API's CoverageOut was written for by name: "a consumer that showed
+// 'completed' and nothing else would present a cut trace as an exhausted one".
+// This page did exactly that — green badge, no gaps — until this ran.
+function renderCoverage(c) {
+  const box = $("covLine");
+  if (!c) { box.className = "cov hidden"; box.textContent = ""; return; }
+  if (c.complete) {
+    box.className = "cov clean";
+    box.textContent = "Coverage: every address this trace reached was read within budget. "
+      + "That is a statement about what CipherChain examined — not proof that no other funds moved.";
+    return;
+  }
+  const gaps = COVERAGE_GAPS.filter(g => c[g[0]]).map(g => c[g[0]] + " " + g[1]);
+  box.className = "cov";
+  box.textContent = "Coverage is INCOMPLETE — this run did not read everything it reached: "
+    + (gaps.length ? gaps.join("; ") : "see the report")
+    + ". An address that was never read cannot have been ruled out; the report's "
+    + "“Coverage and caveats” section states every gap in full.";
+}
+
+function renderStatus(s) {
+  $("statusPanel").classList.remove("hidden");
+  renderCoverage(s.coverage);
+  const badge = $("statusBadge");
+  badge.textContent = s.status;
+  badge.className = "badge b-" + (["completed","partial","failed","running"].includes(s.status) ? s.status : "running");
+  $("sCalls").textContent = (s.spent && s.spent.api_calls) || 0;
+  $("sTxs").textContent   = (s.spent && s.spent.txs_normalized) || 0;
+  $("sNodes").textContent = (s.spent && s.spent.nodes) || 0;
+  $("invId").textContent  = "investigation " + s.investigation_id;
+  const done = ["completed", "partial", "failed"].includes(s.status);
+  $("sSpin").classList.toggle("hidden", done);
+  $("stop").classList.toggle("hidden", done);
+  // Refresh is the counterpart to Stop: offered exactly when nothing is polling,
+  // because that is the only time the panel can be showing a stale status.
+  $("refreshNow").classList.toggle("hidden", !!pollTimer);
+  if (s.error) { $("errBox").classList.remove("hidden"); $("errBox").textContent = s.error; }
+}
+
+// ---------- API ----------
+class ApiError extends Error {
+  constructor(message, detail) { super(message); this.detail = detail; }
+}
+
+// Every route but /healthz is authenticated. The server injects a key as
+// window.CIPHERCHAIN_API_KEY when it is serving the bundled demo; a page opened any
+// other way simply has none, and the 401 that follows is the honest answer
+// rather than a silent empty result. Set here, in the one helper every
+// authenticated call goes through, so the request this page makes is the same
+// request any other client makes — a transport-level shim that added the header
+// behind the page's back would hide a missing one from the demo and leave it
+// broken everywhere else.
+async function api(path, opts) {
+  const options = opts ? {...opts} : {};
+  // `raw` returns the Response instead of parsed JSON. The report endpoint
+  // answers with a PDF, and res.json() on those bytes throws before the caller
+  // ever sees them.
+  const raw = options.raw; delete options.raw;
+  const headers = new Headers(options.headers || {});
+  const key = window.CIPHERCHAIN_API_KEY;
+  if (key && !headers.has("Authorization")) headers.set("Authorization", "Bearer " + key);
+  options.headers = headers;
+  const res = await fetch(API + path, options);
+  if (!res.ok) {
+    let detail = null, message = res.status + " " + res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail;
+      if (detail && typeof detail === "object" && detail.message) message = detail.message;
+      else if (detail) message = typeof detail === "string" ? detail : JSON.stringify(detail);
+    } catch (_) {}
+    throw new ApiError(message, detail);
+  }
+  return raw ? res : res.json();
+}
+
+// How much of the trace to ask for. Sending nothing took the endpoint's own
+// defaults (240 nodes, 20 per hop), which on a 1533-address trace drew 101 of
+// them — 6% of the case, in a picture that looks complete unless the note
+// under it is read. Raising per_level alongside the total is what buys DEPTH:
+// a flat limit spends itself on the first hop the moment that hop fans out,
+// and the far end of the trace never appears at all.
+//
+// These are a RENDER budget, not a coverage decision. Every node is a real DOM
+// card and every edge label is placed by searching for a gap against every
+// card and every label already placed, so cost climbs with nodes x labels. A
+// headless-Chrome pass over this renderer measured 103ms at 600 nodes and
+// 195ms at 1600, against a 1.5s poll — so the binding constraint is legibility,
+// not milliseconds: past roughly a thousand cards the fit zoom hits its 40%
+// floor and the picture is a wall of unreadable boxes either way.
+//
+// The server clamps both to its own ceiling, so asking for more than it allows
+// is not an error — and asking for less than it allows is not a claim that the
+// rest does not exist. The "showing N of M addresses" note under the graph is
+// what states the difference, and it is driven by the server's own totals.
+const GRAPH_LIMIT = 900;
+const GRAPH_PER_LEVEL = 90;
+
+async function refresh(id, token) {
+  // The graph is read from the same overlay the engine writes as it expands,
+  // so polling it shows the real trace growing rather than a replay.
+  const [status, found, graph] = await Promise.all([
+    api("/investigations/" + id),
+    api("/investigations/" + id + "/findings"),
+    api("/investigations/" + id + "/graph?limit=" + GRAPH_LIMIT
+        + "&per_level=" + GRAPH_PER_LEVEL).catch(() => null),
+  ]);
+  // A response that arrives after the user stopped or started another run
+  // must not touch the DOM.
+  if (token !== runToken) return status.status;
+  // Panels above the fold change height as a run progresses — the coverage
+  // line appears, the answer cards fill in, counts widen. Every one of those
+  // reflows shifts the page under whatever the reader was looking at. The graph
+  // box is now a fixed height so it no longer contributes, but the rest still
+  // do, so the window offset is put back exactly where it was.
+  const pageY = window.scrollY;
+  currentInvestigationId = id;
+  // Warn, never block. This was gated on a terminal status, which was wrong
+  // twice over: "Stop" only stops POLLING — the run keeps its `running` status
+  // server-side, so the gate never released and the button stayed dead for a
+  // user who had deliberately stopped and wanted their document. And the report
+  // route imposes no such condition anyway; it builds from whatever the record
+  // holds. The caveat is real — coverage figures are still moving mid-trace —
+  // but it belongs on screen next to the button, not in the way of it.
+  const finished = TERMINAL.includes(status.status);
+  $("dlPdf").disabled = false;
+  $("dlNote").textContent = finished
+    ? ""
+    : "run still in progress — the coverage figures in this report are still moving";
+  renderStatus(status);
+  $("answerPanel").classList.remove("hidden");
+  $("findingsPanel").classList.remove("hidden");
+  applyPanelFold("findings");            // un-hiding a panel must not unfold it
+  renderAnswer($("ansBack"), "backward", "Where funds came from", found.findings, status.status, found.answers);
+  renderAnswer($("ansFwd"),  "forward",  "Where funds went",      found.findings, status.status, found.answers);
+  if (graph && graph.nodes) {
+    $("graphPanel").classList.remove("hidden");
+    applyPanelFold("graph");
+    renderGraph(graph, found.findings);   // re-fits itself when the stage resizes
+  }
+  renderFindings(found.findings);
+  // Synchronous, in the same frame as the renders above, so this corrects the
+  // reflow rather than animating a second jump on top of it.
+  if (window.scrollY !== pageY) window.scrollTo(0, pageY);
+  return status.status;
+}
+
+// The id the report button acts on. refresh() is the only place that knows it,
+// and the button outlives any single poll.
+let currentInvestigationId = null;
+
+// The report route is authenticated, and a plain <a href download> cannot carry
+// the Authorization header this page uses: the anchor would fetch the URL
+// unauthenticated and save the 401 body to disk as a .pdf. So the bytes come
+// back through the same helper every other call goes through.
+async function downloadReportPdf() {
+  if (!currentInvestigationId) return;
+  const btn = $("dlPdf"), note = $("dlNote"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Preparing\u2026"; note.textContent = "";
+  let url = null;
+  try {
+    const res = await api("/investigations/" + currentInvestigationId
+                          + "/report?format=pdf", { raw: true });
+    url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "cipherchain-" + currentInvestigationId + ".pdf";
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) {
+    note.textContent = "could not build the report: " + ((e && e.message) || e);
+  } finally {
+    // Revoked on a timer, not in this tick: the browser starts the save
+    // asynchronously and revoking immediately cancels the download.
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 60000);
+    btn.textContent = label; btn.disabled = false;
+  }
+}
+
+function stopPolling() {
+  runToken++;                     // invalidate any in-flight refresh
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  $("stop").classList.add("hidden");
+  $("sSpin").classList.add("hidden");
+  $("start").disabled = false;
+  // One last read, and a way to ask again afterwards.
+  //
+  // Stopping stops WATCHING; the engine keeps working server-side. Freezing the
+  // panel on the last status seen therefore left "running" on screen for a run
+  // that had already finished `partial` — the badge stated the opposite of the
+  // record, with no control on the page capable of correcting it.
+  if (currentInvestigationId) {
+    $("refreshNow").classList.remove("hidden");
+    const token = runToken;
+    refresh(currentInvestigationId, token).catch(() => {});
+  }
+}
+
+// A new run must never leave the previous run's answer and findings on
+// screen — especially when starting fails, which would otherwise show a
+// green "completed" result beside a red error.
+function resetResults() {
+  $("refreshNow").classList.add("hidden");
+  lastFindingsSig = null;
+  lastGraphSig = null;
+  lastGraphSize = null;
+  clear($("findings"));
+  clear($("ansBack"));
+  clear($("ansFwd"));
+  clear($("stage"));
+  clear($("gLegend"));
+  clear($("gNote"));
+  const sizer = $("stageWrap").querySelector(".stagesizer");
+  if (sizer) sizer.remove();
+  $("gCount").textContent = "";
+  $("answerPanel").classList.add("hidden");
+  $("graphPanel").classList.add("hidden");
+  $("findingsPanel").classList.add("hidden");
+  $("statusPanel").classList.add("hidden");
+  $("errBox").classList.add("hidden");
+  $("fCount").textContent = "";
+  $("fBarCount").textContent = "";
+}
+
+// Some formats genuinely belong to several chains (every EVM chain shares
+// one). Rather than guess a ledger, the backend returns the candidates and
+// the user picks — one click, no ambiguity about what was traced.
+function offerChainChoice(candidates) {
+  const host = $("chainPick");
+  clear(host);
+  for (const chain of candidates) {
+    const b = el("button", null, chain);
+    b.addEventListener("click", () => start(chain));
+    host.appendChild(b);
+  }
+  host.classList.remove("hidden");
+  $("chainPickLabel").classList.remove("hidden");
+}
+
+function hideChainChoice() {
+  $("chainPick").classList.add("hidden");
+  $("chainPickLabel").classList.add("hidden");
+}
+
+async function start(forcedChain) {
+  if (typeof forcedChain !== "string") forcedChain = undefined;
+  stopPolling();
+  resetResults();
+  hideChainChoice();
+  const objectives = [];
+  if ($("objPrev").checked) objectives.push("find_prev_vasp");
+  if ($("objNext").checked) objectives.push("find_next_vasp");
+  const address = $("address").value.trim();
+  if (!address)          { $("hint").textContent = "Enter an address first."; return; }
+  if (!objectives.length) { $("hint").textContent = "Pick at least one objective."; return; }
+
+  $("start").disabled = true;
+  $("hint").textContent = "Starting…";
+  try {
+    const body = {
+      address: address,          // chain omitted: the backend detects it
+      ...(forcedChain ? { chain: forcedChain } : {}),
+      objectives: objectives,
+      budgets: {
+        api_calls: Number($("calls").value) || 25,
+        seconds: 300,
+        max_depth: Number($("depth").value) || 3,
+        max_nodes: 500,
+      },
+    };
+    const started = await api("/investigations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    $("hint").textContent = "Chain detected: " + started.chain;
+    currentChain = started.chain;   // verify links need the ledger, not just the address
+    const id = started.investigation_id;
+    // Put the id in the URL the moment the run exists. The bootstrap below
+    // already reopens ?investigation=<uuid>, and openExisting() resumes polling
+    // a run that is still going — but nothing ever WROTE the parameter, so a
+    // reload dropped the trace while the engine carried on working on it. The
+    // timeout hint on this very screen says "Reload to check again", which was
+    // advice that threw the run away.
+    history.replaceState(null, "", "?investigation=" + id);
+    const token = ++runToken;     // this run owns the DOM from here
+    pollTicks = 0;
+    await refresh(id, token);
+    pollTimer = setInterval(async () => {
+      if (token !== runToken) return;
+      if (++pollTicks > MAX_TICKS) {
+        stopPolling();
+        $("hint").textContent = "Still running — stopped watching. Reload to check again.";
+        return;
+      }
+      try {
+        const st = await refresh(id, token);
+        if (TERMINAL.includes(st)) stopPolling();
+      } catch (e) {
+        $("hint").textContent = "Polling error: " + e.message;
+        stopPolling();
+      }
+    }, 1500);
+  } catch (e) {
+    resetResults();             // a failed start shows only the error
+    $("start").disabled = false;
+    const detail = e.detail;
+    if (detail && detail.reason === "ambiguous" && detail.candidates?.length) {
+      $("hint").textContent = detail.message;   // not an error: a question
+      offerChainChoice(detail.candidates);
+      return;
+    }
+    $("hint").textContent = "";
+    $("statusPanel").classList.remove("hidden");
+    $("errBox").classList.remove("hidden");
+    $("errBox").textContent = "Could not start: " + e.message;
+  }
+}
+
+// ---------- folding panels ----------
+// The fold lives here, not in the panel's class list, because refresh() runs
+// every 1.5s while a trace is live and un-hides both panels on every tick. A
+// control that reopens the graph under someone reading findings, once per
+// poll, is worse than no control — so the state is owned in JS and re-asserted
+// after every render.
+const panelFolded = { graph: false, findings: false };
+const FOLDABLE = {
+  graph:    { panel: "graphPanel",    button: "gMin", shut: "Show graph" },
+  findings: { panel: "findingsPanel", button: "fMin", shut: "Show findings" },
+};
+
+function applyPanelFold(which) {
+  const spec = FOLDABLE[which];
+  const on = panelFolded[which];
+  $(spec.panel).classList.toggle("collapsed", on);
+  $(spec.button).textContent = on ? spec.shut : "Minimize";
+  $(spec.button).setAttribute("aria-expanded", on ? "false" : "true");
+}
+
+function setPanelFolded(which, on) {
+  panelFolded[which] = on;
+  applyPanelFold(which);
+  // Polls that landed while the graph was folded rendered against a zero-width
+  // box, so the zoom they left behind is meaningless. Re-fit once the stage is
+  // measurable again — but never over a zoom the user chose deliberately.
+  if (which === "graph" && !on) {
+    requestAnimationFrame(() => { if (!userZoomed) fitGraph(); });
+  }
+}
+
+// ---------- wiring ----------
+$("start").addEventListener("click", () => start());  // no event arg
+$("stop").addEventListener("click", stopPolling);
+$("refreshNow").addEventListener("click", async () => {
+  if (!currentInvestigationId) return;
+  const btn = $("refreshNow"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "\u2026";
+  try { await refresh(currentInvestigationId, runToken); }
+  catch (_) { /* renderStatus already shows the error box */ }
+  finally { btn.textContent = label; btn.disabled = false; }
+});
+$("gFit").addEventListener("click", fitGraph);
+$("dlPdf").addEventListener("click", downloadReportPdf);
+$("gIn").addEventListener("click", () => { userZoomed = true; setZoom(graphZoom * 1.25); });
+$("gOut").addEventListener("click", () => { userZoomed = true; setZoom(graphZoom / 1.25); });
+$("gExpand").addEventListener("click", () => {
+  expandFrontier = !expandFrontier;
+  $("gExpand").textContent = expandFrontier ? "Fold frontier" : "Expand frontier";
+  if (lastGraphData) { renderGraph(lastGraphData.graph, lastGraphData.findings); fitGraph(); }
+});
+
+// Full screen changes the box, never the picture: nothing is re-laid-out and no
+// data is re-read. Only the fit is recomputed, because the space to fit into is
+// what changed.
+function setGraphFullscreen(on) {
+  // ?full=1 can open straight into full screen on a page whose graph was left
+  // folded, which is a black overlay with nothing in it and no visible way out.
+  if (on && panelFolded.graph) setPanelFolded("graph", false);
+  $("graphPanel").classList.toggle("fullscreen", on);
+  document.body.classList.toggle("graphfull", on);
+  $("gFull").textContent = on ? "Exit full screen" : "Full screen";
+  // The new box size comes from a layout pass that has not run yet.
+  requestAnimationFrame(fitGraph);
+}
+const isFullscreen = () => $("graphPanel").classList.contains("fullscreen");
+$("gFull").addEventListener("click", () => setGraphFullscreen(!isFullscreen()));
+$("gMin").addEventListener("click", () => setPanelFolded("graph", !panelFolded.graph));
+$("fMin").addEventListener("click", () => setPanelFolded("findings", !panelFolded.findings));
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && isFullscreen()) setGraphFullscreen(false);
+});
+// A resized window is a resized stage. Never override a deliberate zoom.
+window.addEventListener("resize", () => { if (!userZoomed) fitGraph(); });
+for (const ex of EXAMPLES) {
+  const b = el("button", null, ex.label);
+  b.addEventListener("click", () => { $("address").value = ex.address; $("hint").textContent = ""; });
+  $("examples").appendChild(b);
+}
+// Header: live engine status + return path to CipherChain. If the user
+// arrived from a CipherChain instance on another port, honor that origin.
+try {
+  if (document.referrer) {
+    const ref = new URL(document.referrer);
+    if (ref.origin !== location.origin) $("backLink").href = ref.origin + "/dashboard";
+  }
+} catch (_) { /* opaque referrer: keep the default */ }
+
+// ?investigation=<uuid> reopens a finished trace without re-running it. An
+// investigation is a durable record, so its report should have a URL.
+async function openExisting(id) {
+  const token = ++runToken;
+  try {
+    const status = await api("/investigations/" + id);
+    currentChain = status.chain;
+    $("address").value = status.root_address;
+    $("hint").textContent = "Loaded investigation on " + status.chain;
+    await refresh(id, token);
+    if (!TERMINAL.includes(status.status)) {
+      pollTicks = 0;
+      pollTimer = setInterval(async () => {
+        if (token !== runToken) return;
+        if (++pollTicks > MAX_TICKS) { stopPolling(); return; }
+        try {
+          if (TERMINAL.includes(await refresh(id, token))) stopPolling();
+        } catch (e) { stopPolling(); }
+      }, 1500);
+    }
+  } catch (e) {
+    $("hint").textContent = "Could not load that investigation: " + e.message;
+  }
+}
+
+fetch(API + "/healthz").then(r => r.json()).then(() => {
+  $("engineStatus").textContent = "ONLINE";
+  $("engineStatus").className = "hdr-ok";
+  const params = new URLSearchParams(location.search);
+  const existing = params.get("investigation");
+  // &full=1 opens straight into the full-screen graph. A saved trace already
+  // has a URL; the way you want to LOOK at it belongs in that URL too.
+  if (params.get("full") === "1") setGraphFullscreen(true);
+  if (existing) openExisting(existing);
+}).catch(() => {
+  $("engineStatus").textContent = "OFFLINE";
+  $("engineStatus").className = "hdr-bad";
+  $("hint").textContent = "Backend not reachable — start it with: backend/scripts/demo.sh";
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CipherChain">
+  <defs>
+    <linearGradient id="front" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3ad8ff"/>
+      <stop offset="50%" stop-color="#00aaff"/>
+      <stop offset="100%" stop-color="#0077ee"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0099ee"/>
+      <stop offset="100%" stop-color="#66e8ff"/>
+    </linearGradient>
+    <linearGradient id="side" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0077cc"/>
+      <stop offset="100%" stop-color="#0044aa"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.8" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Soft cyan aura -->
+  <ellipse cx="32" cy="34" rx="26" ry="24" fill="#00d4ff" opacity="0.18" filter="url(#glow)"/>
+
+  <!-- Isometric cube faces (matches login CryptoCube look) -->
+  <!-- Top -->
+  <path d="M32 10 L50 20 L32 30 L14 20 Z" fill="url(#top)"/>
+  <!-- Left / front-left -->
+  <path d="M14 20 L32 30 L32 50 L14 40 Z" fill="url(#front)"/>
+  <!-- Right -->
+  <path d="M32 30 L50 20 L50 40 L32 50 Z" fill="url(#side)"/>
+
+  <!-- Cyan wireframe outline -->
+  <g fill="none" stroke="#b8f7ff" stroke-width="1.5" stroke-linejoin="round" opacity="0.95" filter="url(#glow)">
+    <path d="M32 10 L50 20 L32 30 L14 20 Z"/>
+    <path d="M14 20 L32 30 L32 50 L14 40 Z"/>
+    <path d="M32 30 L50 20 L50 40 L32 50 Z"/>
+  </g>
+  <!-- Inner wire edges -->
+  <g fill="none" stroke="#e8fbff" stroke-width="0.7" opacity="0.45">
+    <path d="M32 10 L32 30"/>
+    <path d="M14 20 L32 30"/>
+    <path d="M50 20 L32 30"/>
+  </g>
+</svg>

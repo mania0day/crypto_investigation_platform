@@ -1,0 +1,31 @@
+{
+  "source": "binance-proof-of-reserves",
+  "method": "first_party_published",
+  "source_date": "2026-08-14",
+  "license": "operator-supplied",
+  "default_confidence": 0.8,
+  "labels": [
+    {
+      "chain": "ethereum",
+      "address": "0x28C6c06298d514Db089934071355E5743bf21d60",
+      "entity": "Binance 14",
+      "category": "vasp",
+      "role": "operational"
+    },
+    {
+      "chain": "ethereum",
+      "address": "0x21a31Ee1afC51d94C2eFcCAa2092aD1028285549",
+      "entity": "Binance 15",
+      "category": "vasp",
+      "role": "operational",
+      "confidence": 0.85
+    },
+    {
+      "chain": "bitcoin",
+      "address": "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo",
+      "entity": "Binance",
+      "category": "vasp",
+      "role": "operational"
+    }
+  ]
+}

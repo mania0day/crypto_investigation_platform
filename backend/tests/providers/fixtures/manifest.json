@@ -1,0 +1,55 @@
+{
+  "recorded_from": "https://3xpl.com",
+  "recorded_at": "2026-08-16T13:45:00+00:00",
+  "why_gzipped": "the pages are ~345 KB of inline CSS and SVG sprites each; gzip keeps the BYTES AS SERVED in the repo instead of a hand-trimmed copy that would no longer prove the parser survives the real page",
+  "what_the_address_pages_prove": "an address page renders SEVEN tab panes and fills only the one named in the URL; the other six are placeholders that always look empty. The address pages below are the shapes a placeholder takes, so a whole-page count of 'No events' markers cannot pass for proof that the module has no history.",
+  "what_the_asset_pages_prove": "3xpl states a contract's decimals on its ASSET page, under a plain 'Decimals' heading — the transaction page never does. That is the whole reason this tier can answer about token value without inferring a scale from however many digits an amount happens to print.",
+  "3xpl_ethereum_address_main_events.html.gz": {
+    "url": "https://3xpl.com/ethereum/address/0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055/ethereum-main/events/0",
+    "holds": "seven panes: one empty placeholder table, the module's pane with 10 rows, and five 'no events in this module' notices"
+  },
+  "3xpl_ethereum_address_main_events_page1.html.gz": {
+    "url": "https://3xpl.com/ethereum/address/0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055/ethereum-main/events/1",
+    "recorded_at": "2026-08-16T00:00:00+00:00",
+    "holds": "the same address one page on — SIX placeholder panes each carrying their own empty 'No events' table, while the module's pane still holds 10 transactions. This is the page a whole-page empty-marker count reads as 'no history'."
+  },
+  "3xpl_ethereum_address_no_events.html.gz": {
+    "url": "https://3xpl.com/ethereum/address/0x1a9f8c3d5e7b2046a8c1e93f5d7b204683c1e9ff/ethereum-main/events/0",
+    "recorded_at": "2026-08-16T00:00:00+00:00",
+    "holds": "an address with nothing on it: the module's pane carries the notice 'There are no events in this module' — the site answering none — while the pseudo-tab pane beside it still carries an empty TABLE, which is not an answer about anything"
+  },
+  "3xpl_ethereum_address_erc20_events.html.gz": {
+    "url": "https://3xpl.com/ethereum/address/0xee7ae85f2fe2239e27d9c1e23fffe168d63b4055/ethereum-erc-20/events/0",
+    "recorded_at": "2026-08-16T18:50:00+00:00",
+    "holds": "the ERC-20 module of the same address: the ACTIVE pane is index 3, not the index 1 the native pages use, and it holds 10 rows over 8 distinct transactions. Around it sit one empty placeholder TABLE and five 'no events in this module' notices. The active pane is found by the checked radio in the tab strip, which is why a different module lands on a different index without changing the parser."
+  },
+  "3xpl_ethereum_address_erc20_no_events.html.gz": {
+    "url": "https://3xpl.com/ethereum/address/0x1a9f8c3d5e7b2046a8c1e93f5d7b204683c1e9ff/ethereum-erc-20/events/0",
+    "recorded_at": "2026-08-16T18:52:00+00:00",
+    "holds": "a genuinely empty ERC-20 module: the active pane carries the 'no events in this module' notice, which is the site answering none. Paired with the page above it is what separates a proven-empty token feed from one this tier merely failed to read."
+  },
+  "3xpl_ethereum_transaction_with_internal.html.gz": {
+    "url": "https://3xpl.com/ethereum/transaction/0x57f12f323ae5378187e2241ebb7cffe8503b3758c6b55b88eed069de87c27622",
+    "holds": "one Main event and 28 Internal events, block 25696396. Its 'Additional events' notice reads 'There are no events of ERC-20, ERC-721 and ERC-1155 types' — a notice that NAMES ERC-20, which is what makes it an answer about the token feed rather than about some other module."
+  },
+  "3xpl_ethereum_transaction_no_internal.html.gz": {
+    "url": "https://3xpl.com/ethereum/transaction/0xd2e0a4de4f6e361325a94a7e043053221ee2a5edff5af20e6c0ecaab02374969",
+    "holds": "a Main event and an ERC-20 event (323.799356 USDC, a VERIFIED token, so its currency name is a link and the asset id is readable from the href); internal value is absent as an explicit 'Additional events' notice, which is the proven-empty case"
+  },
+  "3xpl_ethereum_transaction_unverified_token.html.gz": {
+    "url": "https://3xpl.com/ethereum/transaction/0x6bd485ef6bd715cf0d26bb811935c9ce93c17925c25a6f74e75b62d275b3de1e",
+    "recorded_at": "2026-08-16T18:55:00+00:00",
+    "holds": "the airdrop that delivered the case study address its only ERC-20 event: 500 ERC-20 transfers between 501 addresses, plus one native leg. NOT ONE of the 500 links its asset — 3xpl links a verified currency and renders an unverified one as a bare span, stating the id only in the hover tooltip. Reading the id from the href alone counted all 500 as unreadable and raised on the whole page, which took the native leg down with it. It is also the page that decides token rows are scoped to the address asked about: emitting all 500 would put 500 strangers into the frontier off one piece of spam."
+  },
+  "3xpl_ethereum_asset_usdc.html.gz": {
+    "url": "https://3xpl.com/asset/ethereum-erc-20/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "recorded_at": "2026-08-16T18:53:00+00:00",
+    "holds": "'ID: ethereum-erc-20/0xa0b8…' and 'Decimals: 6'. The id is read back so a page served for another contract cannot supply this one's scale."
+  },
+  "3xpl_ethereum_asset_yrise.html.gz": {
+    "url": "https://3xpl.com/asset/ethereum-erc-20/0x6051c1354ccc51b4d561e43b02735deae64768b8",
+    "recorded_at": "2026-08-16T18:54:00+00:00",
+    "holds": "the same two facts for an UNVERIFIED token — 'Decimals: 18'. 3xpl states the scale whether or not it vouches for the contract, which is what makes the token feed answerable at all."
+  },
+  "the_padding_invariant": "measured 2026-08-16 across USDT (6), USDC (6) and several 18-decimal contracts including '54,979,508.000000000000000000' and '0.000090000000000000': 3xpl pads every printed amount to EXACTLY the asset's decimals, trailing zeros and all. So the printed precision is a second, independent statement of the scale, and a token amount is converted only when the two agree."
+}

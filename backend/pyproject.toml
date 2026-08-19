@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cipherchain"
+version = "0.1.0"
+description = "CipherChain — autonomous blockchain investigation engine (backend)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "sqlalchemy[asyncio]>=2.0.35",
+    "asyncpg>=0.30",
+    "alembic>=1.13",
+]
+
+[project.scripts]
+# The daily label harvest, as a bare command for a crontab line that should not
+# have to know where the venv or the checkout live. scripts/harvest.sh wraps the
+# same entry point with a venv check and a DROP_DIR default.
+cipherchain-harvest = "cipherchain.harvest.scheduler:main"
+
+[project.optional-dependencies]
+# Signature verification for scripts/import_por_labelpack.py. Script-only:
+# nothing in src/cipherchain imports it, so the runtime package stays lean.
+scripts = [
+    "eth-account>=0.13",
+    # ed25519 for Solana proof-of-reserves rows.
+    "cryptography>=42",
+]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    # Pulls in `scripts` so the DOCUMENTED developer install runs the whole
+    # suite. Without it `pip install -e '.[dev]'` — the command in the README —
+    # silently skipped 16 signature-verification tests, and a fresh clone
+    # reported a green 959 where the source tree had 975. Proof-of-reserves
+    # verification is the last thing that should go quietly untested: it decides
+    # whether an exchange's claimed address is allowed to become a label at all.
+    "cipherchain[scripts]",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic writes these files; CHECK-constraint SQL is emitted as one long string
+# literal and comes back over-length on every --autogenerate.
+"migrations/versions/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["cipherchain"]

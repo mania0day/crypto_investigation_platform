@@ -1,0 +1,175 @@
+{
+  "source": "CipherChain curated VASP metadata (agent-researched from public documents)",
+  "source_date": "2026-08-16",
+  "_why_this_directory": "This file is NOT a labelpack and must never sit in labels/ itself. scripts/import_labelpacks.py and analysis.attribution.labels.load_labelpack_dir both glob labels/*.json and refuse any file without a trusted 'method' and a 'labels' list; dropping this file there breaks the label import and its regression test. It lives one level down so both globs skip it.",
+  "_join_key": "'entity' is matched through cipherchain.intel.policy.entity_stem, the same canonicalization the lifecycle already uses. Shipped label entities carry OUR role annotations — 'Binance (deposit address)', 'OKX (operational address)' — which are not part of who is being named. Every row below stems to a string that really occurs in labels/*.json; a row that matches nothing is dead weight and the test suite refuses it.",
+  "_nulls": "null means NOT ESTABLISHED, and every row that carries one says why in 'notes'. A wrong jurisdiction sends process to the wrong country, so nothing here is inferred, rounded up, or filled in from a brand's marketing. Rows whose structured fields are all null are still useful: they tell an investigator that this operator's forum is an open question before a subpoena is drafted, not after.",
+  "_scope": "Facts current as of source_date. Corporate structure moves (acquisitions, rebrands, per-market licensing); re-verify a row before it goes into a filing.",
+  "vasps": [
+    {
+      "entity": "Binance",
+      "jurisdiction": "Cayman Islands",
+      "legal_entity": "Binance Holdings Limited",
+      "kyc_regime": "Identity verification mandatory for every user since August 2021. US Bank Secrecy Act obligations are being met under the November 2023 guilty plea and the associated FinCEN-ordered independent monitorship.",
+      "kyc_since": "2021-08-20",
+      "le_request_channel": "Binance Law Enforcement Request System — an online portal restricted to verified agency email domains. Process on the operator is served on Binance Holdings Limited.",
+      "source": "US DOJ plea agreement, United States v. Binance Holdings Limited (D. Nev., 2023-11-21); CFTC v. Binance Holdings Ltd. complaint (N.D. Ill., 2023-03-27); Binance announcement requiring Intermediate Verification of all users (2021-08-20).",
+      "source_date": "2026-08-16",
+      "notes": "Binance has repeatedly said it has no single headquarters; Cayman Islands is the incorporation of the company that pled guilty, and that is the forum this row names. Binance.US is operated by BAM Trading Services Inc., a separate US company NOT covered by this row — records for a US customer may sit there instead."
+    },
+    {
+      "entity": "Coinbase",
+      "jurisdiction": "United States",
+      "legal_entity": "Coinbase, Inc. (subsidiary of Coinbase Global, Inc.)",
+      "kyc_regime": "US Bank Secrecy Act — FinCEN-registered money services business, state money transmitter licences, and a New York State Department of Financial Services virtual currency licence. Identity verification is required to open an account.",
+      "kyc_since": null,
+      "le_request_channel": "lawenforcement@coinbase.com and the request route published in Coinbase's Law Enforcement Guide. US legal process (subpoena, court order, or warrant); foreign authorities normally proceed by MLAT.",
+      "source": "Coinbase Global, Inc. SEC annual filings; Coinbase published Law Enforcement Guide.",
+      "source_date": "2026-08-16",
+      "notes": "kyc_since is null: Coinbase has verified identity at onboarding since long before its 2021 listing, but no single dated policy announcement was relied on here, so no date is asserted."
+    },
+    {
+      "entity": "OKX",
+      "jurisdiction": "Seychelles",
+      "legal_entity": "Aux Cayes FinTech Co. Ltd.",
+      "kyc_regime": "Identity verification required for trading. The operator pled guilty in the US in 2025 to running an unlicensed money transmitting business, and separately holds per-market authorisations (including a MiCA authorisation obtained through Malta).",
+      "kyc_since": null,
+      "le_request_channel": "Law-enforcement request to OKX compliance, with service on Aux Cayes FinTech Co. Ltd. in the Seychelles, or on the locally licensed OKX company for that market. No public portal is asserted here — confirm the current channel before serving.",
+      "source": "US DOJ / SDNY plea, United States v. Aux Cayes FinTech Co. Ltd. (2025); OKX public licensing announcements.",
+      "source_date": "2026-08-16",
+      "notes": "The EEA (Malta) and Dubai licensed OKX companies are separate legal persons not named here; a request about an EEA customer probably belongs to the EEA company. kyc_since null — OKX tightened verification in stages and no effective date is asserted."
+    },
+    {
+      "entity": "Kraken",
+      "jurisdiction": "United States",
+      "legal_entity": "Payward, Inc. (trading as Kraken)",
+      "kyc_regime": "US Bank Secrecy Act — FinCEN-registered money services business; an affiliate holds a Wyoming special purpose depository institution charter. Identity verification is required for a funded account.",
+      "kyc_since": null,
+      "le_request_channel": "The request route published in Kraken's Law Enforcement Guide (support.kraken.com); US legal process served on Payward, Inc.; foreign authorities normally proceed by MLAT.",
+      "source": "SEC and CFTC enforcement filings naming Payward, Inc. and Payward Ventures, Inc.; Kraken published Law Enforcement Guide.",
+      "source_date": "2026-08-16",
+      "notes": "Kraken operates through several Payward companies by market (US, UK, EU); this row names the US parent, which is the usual respondent for US process. kyc_since null — verification tiers tightened over years with no single effective date asserted here."
+    },
+    {
+      "entity": "Gemini",
+      "jurisdiction": "United States",
+      "legal_entity": "Gemini Trust Company, LLC",
+      "kyc_regime": "New York limited purpose trust company chartered and supervised by NYDFS, with a US Bank Secrecy Act programme. Identity verification has been required at onboarding since the exchange opened in October 2015.",
+      "kyc_since": null,
+      "le_request_channel": "US legal process served on Gemini Trust Company, LLC in New York; NYDFS is the prudential supervisor for regulatory referrals.",
+      "source": "NYDFS virtual currency licensee register; Gemini public disclosures.",
+      "source_date": "2026-08-16",
+      "notes": "kyc_since is null although verification has applied since launch: the charter date and the customer-verification policy date are not the same fact, and only the former is documented, so no date is asserted."
+    },
+    {
+      "entity": "Bitfinex",
+      "jurisdiction": "British Virgin Islands",
+      "legal_entity": "iFinex Inc.",
+      "kyc_regime": "Operator-declared identity verification for account holders. No home-jurisdiction prudential supervisor is asserted here. The operator settled with the New York Attorney General in 2021 and has been subject to CFTC orders over related conduct.",
+      "kyc_since": null,
+      "le_request_channel": "Service on iFinex Inc. in the British Virgin Islands; foreign authorities normally proceed by MLAT or letters rogatory to the BVI. No public law-enforcement portal is asserted here.",
+      "source": "NYAG settlement with iFinex Inc. and the Tether companies (2021-02-23); CFTC orders naming iFinex Inc.",
+      "source_date": "2026-08-16",
+      "notes": "The NYAG findings describe iFinex and the Tether companies as sharing ownership and management — the same group answers for both, which matters when a trail runs through USDT issuance. kyc_since null: no dated all-user verification policy was relied on."
+    },
+    {
+      "entity": "Bitstamp",
+      "jurisdiction": "Luxembourg",
+      "legal_entity": "Bitstamp Europe S.A.",
+      "kyc_regime": "EU AML regime — the Luxembourg company is authorised there and serves EEA customers; UK and US customers contract with separate group companies. Identity verification is required to open an account.",
+      "kyc_since": null,
+      "le_request_channel": "Service on Bitstamp Europe S.A. in Luxembourg for EEA customers, or on the local Bitstamp company for UK/US customers. Confirm the current route first: the group was acquired by Robinhood Markets, Inc. in 2025.",
+      "source": "Bitstamp published corporate and legal pages; Robinhood Markets, Inc. announcement completing the Bitstamp acquisition (2025).",
+      "source_date": "2026-08-16",
+      "notes": "Multi-entity operator (Luxembourg, UK, US). The 2025 Robinhood acquisition may move which company answers process and where records are held — verify before serving. kyc_since null: no dated policy announcement was relied on."
+    },
+    {
+      "entity": "Crypto.com",
+      "jurisdiction": "Singapore",
+      "legal_entity": "Foris DAX Asia Pte. Ltd.",
+      "kyc_regime": "Identity verification required for all accounts. The Singapore company holds a Major Payment Institution licence from the Monetary Authority of Singapore; other markets are served by separately licensed group companies (a Malta company for the EEA, a US company registered with FinCEN).",
+      "kyc_since": null,
+      "le_request_channel": "Service on the Foris DAX company for the customer's market — Singapore, Malta (EEA), or the US company. Establish which company holds the account before serving.",
+      "source": "MAS financial institutions register; Crypto.com published per-market terms naming the Foris DAX companies.",
+      "source_date": "2026-08-16",
+      "notes": "The brand operates through several Foris DAX companies and naming the wrong one is the likely failure mode here. kyc_since null: no dated policy announcement was relied on."
+    },
+    {
+      "entity": "HTX",
+      "jurisdiction": "Seychelles",
+      "legal_entity": "Huobi Global Limited",
+      "kyc_regime": "Operator states that identity verification is mandatory. No home supervisor is asserted here; market-specific companies are licensed separately.",
+      "kyc_since": null,
+      "le_request_channel": "Service on Huobi Global Limited in the Seychelles; foreign authorities normally proceed by MLAT or letters rogatory. No public law-enforcement portal is asserted here.",
+      "source": "HTX/Huobi published terms of service naming the Seychelles company — SELF-DECLARED, not verified against the Seychelles registry.",
+      "source_date": "2026-08-16",
+      "notes": "HTX is the September 2023 rebrand of Huobi Global; the separate 'Huobi' row names the same operator because both strings still appear in shipped labels. Huobi Technology Holdings Limited, a Hong Kong listed company, is a DIFFERENT legal person and must not be served for exchange records. Jurisdiction rests on the operator's own terms of service, which is a starting point for process, not a registry check."
+    },
+    {
+      "entity": "Huobi",
+      "jurisdiction": "Seychelles",
+      "legal_entity": "Huobi Global Limited",
+      "kyc_regime": "Operator states that identity verification is mandatory. No home supervisor is asserted here; market-specific companies are licensed separately.",
+      "kyc_since": null,
+      "le_request_channel": "Service on Huobi Global Limited in the Seychelles; foreign authorities normally proceed by MLAT or letters rogatory. No public law-enforcement portal is asserted here.",
+      "source": "HTX/Huobi published terms of service naming the Seychelles company — SELF-DECLARED, not verified against the Seychelles registry.",
+      "source_date": "2026-08-16",
+      "notes": "Same operator as the 'HTX' row, kept because labels harvested before the September 2023 rebrand still say 'Huobi'. Records for a pre-rebrand deposit address are held by the same company. Jurisdiction rests on the operator's own terms of service, not a registry check."
+    },
+    {
+      "entity": "KuCoin",
+      "jurisdiction": "Seychelles",
+      "legal_entity": "Peken Global Limited",
+      "kyc_regime": "Mandatory identity verification was introduced during 2023; the exact effective date is not verified here. The operator pled guilty in the US in 2025 to operating an unlicensed money transmitting business and agreed to withdraw from the US market for a period.",
+      "kyc_since": null,
+      "le_request_channel": "Service on Peken Global Limited in the Seychelles; foreign authorities normally proceed by MLAT or letters rogatory. Mek Global Limited and PhoenixFin Pte. Ltd. have been named in US proceedings as related operators and may hold relevant records.",
+      "source": "US DOJ / SDNY plea, United States v. Peken Global Limited (2025); New York Attorney General action naming Mek Global Limited and PhoenixFin Pte. Ltd. (2023).",
+      "source_date": "2026-08-16",
+      "notes": "kyc_since is null on purpose: the 2023 mandatory-KYC change is well reported but its effective date was not verified, and an address funded before that date may have no verified identity behind it at all — which is exactly the question a date would answer, so a guessed one would be worse than none."
+    },
+    {
+      "entity": "Bitget",
+      "jurisdiction": null,
+      "legal_entity": null,
+      "kyc_regime": null,
+      "kyc_since": null,
+      "le_request_channel": null,
+      "source": "Not established. No primary registry or enforcement document was verified for this operator.",
+      "source_date": "2026-08-16",
+      "notes": "Bitget is the LARGEST labelled operator in the shipped packs (about 19,000 deposit addresses on Ethereum) and the one this file can say least about. Its published terms have named a Seychelles company and it has registered with several European authorities, but none of that was verified here, so nothing is asserted. Every field null is the honest answer and a live task: start from the current terms of service and the relevant company registry before drafting process."
+    },
+    {
+      "entity": "Bybit",
+      "jurisdiction": null,
+      "legal_entity": null,
+      "kyc_regime": "Operator states that identity verification became mandatory for all users during 2023; supervisory position not verified here.",
+      "kyc_since": null,
+      "le_request_channel": null,
+      "source": "Operator public statements only; no registry or enforcement document was verified for this row.",
+      "source_date": "2026-08-16",
+      "notes": "Bybit publicly identifies Dubai as its operational base and holds a licence from the Dubai Virtual Assets Regulatory Authority, and its terms have named a 'Bybit Fintech Limited'. Neither that company's place of incorporation nor which company contracts with a given customer was verified here, so jurisdiction and legal_entity stay null."
+    },
+    {
+      "entity": "MEXC",
+      "jurisdiction": null,
+      "legal_entity": null,
+      "kyc_regime": "The operator has historically offered tiered access with limited unverified withdrawals; current requirements are not verified here.",
+      "kyc_since": null,
+      "le_request_channel": null,
+      "source": "Not established. No primary registry or enforcement document was verified for this operator.",
+      "source_date": "2026-08-16",
+      "notes": "MEXC does not publish a clearly identified operating company in any form verified here, and different markets are served under different terms. Nothing is asserted. The tiered-KYC history matters for an investigation: an account under the unverified tier may have no identity documents behind it whatever the request channel turns out to be."
+    },
+    {
+      "entity": "Gate.io",
+      "jurisdiction": null,
+      "legal_entity": null,
+      "kyc_regime": "Operator requires identity verification for full account access; supervisory position not verified here.",
+      "kyc_since": null,
+      "le_request_channel": null,
+      "source": "Operator public statements only; no registry or enforcement document was verified for this row.",
+      "source_date": "2026-08-16",
+      "notes": "Gate (formerly Gate.io) publishes limited corporate identification and has restructured across markets. Establish the contracting company from the customer's own terms of service before serving process; nothing is asserted here."
+    }
+  ]
+}

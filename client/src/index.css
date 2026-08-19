@@ -1,0 +1,572 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Poppins:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen bg-vaultrix-bg font-sans text-vaultrix-text antialiased selection:bg-vaultrix-cyan selection:text-vaultrix-bg;
+  }
+}
+
+@layer components {
+  .btn-cyan {
+    @apply rounded-sm bg-vaultrix-cyan px-8 py-3 font-bold uppercase tracking-widest text-black transition-all duration-300 hover:bg-vaultrix-cyanHover hover:shadow-[0_0_20px_rgba(0,240,255,0.6)] active:scale-95;
+  }
+
+  .glass-card {
+    @apply border border-vaultrix-border bg-vaultrix-card/80 shadow-xl backdrop-blur-md;
+  }
+
+  .glass-input {
+    @apply border border-vaultrix-border bg-vaultrix-bg/80 px-4 py-3 text-vaultrix-text transition-all duration-300 focus:border-vaultrix-cyan focus:outline-none focus:ring-1 focus:ring-vaultrix-cyan;
+  }
+
+  .glass-sheet {
+    @apply pointer-events-none absolute inset-0 border border-white/10 bg-white/5 backdrop-blur-md;
+  }
+}
+
+/* ========== CIPHERCHAIN / LOGIN ========== */
+
+.login-page {
+  background: transparent;
+}
+
+.cipher-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: #02050c;
+}
+
+/* Live circuit board — motion is rendered procedurally on canvas */
+.cipher-circuit-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 60% at 78% 72%, rgba(0, 92, 190, 0.22), transparent 66%),
+    radial-gradient(ellipse 60% 55% at 18% 12%, rgba(4, 20, 48, 0.55), transparent 70%);
+}
+
+.cipher-circuit-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.92;
+}
+
+.cipher-atmosphere-base {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    rgba(2, 5, 12, 0.66) 0%,
+    rgba(2, 5, 12, 0.18) 46%,
+    rgba(2, 5, 12, 0.32) 100%
+  );
+}
+
+.cipher-atmosphere-frost {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 8, 18, 0.14);
+}
+
+.cipher-atmosphere-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 160, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 160, 255, 0.055) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.55;
+  animation: cipherGridDrift 40s linear infinite;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, black 25%, transparent 88%);
+}
+
+.cipher-atmosphere-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 50, 100, 0.045) 2px,
+    rgba(0, 50, 100, 0.045) 3px
+  );
+  opacity: 0.45;
+}
+
+/* Slow instrument sweep across the board */
+.cipher-atmosphere-scan::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(120, 220, 255, 0.05) 47%,
+    rgba(160, 240, 255, 0.1) 50%,
+    rgba(120, 220, 255, 0.05) 53%,
+    transparent 62%,
+    transparent 100%
+  );
+  background-size: 260% 100%;
+  animation: cipherSweep 11s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Technical HUD corners / frame */
+.cipher-tech-frame {
+  position: absolute;
+  inset: 18px;
+  border: 1px solid rgba(0, 160, 255, 0.12);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0 40px rgba(0, 100, 200, 0.06);
+}
+
+.cipher-tech-frame::before,
+.cipher-tech-frame::after {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(0, 190, 255, 0.45);
+  border-style: solid;
+}
+
+.cipher-tech-frame::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.cipher-tech-frame::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.cipher-atmosphere-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 50% 45% at 50% 45%, rgba(0, 90, 200, 0.06), transparent 55%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 42%, #02050c 94%);
+}
+
+@keyframes cipherGridDrift {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 48px 48px, 48px 48px; }
+}
+
+@keyframes cipherSweep {
+  0% { background-position: 160% 0; }
+  100% { background-position: -60% 0; }
+}
+
+@media (max-width: 768px) {
+  .cipher-circuit-canvas {
+    opacity: 0.7;
+  }
+
+  .cipher-atmosphere-frost {
+    background: rgba(2, 8, 18, 0.24);
+  }
+
+  .cipher-tech-frame {
+    inset: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cipher-atmosphere-grid,
+  .cipher-atmosphere-scan::after {
+    animation: none !important;
+  }
+}
+
+.orbit-coins-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  background: transparent;
+}
+
+.orbit-edge-fade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 92% 88% at 50% 50%, transparent 62%, rgba(2, 5, 12, 0.4) 88%, #02050c 100%);
+}
+
+.orbit-center-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(52vw, 560px);
+  height: min(52vw, 560px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(0, 160, 255, 0.22) 0%, rgba(0, 80, 220, 0.1) 40%, transparent 70%);
+  filter: blur(18px);
+  animation: orbitGlowPulse 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes orbitGlowPulse {
+  0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+
+.login-gradient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(0, 136, 255, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 80% 70%, rgba(45, 0, 71, 0.35), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(26, 0, 51, 0.4), transparent 60%),
+    linear-gradient(160deg, #0a0a1a 0%, #1a0033 45%, #0a0a1a 100%);
+  animation: loginGradientShift 12s ease-in-out infinite alternate;
+}
+
+@keyframes loginGradientShift {
+  0% { filter: hue-rotate(0deg) brightness(1); }
+  100% { filter: hue-rotate(18deg) brightness(1.08); }
+}
+
+.login-card {
+  animation: loginCardEnter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  z-index: 10;
+}
+
+@keyframes loginCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.login-card-inner {
+  position: relative;
+  padding: 2rem 1.75rem 1.75rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(123, 189, 232, 0.45);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow:
+    0 0 0 1px rgba(123, 189, 232, 0.12),
+    0 0 40px rgba(123, 189, 232, 0.22),
+    0 25px 60px rgba(0, 0, 0, 0.55);
+  animation: loginCardPulse 2s ease-in-out infinite;
+}
+
+.login-card-cinematic {
+  background: rgba(8, 14, 28, 0.62);
+  border: 1px solid rgba(123, 189, 232, 0.35);
+  backdrop-filter: blur(28px) saturate(1.2);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 50px rgba(123, 189, 232, 0.18),
+    0 30px 80px rgba(0, 0, 0, 0.65);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.login-card-tilt {
+  transform-style: preserve-3d;
+}
+
+@keyframes loginCardPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(123, 189, 232, 0.12),
+      0 0 36px rgba(123, 189, 232, 0.2),
+      0 25px 60px rgba(0, 0, 0, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(123, 189, 232, 0.22),
+      0 0 52px rgba(123, 189, 232, 0.35),
+      0 25px 60px rgba(0, 0, 0, 0.55);
+  }
+}
+
+.login-title {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-family: 'Orbitron', 'Poppins', sans-serif;
+  font-size: clamp(1.65rem, 4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+  text-shadow:
+    0 0 22px rgba(123, 189, 232, 0.55),
+    0 0 48px rgba(10, 65, 116, 0.28);
+  animation: loginTitleIn 0.35s ease-out 0.15s both;
+}
+
+.login-subtitle {
+  margin-top: 0.45rem;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  font-weight: 300;
+  color: rgba(180, 210, 255, 0.72);
+}
+
+@keyframes loginTitleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.login-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(123, 189, 232, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 300;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.login-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.login-input:focus {
+  border-color: #7BBDE8;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 20px rgba(123, 189, 232, 0.4);
+}
+
+.login-forgot {
+  font-size: 12px;
+  color: #7BBDE8;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.login-forgot:hover {
+  color: #BDD8E9;
+  text-shadow: 0 0 10px rgba(123, 189, 232, 0.6);
+}
+
+.login-btn {
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #0A4174 0%, #4E8EA2 100%);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.3s ease, filter 0.3s ease;
+  box-shadow: 0 0 24px rgba(123, 189, 232, 0.35);
+}
+
+.login-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 0 36px rgba(123, 189, 232, 0.55);
+  background: linear-gradient(90deg, #155a9e 0%, #5fa8bd 100%);
+}
+
+.login-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.login-btn:disabled {
+  cursor: wait;
+}
+
+.login-btn-success {
+  box-shadow: 0 0 40px rgba(123, 189, 232, 0.7);
+  filter: brightness(1.15);
+}
+
+.login-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.login-signup-link {
+  color: #7BBDE8;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.login-signup-link:hover {
+  color: #BDD8E9;
+  text-decoration: underline;
+  text-shadow: 0 0 8px rgba(123, 189, 232, 0.5);
+}
+
+/* 3D Cube shell (Three.js canvas sits inside) */
+.crypto-cube-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+}
+
+.crypto-cube-aura {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(123, 189, 232, 0.45) 0%, transparent 70%);
+  animation: cubeAuraPulse 2s ease-in-out infinite;
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+@keyframes cubeAuraPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+
+@media (max-width: 480px) {
+  .login-title {
+    font-size: 22px;
+  }
+
+  .login-card-inner {
+    padding: 1.5rem 1.25rem 1.35rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .login-card {
+    max-width: min(420px, 50vw);
+  }
+
+  .login-page {
+    align-items: flex-start;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply rounded bg-vaultrix-bg;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded bg-vaultrix-border hover:bg-vaultrix-textMuted;
+}
+
+/* ── Landing hero CTA buttons ─────────────────────────────────────────── */
+@keyframes ctaRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ctaGlowPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(123, 189, 232, 0.22); }
+  50% { box-shadow: 0 0 26px rgba(123, 189, 232, 0.55); }
+}
+
+.btn-hero-primary {
+  position: relative;
+  overflow: hidden;
+  animation: ctaRise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s backwards;
+  transition: transform 0.2s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+.btn-hero-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: ctaGlowPulse 2.6s ease-in-out 0.9s infinite;
+  transition: opacity 0.3s ease;
+}
+.btn-hero-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 42%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: translateX(-160%) skewX(-18deg);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+.btn-hero-primary:hover {
+  transform: translateY(-2px);
+}
+.btn-hero-primary:hover::before {
+  transform: translateX(340%) skewX(-18deg);
+}
+.btn-hero-primary:hover::after {
+  opacity: 0;
+}
+.btn-hero-primary:active {
+  transform: translateY(-1px) scale(0.97);
+}
+.btn-hero-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+.btn-hero-primary:hover .btn-hero-arrow {
+  transform: translateX(5px);
+}
+
+.btn-hero-secondary {
+  animation: ctaRise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.28s backwards;
+  transition: transform 0.2s ease, border-color 0.25s ease, color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+}
+.btn-hero-secondary:hover {
+  transform: translateY(-2px);
+  background: rgba(123, 189, 232, 0.08);
+  box-shadow: 0 0 18px rgba(123, 189, 232, 0.25);
+}
+.btn-hero-secondary:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-hero-primary,
+  .btn-hero-secondary,
+  .btn-hero-primary::after {
+    animation: none;
+  }
+  .btn-hero-primary::before {
+    display: none;
+  }
+}

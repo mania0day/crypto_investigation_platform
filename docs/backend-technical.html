@@ -1,0 +1,1570 @@
+<!--
+  CipherChain — Backend Technical Reference.
+  This file is an Artifact *body* (no <html>/<head>/<body> tags by design —
+  the publisher wraps it). Publish with the Artifact tool to redeploy in place.
+-->
+<title>CipherChain Backend Reference</title>
+
+<style>
+  /* ---------- tokens: light is the base, both dark states override ---------- */
+  :root {
+    --ground:   #F4F7F7;
+    --surface:  #FFFFFF;
+    --sunken:   #EAF0F0;
+    --ink:      #0D1618;
+    --ink-soft: #33474B;
+    --muted:    #54666A;
+    --rule:     #D5E0E1;
+    --rule-soft:#E6EDEE;
+
+    --back:     #0B6E78;   /* backward / previous VASP */
+    --fwd:      #8A5A12;   /* forward / next VASP      */
+    --refuse:   #97322F;   /* a refusal, a limit       */
+    --verified: #146B58;
+
+    --back-wash: #E4F1F2;
+    --fwd-wash:  #F6EEDF;
+    --refuse-wash:#F8E9E8;
+
+    --plate:    #FCFDFD;   /* diagrams sit on their own plate in both themes */
+    --plate-ink:#0D1618;
+    --plate-rule:#D5E0E1;
+
+    --shadow: 0 1px 2px rgba(13,22,24,.05), 0 8px 24px -16px rgba(13,22,24,.28);
+
+    --serif: ui-serif, Charter, "Bitstream Charter", Georgia, "Times New Roman", serif;
+    --sans:  ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0A1113;
+      --surface:  #101A1C;
+      --sunken:   #162225;
+      --ink:      #E3ECED;
+      --ink-soft: #BACACD;
+      --muted:    #8DA1A5;
+      --rule:     #223134;
+      --rule-soft:#1A272A;
+
+      --back:     #58C4D0;
+      --fwd:      #DBA84C;
+      --refuse:   #E2908C;
+      --verified: #57BFA4;
+
+      --back-wash: #12292C;
+      --fwd-wash:  #2A2213;
+      --refuse-wash:#2C1A1A;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.85);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #0A1113;
+    --surface:  #101A1C;
+    --sunken:   #162225;
+    --ink:      #E3ECED;
+    --ink-soft: #BACACD;
+    --muted:    #8DA1A5;
+    --rule:     #223134;
+    --rule-soft:#1A272A;
+
+    --back:     #58C4D0;
+    --fwd:      #DBA84C;
+    --refuse:   #E2908C;
+    --verified: #57BFA4;
+
+    --back-wash: #12292C;
+    --fwd-wash:  #2A2213;
+    --refuse-wash:#2C1A1A;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.85);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+
+  /* ---------------------------- shell ---------------------------- */
+  .shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    gap: 48px;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 32px 120px;
+  }
+
+  .rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 40px 0 40px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .rail-title {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rail a {
+    display: block;
+    padding: 4px 10px 4px 12px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    border-left: 2px solid var(--rule-soft);
+    transition: color .12s, border-color .12s;
+  }
+  .rail a:hover { color: var(--back); border-left-color: var(--back); }
+  .rail a:focus-visible { outline: 2px solid var(--back); outline-offset: 2px; }
+  .rail .rail-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-right: 7px;
+  }
+  .rail .rail-gap { height: 12px; }
+
+  main { padding: 40px 0 0; min-width: 0; }
+
+  /* ---------------------------- masthead ---------------------------- */
+  .masthead { padding: 24px 0 44px; border-bottom: 1px solid var(--rule); margin-bottom: 48px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(34px, 5vw, 52px);
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 0 28px;
+  }
+  .stamp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stamp b { color: var(--ink-soft); font-weight: 500; }
+
+  /* ---------------------------- typography ---------------------------- */
+  section { scroll-margin-top: 24px; }
+  h2 {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -.005em;
+    margin: 40px 0 12px;
+    color: var(--ink);
+  }
+  h4 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    margin: 32px 0 10px;
+  }
+  p { margin: 0 0 16px; max-width: 68ch; }
+  ul, ol { max-width: 68ch; padding-left: 20px; margin: 0 0 16px; }
+  li { margin-bottom: 7px; }
+  a { color: var(--back); }
+  strong { font-weight: 640; }
+  code {
+    font-family: var(--mono);
+    font-size: .875em;
+    background: var(--sunken);
+    padding: .12em .38em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  .layer-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin: 0 0 6px;
+    padding-top: 64px;
+    border-top: 1px solid var(--rule);
+  }
+  .layer-head:first-child { padding-top: 0; border-top: 0; }
+  .layer-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--back);
+    letter-spacing: .1em;
+    flex: none;
+    padding-top: 4px;
+  }
+  .deck {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 66ch;
+    margin: 0 0 28px;
+    padding-left: 48px;
+  }
+  .layer-body { padding-left: 48px; }
+
+  @media (max-width: 900px) {
+    .deck, .layer-body { padding-left: 0; }
+  }
+
+  /* ---------------------------- decision blocks ---------------------------- */
+  .why {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--back);
+    border-radius: 3px;
+    padding: 20px 22px;
+    margin: 0 0 16px;
+    box-shadow: var(--shadow);
+  }
+  .why > .claim {
+    font-weight: 620;
+    margin: 0 0 14px;
+    max-width: none;
+  }
+  .why dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0,1fr); gap: 10px 18px; }
+  .why dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 4px;
+  }
+  .why dd { margin: 0; font-size: 15px; line-height: 1.6; max-width: 62ch; }
+  .why dd.instead { color: var(--ink-soft); }
+  .why dd.breaks { color: var(--refuse); }
+
+  .whys { display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px; }
+
+  /* ---------------------------- figures ---------------------------- */
+  figure { margin: 28px 0 32px; }
+  .plate {
+    background: var(--plate);
+    border: 1px solid var(--plate-rule);
+    border-radius: 4px;
+    padding: 22px 18px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+  .plate pre.mermaid { margin: 0; background: none; color: var(--plate-ink); display: flex; justify-content: center; min-width: 0; }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .04em;
+    color: var(--muted);
+    margin-top: 10px;
+    max-width: 68ch;
+    line-height: 1.5;
+  }
+  figcaption b { color: var(--ink-soft); font-weight: 500; letter-spacing: .1em; text-transform: uppercase; margin-right: 8px; }
+
+  /* ---------------------------- tables ---------------------------- */
+  .tablewrap { overflow-x: auto; margin: 0 0 28px; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.mono, th.mono { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+
+  /* ---------------------------- pills & callouts ---------------------------- */
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .pill.back { background: var(--back-wash); color: var(--back); }
+  .pill.fwd { background: var(--fwd-wash); color: var(--fwd); }
+  .pill.refuse { background: var(--refuse-wash); color: var(--refuse); }
+
+  .note {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--fwd);
+    background: var(--surface);
+    border-radius: 3px;
+    padding: 16px 20px;
+    margin: 0 0 28px;
+    font-size: 15px;
+  }
+  .note p:last-child { margin-bottom: 0; }
+  .note.hard { border-left-color: var(--refuse); }
+
+  .lede { font-size: 17.5px; color: var(--ink-soft); max-width: 64ch; }
+
+  /* ---------------------------- Q&A ---------------------------- */
+  .qa { border-top: 1px solid var(--rule); padding: 22px 0 4px; }
+  .qa:last-of-type { border-bottom: 1px solid var(--rule); margin-bottom: 28px; }
+  .qa .q { font-family: var(--serif); font-size: 19px; line-height: 1.4; margin: 0 0 12px; max-width: 64ch; }
+  .qa .verdict {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  .qa .verdict.ok { color: var(--verified); }
+  .qa .verdict.part { color: var(--fwd); }
+  .qa .verdict.no { color: var(--refuse); }
+  .qa p { font-size: 15px; }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: minmax(0,1fr); gap: 0; padding: 0 20px 80px; }
+    .rail { position: static; max-height: none; padding: 28px 0 0; }
+    .rail ol { flex-direction: row; flex-wrap: wrap; gap: 4px 6px; }
+    .rail a { border-left: 0; border: 1px solid var(--rule); border-radius: 3px; padding: 3px 8px; }
+    .rail .rail-gap { display: none; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 25px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="shell">
+
+<nav class="rail" aria-label="Contents">
+  <p class="rail-title">Contents</p>
+  <ol>
+    <li><a href="#question">The question it answers</a></li>
+    <li><a href="#evidence">The evidence model</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li class="rail-gap"></li>
+    <li><a href="#providers"><span class="rail-num">01</span>Providers</a></li>
+    <li><a href="#chains"><span class="rail-num">02</span>Chain adapters</a></li>
+    <li><a href="#storage"><span class="rail-num">03</span>Persistence</a></li>
+    <li><a href="#intel"><span class="rail-num">04</span>Label intelligence</a></li>
+    <li><a href="#analysis"><span class="rail-num">05</span>Attribution &amp; heuristics</a></li>
+    <li><a href="#engine"><span class="rail-num">06</span>Investigation engine</a></li>
+    <li><a href="#api"><span class="rail-num">07</span>HTTP surface</a></li>
+    <li class="rail-gap"></li>
+    <li><a href="#walkthrough">One request, end to end</a></li>
+    <li><a href="#stack">Why this stack</a></li>
+    <li><a href="#verification">How it is verified</a></li>
+    <li><a href="#limits">Limits and refusals</a></li>
+    <li><a href="#audit">Auditor's questions</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="masthead">
+  <p class="eyebrow">Backend Technical Reference</p>
+  <h1>CipherChain</h1>
+  <p class="standfirst">An autonomous blockchain investigation engine. Given one address, it finds the nearest exchange the money came from and the nearest exchange it went to — and shows its working for every step.</p>
+  <div class="stamp">
+    <span><b>Version</b> 0.1.0</span>
+    <span><b>Branch</b> feat/backend-v1</span>
+    <span><b>Chains</b> 5</span>
+    <span><b>Tables</b> 12</span>
+    <span><b>Labels</b> 74,928</span>
+    <span><b>Tests</b> 352 passing</span>
+    <span><b>Compiled</b> 13 Aug 2026</span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="question">
+  <h2>The question it answers</h2>
+  <p class="lede">An investigator holds one address from a report — a wallet in a fraud complaint, a ransom payment, a seized device. Two questions decide whether the case can progress.</p>
+
+  <p><span class="pill back">Backward</span> <strong>Where did this money come from?</strong> Trace the funding history until it reaches a regulated exchange. That exchange holds KYC records on whoever deposited the funds — a name, an ID document, a bank account. It is a subpoena target.</p>
+
+  <p><span class="pill fwd">Forward</span> <strong>Where did this money go?</strong> Trace the cash-out until it reaches a regulated exchange. That exchange can freeze the account before the funds leave the system.</p>
+
+  <p>Both answers are only useful if they name a real, contactable business. So the engine reports two things per direction, never merged: the <em>nearest</em> endpoint it reached, and the nearest endpoint it could actually <em>name</em> from a citable source. When those are two different addresses they stay two rows, because a same-distance address the tool is only 62% sure about is information the investigator is entitled to see — not something to hide behind a confident-looking label.</p>
+
+  <p>The term of art is <strong>VASP</strong> — Virtual Asset Service Provider, the FATF category covering custodial exchanges, brokers and custodians. Binance, Coinbase, OKX and Kraken are VASPs. A Uniswap router is not: it holds nobody's funds and can freeze nothing. Confusing the two is the single most damaging error this system could make, and most of its design exists to prevent it.</p>
+
+  <div class="note hard">
+    <p><strong>What this system is not.</strong> It is decision support, not a chain of custody. It makes no claim of court admissibility or legal certification. It does not de-anonymise mixers — when a trail enters Tornado Cash the finding says the trail was <em>cut</em>, not that it ran dry. It contains no machine learning: every conclusion is either a fact on the ledger, a named and versioned algorithm, a dated third-party claim, or a statement about the tool's own run.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="evidence">
+  <h2>The evidence model</h2>
+  <p class="lede">Everything else in this document rests on one decision: a conclusion must declare what <em>kind</em> of support it has, and the four kinds are never conflated.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Evidence kind</th><th>Means</th><th>Must carry</th><th>Must not carry</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono">onchain_fact</td>
+          <td>Anyone can verify this on a block explorer.</td>
+          <td>Transaction references</td>
+          <td>Confidence, source, heuristic</td>
+        </tr>
+        <tr>
+          <td class="mono">heuristic_inference</td>
+          <td>A named algorithm concluded this from behaviour.</td>
+          <td><code>name@version</code>, confidence &lt; 1.0</td>
+          <td>A source</td>
+        </tr>
+        <tr>
+          <td class="mono">third_party_claim</td>
+          <td>An outside source asserts this. Only this kind can name an operator.</td>
+          <td>Source, source date, confidence &lt; 1.0</td>
+          <td>A heuristic</td>
+        </tr>
+        <tr>
+          <td class="mono">engine_observation</td>
+          <td>A statement about CipherChain's own run — what it examined, where it stopped.</td>
+          <td>—</td>
+          <td>Confidence, source, heuristic</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>These rules are enforced in the constructor of a frozen dataclass (<code>Evidence.__post_init__</code>), so there is no code path anywhere in the system that produces evidence which skipped the check. An ill-formed piece of evidence cannot be constructed, let alone stored.</p>
+
+  <div class="whys">
+    <div class="why">
+      <p class="claim">Confidence is never 1.0 for an inference or a claim.</p>
+      <dl>
+        <dt>Why</dt><dd>A confidence of 1.0 on a sourced label is a claim of ground truth. Every label is a claim, not truth — including a signature-verified one, because the signature proves key control, not that the operator is who they say they are.</dd>
+        <dt>Instead of</dt><dd>One uniform optional confidence in [0, 1] applied to every kind.</dd>
+        <dt>What broke</dt><dd class="breaks">The looser version shipped. A label dataset asserting <code>confidence == 1.0</code> crashed a live run mid-trace. The bound now sits in three places: the domain constructor, the attribution result, and a database CHECK.</dd>
+      </dl>
+    </div>
+
+    <div class="why">
+      <p class="claim">A third-party claim may not carry a heuristic, and an inference may not carry a source.</p>
+      <dl>
+        <dt>Why</dt><dd>The laundering guard. Without it, an inference can wear claim clothing with its heuristic still attached, and every consumer that switches on the evidence kind reads a guess as sourced attribution.</dd>
+        <dt>Instead of</dt><dd>One composite piece of evidence carrying both the source it rests on and the heuristic that processed it.</dd>
+        <dt>What breaks</dt><dd class="breaks">A reviewer reading "labelled by OFAC SDN, sweep@1, 0.7" cannot tell whether the address is on a sanctions list or whether a pattern detector merely thinks it resembles one — and cannot challenge the label's date separately from the algorithm's version.</dd>
+      </dl>
+    </div>
+
+    <div class="why">
+      <p class="claim">A fourth kind, <code>engine_observation</code>, exists to <em>narrow</em> what <code>onchain_fact</code> means.</p>
+      <dl>
+        <dt>Why</dt><dd>"The trail ends here" is a statement about the tool, verifiable against the investigation record and not against any ledger.</dd>
+        <dt>Instead of</dt><dd>Three kinds, filing tool state as an on-chain fact with the subject address as its reference.</dd>
+        <dt>What broke</dt><dd class="breaks">That shipped. A reviewer auditing the finding would follow the reference to a block explorer, find a real address, and conclude that "the frontier ran dry" had been independently verified on-chain. A regression test now carries the name <code>test_terminal_findings_never_wear_the_onchain_fact_stamp</code>.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <p>One consequence is worth stating plainly to any reviewer, because the whole label pipeline is built around it: the function that decides whether an answer is <em>named</em> keys on the presence of <code>third_party_claim</code> evidence. That is the structural reason an unverified community report must never reach the attributor at any confidence — it would silently become a named answer.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p class="lede">Seven layers, one dependency direction, and one hard boundary: only the chain adapters may touch the outside world.</p>
+
+  <figure>
+    <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+flowchart TB
+  CL["Investigator / frontend"]
+  subgraph L7["07 &mdash; api &mdash; HTTP surface"]
+    API["FastAPI routes, Pydantic wire models"]
+  end
+  subgraph L6["06 &mdash; investigation &mdash; the engine"]
+    ENG["traversal, budgets, terminators, answers"]
+  end
+  subgraph L5["05 &mdash; analysis &mdash; attribution and heuristics"]
+    AN["labels, OFAC, behavioural detectors, asset policy"]
+  end
+  subgraph L4["04 &mdash; intel &mdash; label lifecycle"]
+    IN["what may be named, and why"]
+  end
+  subgraph L3["03 &mdash; storage &mdash; Postgres"]
+    ST["12 tables, 3 repositories, 4 migrations"]
+  end
+  subgraph L2["02 &mdash; chains &mdash; adapters"]
+    CH["bitcoin, evm, tron, solana"]
+  end
+  subgraph L1["01 &mdash; providers &mdash; vendor gateway"]
+    PR["pool, cache, rate limit, circuit breaker"]
+  end
+  VEND["Blockchain vendors"]
+  CORE["core &mdash; the shared vocabulary&lt;br/&gt;Address, Movement, Evidence, Finding&lt;br/&gt;imports nothing else in the system"]
+
+  CL --> API --> ENG
+  ENG --> AN
+  AN --> IN
+  ENG --> ST
+  ENG --> CH
+  CH --> PR --> VEND
+  IN --> ST
+  CORE -.-> L1
+  CORE -.-> L2
+  CORE -.-> L3
+  CORE -.-> L4
+  CORE -.-> L5
+  CORE -.-> L6
+  CORE -.-> L7
+</pre>
+    </div>
+    <figcaption><b>Fig 1</b> The dependency rule runs one way. The engine holds no reference to the provider pool at all — it physically cannot make a network call. <code>core</code> is imported by everything and imports nothing, so the vocabulary cannot drift.</figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Layer</th><th>Owns</th><th>Deliberately does not own</th><th class="num">Lines</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">core</td><td>The domain vocabulary and the evidence taxonomy</td><td>Any I/O, any judgement</td><td class="num">712</td></tr>
+        <tr><td class="mono">providers</td><td>Which vendor answers, and at what cost</td><td>What the data means</td><td class="num">~1,100</td></tr>
+        <tr><td class="mono">chains</td><td>Turning each ledger's semantics into one shape</td><td>Cross-chain reasoning, vendor choice</td><td class="num">1,728</td></tr>
+        <tr><td class="mono">storage</td><td>Rows, constraints, migrations</td><td>Policy of any kind</td><td class="num">1,624</td></tr>
+        <tr><td class="mono">intel</td><td>Which claims may become citable evidence</td><td>Reading labels during a trace</td><td class="num">418</td></tr>
+        <tr><td class="mono">analysis</td><td>Naming, sanctions screening, behaviour</td><td>Traversal decisions</td><td class="num">~1,200</td></tr>
+        <tr><td class="mono">investigation</td><td>Where to walk, when to stop, what the answer is</td><td>Network access, label meaning</td><td class="num">1,360</td></tr>
+        <tr><td class="mono">api</td><td>Validation, wire shapes, chain disambiguation</td><td>Any investigation behaviour</td><td class="num">715</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="providers">
+  <div class="layer-head">
+    <span class="layer-num">01</span>
+    <h2>Providers — the vendor gateway</h2>
+  </div>
+  <p class="deck">The only route to any blockchain data source. Nothing above this layer knows which vendor answered a question.</p>
+
+  <div class="layer-body">
+    <p>CipherChain reads five chains through five vendor clients on free API tiers. That constraint drives the whole design: a quota spent twice on the same transaction is a bug, and one vendor's outage must not become "this address has no history".</p>
+
+    <p>A read enters as a vendor-neutral request — <code>(chain, capability, params)</code> — and the pool decides everything else. Capabilities are a closed set of nine (<code>address_history</code>, <code>tx_lookup</code>, <code>internal_traces</code>, <code>token_transfers</code>, and so on), so a caller asks for what it needs, never for a vendor.</p>
+
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+flowchart LR
+  REQ["ProviderRequest&lt;br/&gt;chain, capability, params"] --> CK["cache_key = sha256 of canonical JSON&lt;br/&gt;credentials never enter params"]
+  CK --> CACHE{"cache lookup&lt;br/&gt;BEFORE the rate limiter"}
+  CACHE -->|"hit"| RET["ProviderResponse&lt;br/&gt;original provider name and digest preserved"]
+  CACHE -->|"miss"| CAND["candidates = providers supporting&lt;br/&gt;this chain and capability, by priority"]
+  CAND --> BRK{"circuit breaker&lt;br/&gt;allows this provider?"}
+  BRK -->|"open: skip"| CAND
+  BRK -->|"closed / probing"| TB["token bucket acquire&lt;br/&gt;per provider, at or below free tier"]
+  TB --> EXE["provider.execute"]
+  EXE --> OUT{"outcome"}
+  OUT -->|"success"| STORE["store raw bytes + canonical parse&lt;br/&gt;record latency"] --> RET
+  OUT -->|"429 rate limited"| PEN["drain bucket, honour Retry-After,&lt;br/&gt;retry SAME provider, breaker untouched"] --> TB
+  OUT -->|"5xx / transport"| FAIL["breaker records failure,&lt;br/&gt;jittered backoff, then fail over"] --> CAND
+  OUT -->|"malformed body"| INV["not transient:&lt;br/&gt;fail over immediately, no retry"] --> CAND
+  OUT -->|"authoritative not-found"| NF["an ANSWER, not a failure:&lt;br/&gt;breaker records success, propagate"]
+</pre>
+      </div>
+      <figcaption><b>Fig 2</b> The four-class error taxonomy is the point. Each vendor client must translate its own quirks into these four classes, and each class gets a different policy.</figcaption>
+    </figure>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">The cache is consulted <em>before</em> the rate limiter, and the cache key never includes the provider.</p>
+        <dl>
+          <dt>Why</dt><dd>Chain data is immutable, so a cache hit must cost zero rate budget. A vendor-independent key means any provider's answer can serve any other provider's identical request.</dd>
+          <dt>Instead of</dt><dd>Limiter first, or a provider-scoped key.</dd>
+          <dt>What breaks</dt><dd class="breaks">Etherscan is registered at 4 requests/second and mempool.space at 2. Failing over to a second vendor would re-pay for a transaction the pool already holds.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">A rate-limit response retries the same provider and never counts against its circuit breaker.</p>
+        <dl>
+          <dt>Why</dt><dd>A 429 means the vendor is alive and our configured rate was wrong — evidence about us, not about them.</dd>
+          <dt>Instead of</dt><dd>Treating every non-2xx as one retryable failure.</dd>
+          <dt>What breaks</dt><dd class="breaks">The provider you rely on most is the one you hit limits on first, so the breaker would preferentially evict your best source.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">An authoritative "no such transaction" is recorded as a <em>success</em> and propagated without failover.</p>
+        <dl>
+          <dt>Why</dt><dd>The provider worked fine. A declared absence is an answer.</dd>
+          <dt>Instead of</dt><dd>Treating a null or 404 as a failure and trying the next vendor.</dd>
+          <dt>What breaks</dt><dd class="breaks">Every unknown hash would cost up to (candidates × attempts) vendor calls and end in an infrastructure error — turning a truthful "this transaction does not exist on this chain" into a false outage report.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Credentials attach inside the vendor client at execute time, never in the request parameters.</p>
+        <dl>
+          <dt>Why</dt><dd>Request parameters are hashed into the cache key and persisted in the evidence store.</dd>
+          <dt>Instead of</dt><dd>Passing the configured credential through as a normal parameter.</dd>
+          <dt>What breaks</dt><dd class="breaks">Rotating a key would silently invalidate the entire cache, and the key itself would be written verbatim into the database — a durable secret leak inside the evidence store. A related leak (HTTP client libraries logging full URLs with keys in them) was found in review and closed by raising those loggers to WARNING before anything else initialises.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <h4>Configured limits, as registered</h4>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Vendor client</th><th>Serves</th><th class="num">Rate</th><th class="num">Capabilities</th><th>Credential</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">MempoolSpaceProvider</td><td>Bitcoin</td><td class="num">2 / s</td><td class="num">4</td><td>None needed</td></tr>
+          <tr><td class="mono">EtherscanV2Provider</td><td>Ethereum, Polygon</td><td class="num">4 / s</td><td class="num">3</td><td>Required to register</td></tr>
+          <tr><td class="mono">EvmRpcProvider</td><td>Ethereum, Polygon</td><td class="num">5 / s</td><td class="num">5</td><td>One instance per configured endpoint</td></tr>
+          <tr><td class="mono">SolanaRpcProvider</td><td>Solana</td><td class="num">5 / s</td><td class="num">4</td><td>One instance per configured endpoint</td></tr>
+          <tr><td class="mono">TronGridProvider</td><td>Tron</td><td class="num">5 / s</td><td class="num">3</td><td>Optional; drops to 2/s without one</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Nine RPC endpoint templates span three chains. A vendor is registered only if its credential is set, so an absent key removes that vendor silently rather than failing startup — one expired key must not take the platform down when three other vendors serve the same capability. With no keys at all the pool raises a structured "all providers failed, 0 attempts" rather than returning empty data.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="chains">
+  <div class="layer-head">
+    <span class="layer-num">02</span>
+    <h2>Chain adapters — one shape for four paradigms</h2>
+  </div>
+  <p class="deck">Bitcoin, Ethereum, Polygon, Tron and Solana keep value in fundamentally different ways. Everything above this layer sees one.</p>
+
+  <div class="layer-body">
+    <p>The atomic traced fact is a <strong>Movement</strong>: an amount, an asset, a transaction, a timestamp, and up to two endpoints. Both endpoints may not exist — that is what makes one shape cover every ledger.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Chain</th><th>Model</th><th>How value is read</th><th>Address form</th></tr></thead>
+        <tbody>
+          <tr><td>Bitcoin</td><td>UTXO</td><td>Each spending input becomes a half with no recipient; each paying output a half with no sender. The transaction joins them.</td><td>Base58 or bech32 — case preserved</td></tr>
+          <tr><td>Ethereum · Polygon</td><td>Account</td><td>Three feeds merged: normal transactions, token transfers, and internal traces.</td><td>Hex, lowercased</td></tr>
+          <tr><td>Tron</td><td>Account</td><td>Native and TRC-20 feeds merged; hex <code>41…</code> converted to Base58 <code>T…</code> in-process.</td><td>Base58 — case preserved</td></tr>
+          <tr><td>Solana</td><td>Balance delta</td><td>No transfers exist to read. Accounts whose balance fell are inputs; accounts whose balance rose are outputs; the fee is added back for the payer.</td><td>Base58 pubkey — case significant</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">Solana's balance-delta model is mapped onto the existing UTXO halves rather than getting its own movement kind.</p>
+        <dl>
+          <dt>Why</dt><dd>Counterparty resolution then stays data-driven, and the engine never branches on chain identity.</dd>
+          <dt>Instead of</dt><dd>A Solana-specific movement kind, or letting the engine special-case Solana.</dd>
+          <dt>What it bought</dt><dd>Adding a third execution paradigm required <em>zero</em> changes to the engine, the heuristics, the graph queries or the report.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Ethereum reads a third feed — internal traces — that most tools skip.</p>
+        <dl>
+          <dt>Why</dt><dd>Contract-delivered native value appears in neither of the other two feeds. Mixer withdrawals, exchange withdrawal contracts, smart-contract wallets and bridge exits are all invisible without it.</dd>
+          <dt>Instead of</dt><dd>Two feeds, which is what the original interface specification froze.</dd>
+          <dt>What broke</dt><dd class="breaks">Measured on a wallet whose entire funding arrived from the Tornado Cash 0.1 ETH pool: the funding was <em>completely invisible</em> in the standard feed. Adding internal traces took that trace from 4 mixer findings to 8. Without it the tool reports "the trail ends here" at an address that was demonstrably funded by a mixer.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">A token transfer amount is decoded from exactly one 32-byte word; any other data length skips the log entirely.</p>
+        <dl>
+          <dt>Why</dt><dd>A contract can emit the Transfer topic with arbitrary data. One word is always within uint256.</dd>
+          <dt>Instead of</dt><dd>Parsing the whole data field as a number.</dd>
+          <dt>What breaks</dt><dd class="breaks">A hostile contract emits a multi-word payload, the decoded value exceeds uint256, and the database insert aborts the entire batch — a value-corruption and denial-of-service vector in one.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">A bare <code>0x…</code> address is reported as <em>ambiguous</em>, never resolved to a guess.</p>
+        <dl>
+          <dt>Why</dt><dd>Ethereum and Polygon share an address space. The registry returns every chain that claims the string and the caller must resolve it.</dd>
+          <dt>Instead of</dt><dd>Returning a single best guess and logging the assumption.</dd>
+          <dt>What breaks</dt><dd class="breaks">A confident trace of the wrong chain is a confident claim about the wrong money, and nobody reads the log line.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <p><strong>Movement identity is content-addressed, not positional.</strong> Each adapter supplies a <code>dedup_key</code> drawn from intrinsic structure — a Bitcoin input's vin position, a token transfer's sender-recipient-contract triple. This is load-bearing: the first design numbered movements by a running counter, so the same transaction fetched while expanding address A and again while expanding address B produced different identities for the same transfer. The fact store then either silently dropped a real transfer or double-counted it. Both failures are now regression-tested by name.</p>
+
+    <div class="note">
+      <p><strong>Refusals are explicit.</strong> An unconfirmed transaction is refused at normalization on every chain — it has no temporal anchor and can be replaced. A failed transaction moves no value, checked per chain in that chain's own idiom. An undeclared capability raises an error rather than returning empty data.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="storage">
+  <div class="layer-head">
+    <span class="layer-num">03</span>
+    <h2>Persistence — making illegal states unrepresentable</h2>
+  </div>
+  <p class="deck">Twelve tables in two planes: a global immutable fact store, and a per-investigation overlay that deletes with its case.</p>
+
+  <div class="layer-body">
+    <p>The split matters for an evidentiary reason. Facts — addresses, transactions, movements, assets, cached vendor payloads — are written once, shared across every investigation, and never rewritten. The overlay — investigations, nodes, edges, findings, evidence — belongs to one case and cascade-deletes with it. The labels and their audit log form a third, separate plane that neither owns.</p>
+
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+erDiagram
+    transactions ||--o{ movements : "transaction_id"
+    assets ||--o{ movements : "asset_id"
+    addresses |o--o{ movements : "from / to, either may be null"
+    addresses ||--o{ investigations : "root_address_id"
+    investigations ||--o{ nodes : "CASCADE"
+    investigations ||--o{ edges : "CASCADE"
+    investigations ||--o{ findings : "CASCADE"
+    nodes ||--o{ edges : "src and dst"
+    movements |o--o{ edges : "null for bridge edges"
+    findings ||--o{ evidence : "CASCADE"
+    labels ||--o{ label_events : "NO cascade, by design"
+
+    movements {
+        bigint transaction_id FK "uq_movements_identity"
+        text dedup_key "uq_movements_identity, vantage stable"
+        bigint from_address_id FK "null for UTXO output halves"
+        bigint to_address_id FK "null for UTXO input halves"
+        numeric78 amount "CHECK non-negative"
+        timestamptz timestamp "denormalised from transactions"
+        text provider "provenance"
+        char64 payload_sha256 "digest cited by findings"
+    }
+    nodes {
+        text direction "part of node identity"
+        int hop_distance "distance from the root"
+        numeric78 value_share "ranking, not accounting"
+        text state "frontier, expanded, terminal"
+        bool history_truncated "coverage, recorded not inferred"
+        text terminal_reason "why this branch closed"
+    }
+    evidence {
+        text kind "CHECK: the four kinds"
+        jsonb refs "transaction hashes"
+        text source "third-party claims only"
+        timestamptz source_date "how old is this claim"
+        text heuristic "inferences only, name at version"
+        double confidence "null exactly for facts"
+    }
+    labels {
+        text chain "uq_labels_claim"
+        text address "uq_labels_claim"
+        text source "uq_labels_claim, one source one claim"
+        text category "CHECK: vasp, sanctioned, mixer, infrastructure"
+        text status "CHECK: pending, active, retired"
+        text method "CHECK: 4 verification methods"
+        double confidence "CHECK strictly between 0 and 1"
+        text corroborated_by "set on promotion, cleared on demotion"
+    }
+    label_events {
+        text kind "added, updated, promoted, demoted, retired"
+        text reason "why this transition happened"
+        text actor "who or what caused it"
+    }
+</pre>
+      </div>
+      <figcaption><b>Fig 3</b> Abbreviated schema. 16 CHECK constraints, 7 unique constraints and 16 foreign keys hold invariants the application would otherwise have to remember.</figcaption>
+    </figure>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">Amounts are <code>NUMERIC(78,0)</code> surfaced as Python integers. Floats never touch value.</p>
+        <dl>
+          <dt>Why</dt><dd>78 digits holds a uint256. Value arithmetic is exact end to end.</dd>
+          <dt>Instead of</dt><dd>BIGINT or double precision.</dd>
+          <dt>What breaks</dt><dd class="breaks">BIGINT tops out around 9.2×10¹⁸ and a token balance overflows it outright. A float silently rounds wei-scale values, so two different transfers compare equal and a ranking becomes non-reproducible.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Read ordering breaks ties on chain data — timestamp, then transaction hash, then position — never on the database row id.</p>
+        <dl>
+          <dt>Why</dt><dd>A row id is assigned at insert time, so ordering by it makes results depend on the sequence in which this database happened to ingest transactions.</dd>
+          <dt>Instead of</dt><dd><code>ORDER BY timestamp, id</code> — the obvious stable-sort choice.</dd>
+          <dt>What breaks</dt><dd class="breaks">Sweep detection consumes each candidate as it pairs, so one reordered tie changes every later pairing. The same address would produce different findings against a warm database than against a cold one.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Direction is part of a node's identity.</p>
+        <dl>
+          <dt>Why</dt><dd>An address reachable both backward and forward occupies two distinct trace positions, one per objective.</dd>
+          <dt>Instead of</dt><dd>Identity on (investigation, kind, address, transaction) alone, which is what the first migration created.</dd>
+          <dt>What broke</dt><dd class="breaks">The second objective's trace terminated at the first objective's node, and the engine reported "trace exhausted" for an endpoint it had already found. Escalated to critical in review because it makes the headline answer wrong without saying so.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">The label audit table's foreign key has no cascade, while every other overlay key does.</p>
+        <dl>
+          <dt>Why</dt><dd>Labels retire, they are never deleted. A cascade would let deleting a label silently delete its history — the one thing an audit table exists to prevent.</dd>
+          <dt>Instead of</dt><dd><code>ON DELETE CASCADE</code>, matching the rest of the schema.</dd>
+          <dt>How it is held</dt><dd>A test issues a raw <code>DELETE FROM labels</code> and expects the database to reject it, specifically so that a future cascade — which no insert-path test would ever notice — fails here.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <p>Migrations are a strictly linear chain of four Alembic revisions, autogenerated against the models and then hand-corrected. One downgrade is worth reading: the revision that added the fourth evidence kind refuses to run backwards while any row uses it, raising an error rather than rewriting immutable investigation records.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="intel">
+  <div class="layer-head">
+    <span class="layer-num">04</span>
+    <h2>Label intelligence — what may be named, and why</h2>
+  </div>
+  <p class="deck">The system holds 74,928 labels. Only rows in one specific state can ever put a name in a report.</p>
+
+  <div class="layer-body">
+    <p>Naming an address is the single highest-consequence thing this system does. "These funds reached Binance" sends an investigator to a real company with a real subpoena. Getting it wrong wastes a warrant, or worse, accuses the wrong business.</p>
+
+    <p>So a label is not a fact in a file. It is a claim with a lifecycle, and only the <code>active</code> state reaches the attributor. Pending and retired rows are not <em>filtered out</em> by the attributor — they simply never reach it.</p>
+
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+stateDiagram-v2
+    [*] --> pending : community report, or any unrecognised method
+    [*] --> active : signature, first-party published, or licensed dataset
+    pending --> active : an independent, trusted, active row agrees
+    active --> pending : demoted — the row was edited, or its corroborator retired
+    pending --> retired : retire, explicitly
+    active --> retired : the source retracts or expires
+    retired --> [*] : terminal. No path back.
+
+    note right of active
+      The ONLY status the attributor loads.
+      Every entry and exit writes a row in
+      label_events, in the same transaction.
+    end note
+</pre>
+      </div>
+      <figcaption><b>Fig 4</b> Verification method decides arrival status. Everything unrecognised fails closed to <code>pending</code>.</figcaption>
+    </figure>
+
+    <h3>What is actually in the store today</h3>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Source</th><th>Method</th><th class="num">Confidence</th><th class="num">Rows</th><th>What it proves</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>OKX proof-of-reserves</td>
+            <td class="mono">signature</td>
+            <td class="num">0.90</td>
+            <td class="num">36,049</td>
+            <td>The exchange signed each address with its private key. This repo re-verified every signature itself.</td>
+          </tr>
+          <tr>
+            <td>OFAC SDN + official protocol sources</td>
+            <td class="mono">first_party_published</td>
+            <td class="num">0.90</td>
+            <td class="num">70</td>
+            <td>Sanctioned mixer addresses, published by the issuing authority.</td>
+          </tr>
+          <tr>
+            <td>Etherscan tags, via eth-labels</td>
+            <td class="mono">licensed_dataset</td>
+            <td class="num">0.75</td>
+            <td class="num">25,923</td>
+            <td>15 exchanges. Rests on Etherscan's private methodology — nobody outside can check it.</td>
+          </tr>
+          <tr>
+            <td>Etherscan tags — infrastructure</td>
+            <td class="mono">licensed_dataset</td>
+            <td class="num">0.75</td>
+            <td class="num">12,886</td>
+            <td>Known non-custodial contracts. Not an accusation — a veto (see layer 05).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Exchange coverage, by entity</h4>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Entity</th><th class="num">Operational</th><th class="num">Deposit</th><th class="num">Total</th><th>Tier</th></tr></thead>
+        <tbody>
+          <tr><td><strong>OKX</strong></td><td class="num">—</td><td class="num">—</td><td class="num">36,049</td><td><span class="pill back">signature-verified</span></td></tr>
+          <tr><td>Bitget</td><td class="num">46</td><td class="num">19,027</td><td class="num">19,073</td><td>licensed dataset</td></tr>
+          <tr><td><strong>Binance</strong></td><td class="num">199</td><td class="num">5,021</td><td class="num">5,220</td><td>licensed dataset</td></tr>
+          <tr><td><strong>Coinbase</strong></td><td class="num">481</td><td class="num">0</td><td class="num">481</td><td>licensed dataset</td></tr>
+          <tr><td>Kraken</td><td class="num">263</td><td class="num">0</td><td class="num">263</td><td>licensed dataset</td></tr>
+          <tr><td>HTX</td><td class="num">232</td><td class="num">0</td><td class="num">232</td><td>licensed dataset</td></tr>
+          <tr><td>KuCoin</td><td class="num">81</td><td class="num">1</td><td class="num">82</td><td>licensed dataset</td></tr>
+          <tr><td>Crypto.com</td><td class="num">73</td><td class="num">0</td><td class="num">73</td><td>licensed dataset</td></tr>
+          <tr><td>Bitstamp</td><td class="num">63</td><td class="num">0</td><td class="num">63</td><td>licensed dataset</td></tr>
+          <tr><td>Bybit</td><td class="num">51</td><td class="num">0</td><td class="num">51</td><td>licensed dataset</td></tr>
+          <tr><td>Bitfinex, MEXC, Gemini, Gate.io, Huobi</td><td class="num">108</td><td class="num">0</td><td class="num">108</td><td>licensed dataset</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>The distinction between <strong>operational</strong> and <strong>deposit</strong> addresses is legally material and is preserved in every finding. Funds arriving at a deposit address reached <em>a customer of that exchange</em>; funds arriving at an operational address reached the exchange's own treasury. Those are different claims and different requests to the exchange.</p>
+
+    <div class="note">
+      <p><strong>Why OKX dominates.</strong> Not because OKX matters more, but because it is the one major exchange publishing a machine-readable, cryptographically signed address list. Binance and Coinbase are covered from a commercial tag dataset, which is weaker and Ethereum-only. Extending signature-grade coverage to a second exchange is the next planned source adapter; the verifier itself already handles ECDSA on EVM, Tron and Bitcoin multisig, and ed25519 on Solana.</p>
+    </div>
+
+    <h3>The lifecycle rules, and the attacks that shaped them</h3>
+
+    <p>Each of the following exists because adversarial review demonstrated the failure end-to-end against an earlier version of this layer. All four are now regression tests.</p>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">Activation is re-derived every cycle and synchronously on edit — never a stamp written once.</p>
+        <dl>
+          <dt>Why</dt><dd>A claim is active because something still justifies it, not because something once did.</dd>
+          <dt>Instead of</dt><dd>Writing <code>corroborated_by</code> at promotion and trusting it thereafter.</dd>
+          <dt>Demonstrated attack</dt><dd class="breaks">Submit honest content, wait for promotion, then edit the row to read "Lazarus Group / sanctioned". It stayed active with the original corroboration — attacker-chosen content wearing forged provenance, in the attributor's load.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">A promoted community report can never itself corroborate another report.</p>
+        <dl>
+          <dt>Why</dt><dd>Trust flows one way: from harvested sources to reports, never between reports.</dd>
+          <dt>Instead of</dt><dd>Treating "active" as sufficient to corroborate, since a promoted report has by definition already been checked.</dd>
+          <dt>Demonstrated attack</dt><dd class="breaks">Two reports that could never promote each other directly did so across cycles once one had been promoted — and then held each other active after the real source retired.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Entity agreement is exact equality of a normalised stem, checked in both directions, with an empty stem matching nothing.</p>
+        <dl>
+          <dt>Why</dt><dd>"Binance 14" confirms "Binance (deposit)". "Binance Charity" does not confirm "Binance" — different stem, plausibly a different legal entity, so it waits.</dd>
+          <dt>Instead of</dt><dd>Prefix or substring matching, which reads as the generous, obviously-safe relaxation.</dd>
+          <dt>What breaks</dt><dd class="breaks">A Binance Charity label would corroborate a report naming Binance. Separately, the index-stripping rule requires a separator before the digits — so "Binance 14" sheds its wallet number but "Aave V2" keeps its 2, and an Aave V2 pool never corroborates a claim about the V3 pool.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">A community-submitted entity name must be a bare name: single line, no parentheses, no URLs, at most 64 characters.</p>
+        <dl>
+          <dt>Why</dt><dd>Stem matching deliberately discards parentheticals — safe for our own curated packs, where the parenthetical <em>is</em> the role annotation.</dd>
+          <dt>Instead of</dt><dd>The same lenient rules for strangers as for curated packs, relying on corroboration to filter bad content.</dd>
+          <dt>Demonstrated attack</dt><dd class="breaks">"Binance (successor wallet 0xATTACKER)" stems to "binance", corroborates against real Binance data, promotes to active — and the verbatim attacker prose becomes what an investigator reads as a sourced label. Corroboration cannot catch it, because the stem genuinely matches.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="note">
+      <p><strong>Corroboration errors are asymmetric, and the rules sit on the conservative side of every line.</strong> A false negative delays a true label by one cycle. A false positive publishes a stranger's assertion, under a citable source, to an officer deciding where to send a subpoena.</p>
+    </div>
+
+    <p>Every transition writes its event in the same database transaction as the row change — pinned by a fault-injection test that makes the event write fail and asserts the promotion did not survive. A promotion the audit table cannot show is a promotion nobody can audit.</p>
+
+    <p>One more property matters for provenance: the source cited in a report is always the <em>original</em> source — the proof-of-reserves file, the dataset, the corroborated report — never "the label store". The store is plumbing, not provenance.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="analysis">
+  <div class="layer-head">
+    <span class="layer-num">05</span>
+    <h2>Attribution and heuristics — a name and a guess, never confused</h2>
+  </div>
+  <p class="deck">Two independent ways to conclude something about an address, kept structurally separate all the way to the wire.</p>
+
+  <div class="layer-body">
+    <p>Attribution is a lookup: does a sourced, active label claim this address? Heuristics are inference: does this address <em>behave</em> like something? The system runs both, and the type system makes it impossible to present the second as the first.</p>
+
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+flowchart TD
+  N["An address the trace has reached"] --> ATTR["Attributor lookup&lt;br/&gt;in-memory index over active labels + OFAC&lt;br/&gt;no provider call, no budget spent"]
+
+  ATTR -->|"category: mixer"| MIX["MIXER_INTERACTION&lt;br/&gt;third_party_claim&lt;br/&gt;branch STOPS: the trail was cut"]
+  ATTR -->|"category: vasp"| VSP["VASP_ENDPOINT&lt;br/&gt;third_party_claim + onchain_fact value path&lt;br/&gt;branch STOPS: this is an answer"]
+  ATTR -->|"category: sanctioned"| SNC["SANCTIONED_ADDRESS&lt;br/&gt;recorded, and the trace CONTINUES through it"]
+  ATTR -->|"no label"| FR["stays on the frontier"]
+
+  SNC --> PROC["Read one page of history, store the movements"]
+  FR --> PROC
+
+  PROC --> FLOOR["Asset provenance floor&lt;br/&gt;native always; a token only if its contract is verified&lt;br/&gt;forged-token movements are dropped from EVIDENCE"]
+
+  FLOOR --> DET["Seven behavioural detectors&lt;br/&gt;sweep, peel-chain, batch-distribution,&lt;br/&gt;fan-out, equal-split, fan-in, rapid-hop&lt;br/&gt;each versioned at @1"]
+  DET --> OUT1["heuristic_inference, 0.50 to 0.95&lt;br/&gt;every finding names its own benign lookalike"]
+
+  FLOOR --> SVC{"Is this a service endpoint?"}
+  SVC -->|"a sourced infrastructure label says no"| V1["INFERENCE SUPPRESSED&lt;br/&gt;a DEX router is not a custodian"]
+  SVC -->|"burn or sentinel address"| V2["no finding"]
+  SVC -->|"25+ senders AND 25+ recipients AND 60+ counterparties"| SEP["VASP_ENDPOINT, operator UNNAMED&lt;br/&gt;service-endpoint@1, 0.55 to 0.75&lt;br/&gt;identifies the ROLE only"]
+  SVC -->|"below threshold, or one-directional"| V3["no finding&lt;br/&gt;an airdrop distributor only pays out"]
+
+  FLOOR -.->|"forged movements are still stored and still expand the graph"| PROC
+</pre>
+      </div>
+      <figcaption><b>Fig 5</b> Four separate gates prevent a non-custodial contract from being reported as an exchange.</figcaption>
+    </figure>
+
+    <h3>The four false-positive gates</h3>
+
+    <ol>
+      <li><strong>A sourced infrastructure label vetoes the behavioural inference.</strong> A DEX settlement contract has the counterparty degree of an exchange and none of the custody. This is what the 12,886 infrastructure labels are for — they are not accusations, they are a veto list.</li>
+      <li><strong>Bidirectionality is required.</strong> An airdrop distributor pays out to thousands and receives from almost nobody. Requiring 25+ distinct senders <em>and</em> 25+ distinct recipients excludes that shape.</li>
+      <li><strong>The asset provenance floor runs before any detector.</strong> A token contract can emit transfer events between addresses that never signed anything. Movements in unverified assets are dropped from the evidence a heuristic may rest on — while still being stored and still expanding the graph, because hiding real on-chain events would be its own dishonesty.</li>
+      <li><strong>Every detector names the benign behaviour that looks identical to it,</strong> inside the finding itself. Asserted by a test called <code>test_finding_names_the_benign_lookalike</code>.</li>
+    </ol>
+
+    <p>The behavioural inference is honest about its own limits in its own text: it reports "service endpoint (operator unnamed)" and states that it identifies the role only — the operator's identity is off-chain and requires a sourced label. The obfuscation detectors refuse to allege intent at all: "this address fans value out to many recipients" is supportable from the chain; "this address is laundering" is not. A test named <code>test_never_names_a_specific_mixing_protocol</code> locks that in.</p>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">Labels are read the moment an address is <em>discovered</em>, not when it is eventually processed.</p>
+        <dl>
+          <dt>Why</dt><dd>Attribution is a dictionary lookup — no network call, no budget. A free question should not sit behind an expensive one.</dd>
+          <dt>Instead of</dt><dd>Attributing only when a node is claimed for expansion, which is what shipped first.</dd>
+          <dt>What broke</dt><dd class="breaks">Measured on a real trace: the run held sourced 0.9-confidence labels for Binance and two Coinbase addresses, sitting at hop 2 in state <code>frontier</code> — discovered, never read — while reporting a 61% behavioural guess as its answer to "where did the funds come from". Across runs, 58–62% guesses were being reported over unread exchange labels.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="engine">
+  <div class="layer-head">
+    <span class="layer-num">06</span>
+    <h2>The investigation engine</h2>
+  </div>
+  <p class="deck">Bidirectional traversal with four budgets, five stop conditions, and two end-states — both of which are findings, never silence.</p>
+
+  <div class="layer-body">
+    <p>The engine walks outward from the root address in both directions at once. <span class="pill back">Backward</span> reads incoming movements — where funds came from. <span class="pill fwd">Forward</span> reads outgoing movements — where funds went. Each discovered address becomes a node one hop further out, tagged with the direction that found it.</p>
+
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+flowchart TD
+  A["start: root node at hop 0, no direction&lt;br/&gt;it serves both objectives"] --> B{"budget exhausted?"}
+  B -->|"api_calls / seconds / max_nodes"| P["TERMINAL naming the budget,&lt;br/&gt;the count of unexplored addresses,&lt;br/&gt;and a sample of them. Status: partial"]
+  B -->|"no"| C["claim next node:&lt;br/&gt;nearest first, then largest value share"]
+  C -->|"frontier empty"| D["TERMINAL for every objective that&lt;br/&gt;reached no NAMED endpoint. Status: completed"]
+  C -->|"node claimed"| E["attribute BEFORE spending anything"]
+  E --> F{"what does the label say?"}
+  F -->|"sanctioned"| G["record and CONTINUE"]
+  F -->|"mixer"| H["stop: the trail was cut"]
+  F -->|"vasp, and not the root"| I["ANSWER: VASP_ENDPOINT&lt;br/&gt;with the transaction path back to the root"]
+  F -->|"vasp AT the root"| G
+  F -->|"nothing"| G
+  G --> J{"at the depth horizon?"}
+  J -->|"yes"| K["stop: depth_horizon"]
+  J -->|"no"| L["read ONE page of history&lt;br/&gt;charge 1 api_call, normalise, store"]
+  L --> M["run detectors and the service-endpoint assessment&lt;br/&gt;on evidence-graded movements only"]
+  M --> N{"direction of this node"}
+  N -->|"backward"| O1["incoming movements, newest first"]
+  N -->|"forward"| O2["outgoing movements, EARLIEST first"]
+  N -->|"root: both"| O1
+  O1 --> Q["rank counterparties&lt;br/&gt;by value in VERIFIED assets only"]
+  O2 --> Q
+  Q --> R{"more counterparties than the supernode threshold?"}
+  R -->|"yes"| S["stop: refuse to guess at a hub"]
+  R -->|"no"| T["create each counterparty at hop+1,&lt;br/&gt;write the edge, attribute on discovery"]
+  T --> V["mark expanded, save spend, COMMIT&lt;br/&gt;one checkpoint per node"]
+  V --> B
+  H --> V
+  I --> V
+  K --> V
+  S --> V
+  D --> W["select answers: per direction,&lt;br/&gt;the NEAREST and the NEAREST NAMED"]
+  P --> W
+</pre>
+      </div>
+      <figcaption><b>Fig 6</b> One committed checkpoint per node makes an investigation resumable, and makes a crash cost one node rather than a whole run.</figcaption>
+    </figure>
+
+    <h3>Budgets</h3>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Budget</th><th class="num">Default</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">api_calls</td><td class="num">100</td><td>One charge per address expansion (which is 3 upstream requests on Ethereum, 2 on Tron, 1 elsewhere)</td></tr>
+          <tr><td class="mono">seconds</td><td class="num">300</td><td>Wall clock</td></tr>
+          <tr><td class="mono">max_nodes</td><td class="num">500</td><td>Total addresses created</td></tr>
+          <tr><td class="mono">max_depth</td><td class="num">6</td><td>Hops from the root. Enforced per node as a stop condition, not as exhaustion</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>When a budget binds, the run does not simply stop — it files a finding naming <em>which</em> budget stopped it, how many addresses were left unexplored, and a sample of them. A resumed run carries prior spend forward, so a crash-and-resume cannot grant itself a fresh budget.</p>
+
+    <h3>The five stop conditions</h3>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reason</th><th>Meaning</th><th>Is it a coverage gap?</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">vasp</td><td>An answer was found here</td><td>No — this is success</td></tr>
+          <tr><td class="mono">mixer</td><td>The trail was deliberately cut</td><td>No — following through would be de-anonymisation</td></tr>
+          <tr><td class="mono">depth_horizon</td><td>Reached the configured hop limit</td><td>Yes, and it is counted and reported</td></tr>
+          <tr><td class="mono">supernode</td><td>Too many counterparties to attribute meaningfully</td><td>Yes, and the finding cites the transactions</td></tr>
+          <tr><td class="mono">service_endpoint</td><td>Behaves like custodial infrastructure, operator unnamed</td><td>Partly — it does not close the objective</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>Sanctions are deliberately not a stop condition.</strong> Funds moving <em>through</em> a sanctioned address are exactly what a trace must follow. Treating them as terminal would end the investigation at the hop an investigator most needs followed.</p>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">The frontier is claimed nearest-first, with value share only breaking ties inside a hop level.</p>
+        <dl>
+          <dt>Why</dt><dd>The answer is phrased in hops — "nearest previous VASP, 3 hops away" — so the search claims in the order the goal is measured in. Under this ordering, a node's first-discovery hop <em>is</em> its minimum distance by construction.</dd>
+          <dt>Instead of</dt><dd>Claiming by value share first, which is what the frozen design document specified.</dd>
+          <dt>What breaks</dt><dd class="breaks">Without hop-relaxation machinery, a node's recorded hop is whatever path found it first — so "3 hops away" would be an upper bound presented as a fact. The accepted cost of the chosen order is stated openly: with a small budget a distant high-value cash-out may go unreached, and that surfaces as a <em>partial</em> run rather than a silently wrong number.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Backward reads newest-first; forward reads earliest-first. Behavioural analysis reads both sides newest-first through a separate query.</p>
+        <dl>
+          <dt>Why</dt><dd>Backward tracing wants the most recent funding; forward tracing follows the cash-out, where the immediate post-arrival hops matter most.</dd>
+          <dt>Instead of</dt><dd>One uniform read order everywhere.</dd>
+          <dt>What breaks</dt><dd class="breaks">Uniform newest-first cuts the first cash-out hops off any busy forward node — the exact hops a forward trace exists to find. And a detector given the newest receipts but the <em>oldest</em> sends is comparing two windows that need not overlap at all: a sweep is a receipt followed by a forward, so it would find pairs that never happened and miss the ones that did.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Traversal ranking counts only assets whose provenance is established — but unverified-asset counterparties are still discovered, stored and explored.</p>
+        <dl>
+          <dt>Why</dt><dd>Traversal order was steerable by anyone willing to pay gas.</dd>
+          <dt>Instead of</dt><dd>Ranking on everything (the original behaviour), or excluding unverified assets from the graph entirely.</dd>
+          <dt>What broke</dt><dd class="breaks">Measured on a live trace of the Bybit exploiter: the five highest-ranked unexplored branches were all worthless tokens at nominal values around 10²⁶, while the largest genuine movement was 3.22×10²⁰ wei. Six counterfeit contracts each named the identical 1.394×10⁴² amount. The real trail sat below the spam until the budget ran out. Deleting those movements instead would erase the attacker's own footprints from the evidence record — so they are kept, ranked at zero, and the coverage statement says the ordering basis.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">An objective is "answered" only by a VASP finding carrying a third-party claim. A behavioural inference never suppresses the honest terminal.</p>
+        <dl>
+          <dt>Why</dt><dd>A finding earns "answered" by being citable. An inference stands <em>beside</em> the terminal, not instead of it — and the terminal's wording changes to say the operator is unnamed.</dd>
+          <dt>Instead of</dt><dd>Letting any VASP-shaped finding close the objective.</dd>
+          <dt>What broke</dt><dd class="breaks">That shipped. An inference reading "custodial infrastructure, operator unnamed, 61%" silently deleted the "trace exhausted without an attributed endpoint" terminal — turning a failure to name anyone into a confident-looking answer.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">At an equal hop distance, the <em>unnamed</em> candidate wins the tie-break — deliberately preferring the weaker-looking finding.</p>
+        <dl>
+          <dt>Why</dt><dd>A guess and a sourced label tied at the same hop are two different addresses. Preferring the label puts it in <em>both</em> slots, collapsing the pair to one row. Preferring the unnamed one costs nothing, because the named slot is about to show the label anyway.</dd>
+          <dt>Instead of</dt><dd>Preferring the named finding at a tie — the intuitive choice — or breaking ties by confidence.</dd>
+          <dt>What breaks</dt><dd class="breaks">A same-hop 62% guess vanishes from the report. The two slots collapse to one row only on object identity — literally the same finding — never on equal-looking fields.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <p>Both end-states produce a <strong>coverage statement</strong> built by database query, not by counters held in memory — so a resumed run reports the same numbers the original did. It states how many transactions were examined, how many addresses had their history cut short, how many were left beyond the depth horizon, and how much of the frontier was never expanded. Every conclusion in the report cites it.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="api">
+  <div class="layer-head">
+    <span class="layer-num">07</span>
+    <h2>HTTP surface</h2>
+  </div>
+  <p class="deck">Five routes, plus two that appear only when their dependency exists. The API owns no investigation behaviour of its own.</p>
+
+  <div class="layer-body">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="mono">Method</th><th>Path</th><th>Returns</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">GET</td><td class="mono">/healthz</td><td>Liveness</td></tr>
+          <tr><td class="mono">POST</td><td class="mono">/investigations</td><td>Creates a case, launches the run in the background, returns the id and the chain that was resolved</td></tr>
+          <tr><td class="mono">GET</td><td class="mono">/investigations/{id}</td><td>Status, budgets, spend, engine and ruleset versions</td></tr>
+          <tr><td class="mono">GET</td><td class="mono">/investigations/{id}/findings</td><td>Every finding with its evidence, plus the computed answers per direction</td></tr>
+          <tr><td class="mono">GET</td><td class="mono">/investigations/{id}/graph</td><td>Nodes and edges for rendering, with a truncation flag</td></tr>
+          <tr><td class="mono">GET</td><td class="mono">/metrics</td><td>Per-vendor success rates and latency percentiles — only when a provider pool exists</td></tr>
+          <tr><td class="mono">GET</td><td class="mono">/</td><td>The demo interface — only when the frontend file is present</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="whys">
+      <div class="why">
+        <p class="claim">Chain auto-detection may <em>eliminate</em> candidates on evidence, but never chooses between two chains that both hold history.</p>
+        <dl>
+          <dt>Why</dt><dd>Probing can prove a chain holds nothing, which eliminates it. It cannot rank the chains that remain. Two live candidates return HTTP 422 with both named.</dd>
+          <dt>Instead of</dt><dd>Picking whichever chain returned more results and disclosing the guess in a log line.</dd>
+          <dt>What breaks</dt><dd class="breaks">The adapter merges several capped feeds, so every busy address looks equally full. The measured example: Binance 14 probes at 75 results on Polygon against 64 on Ethereum. That is noise, not evidence.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">A provider failure during chain probing is reported as "could not check", never as "no transactions found".</p>
+        <dl>
+          <dt>Why</dt><dd>Reporting "no transactions" would state a fact about the blockchain on the strength of an outage.</dd>
+          <dt>Instead of</dt><dd>Treating a probe exception as an empty result.</dd>
+          <dt>What breaks</dt><dd class="breaks">One live candidate plus one unreachable chain would auto-resolve to the live one, and a total outage would report "no history" — the tool confidently wrong about someone's money because a cache was down.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">The graph read is capped per hop level, not just overall — and always reports the true total.</p>
+        <dl>
+          <dt>Why</dt><dd>A truncated picture must keep every hop the trace reached.</dd>
+          <dt>Instead of</dt><dd>A single flat limit spent nearest-first.</dd>
+          <dt>What breaks</dt><dd class="breaks">Measured: on a live trace reaching hops −2 to +2, a flat cap of 120 returned only hops −1 to +1 and dropped every one of the 202 nodes at hop 2. The rendered picture lost a dimension without saying so, and read as a complete two-hop trace.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Amounts cross the wire as decimal <em>strings</em>, not JSON numbers.</p>
+        <dl>
+          <dt>Why</dt><dd>Smallest-unit sums routinely exceed 2⁵³ — a live trace carried 8.72×10²⁹.</dd>
+          <dt>Instead of</dt><dd>Emitting them as JSON integers.</dd>
+          <dt>What breaks</dt><dd class="breaks">JSON numbers land in a JavaScript double. The amount displayed on a forensic graph would not be the amount that moved.</dd>
+        </dl>
+      </div>
+
+      <div class="why">
+        <p class="claim">Answer selection happens server-side, and both answers are always returned.</p>
+        <dl>
+          <dt>Why</dt><dd>Every consumer that states "nearest previous VASP" must state the same thing.</dd>
+          <dt>Instead of</dt><dd>Returning raw findings and letting each client pick.</dd>
+          <dt>What breaks</dt><dd class="breaks">Which endpoint got reported would depend on traversal order per client. Reporting only the nearest hides a named exchange behind a behavioural guess; reporting only the named one drops the nearest.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="note hard">
+      <p><strong>There is no authentication on any route.</strong> This is a stated, deliberate gap, not an oversight. The demo runner binds to 127.0.0.1 precisely because of it, with a comment saying so. A ruling on this project fixed the sequence: <em>no public-facing surface ships before a minimal API-key layer exists</em> — operator-issued keys checked against hashes, per-key write rate limits, and every submitted report attributable to a key. The community-report endpoint and the case dashboard are both blocked behind that work.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="walkthrough">
+  <h2>One request, end to end</h2>
+  <p class="lede">The path a single investigation takes, naming the real component at every boundary.</p>
+
+  <figure>
+    <div class="plate">
+<pre class="mermaid">
+%%{init: {"theme":"neutral"}}%%
+sequenceDiagram
+    autonumber
+    participant C as Investigator
+    participant API as API routes
+    participant REG as ChainRegistry
+    participant ENG as InvestigationEngine
+    participant ATTR as Attributor
+    participant ADP as Chain adapter
+    participant POOL as ProviderPool
+    participant V as Vendor
+    participant DB as Postgres
+
+    C->>API: POST /investigations {address, objectives, budgets}
+    API->>REG: which chains claim this address format?
+    REG-->>API: ethereum, polygon
+    API->>ADP: probe 25 transactions per candidate
+    ADP->>POOL: address_history
+    API->>API: exactly one live candidate, nothing unreadable
+    API->>ENG: start(chain, address, objectives, budgets)
+    ENG->>DB: create investigation + root node at hop 0, COMMIT
+    API-->>C: 201 {investigation_id, status, chain}
+    API->>ENG: launch background run
+
+    loop one committed checkpoint per node
+        ENG->>DB: claim next frontier node, nearest first
+        ENG->>ATTR: attribute(address) — free, before any spend
+        alt a sourced label answers it
+            ENG->>DB: file VASP or MIXER finding, mark node terminal
+        else expand
+            ENG->>ADP: address_history(limit 100)
+            ADP->>POOL: 3 vendor-neutral requests
+            POOL->>DB: cache lookup by content hash
+            POOL->>V: execute, after the token bucket allows it
+            V-->>POOL: raw bytes + sha256 digest
+            POOL-->>ADP: response (provenance preserved on cache hits)
+            ADP-->>ENG: normalised movements
+            ENG->>DB: store movements (idempotent upsert)
+            ENG->>DB: read counterparties, create nodes at hop+1, write edges
+            ENG->>ATTR: attribute each NEWLY discovered address
+            ENG->>DB: mark expanded, save spend, COMMIT
+        end
+    end
+
+    ENG->>DB: TERMINAL per unanswered objective + coverage statement
+    C->>API: GET /investigations/{id}/findings
+    API->>DB: findings, evidence, and VASP findings joined to hop distance
+    API->>API: select_answers → nearest and nearest_named per direction
+    API-->>C: findings + answers
+</pre>
+    </div>
+    <figcaption><b>Fig 7</b> Note step ordering: the free label lookup always precedes any paid vendor call, and the response is returned to the investigator before the run completes.</figcaption>
+  </figure>
+
+  <ol>
+    <li><strong>Validation.</strong> Pydantic rejects an empty objective list and out-of-range budgets before any handler code runs.</li>
+    <li><strong>Chain resolution, once.</strong> Resolving again after the investigation row is persisted could fail mid-request and orphan a case nothing will ever run. So it happens first, or not at all.</li>
+    <li><strong>Creation.</strong> The address is canonicalised by the adapter — the engine must not know that "0x means lowercase" — then the investigation and its root node are written and committed in one transaction.</li>
+    <li><strong>Detach.</strong> The run becomes a background task held by a strong reference. Without that reference the event loop keeps only a weak one, and a long investigation can be garbage-collected mid-flight, leaving a row stuck in "running" with no error.</li>
+    <li><strong>The loop.</strong> Claim, attribute, guard, acquire, normalise, store, analyse, expand, commit. One checkpoint per node.</li>
+    <li><strong>The end state.</strong> Either the frontier ran dry (completed) or a budget bound (partial). Both file findings; neither is silence.</li>
+    <li><strong>Read back.</strong> Findings are rebuilt from rows, VASP findings are joined to their hop distance, and the two answers per direction are computed server-side.</li>
+  </ol>
+</section>
+
+<!-- ============================================================ -->
+<section id="stack">
+  <h2>Why this stack</h2>
+  <p class="lede">Every dependency here was chosen against a specific alternative, for a reason that shows up in the evidence.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Choice</th><th>Why it</th><th>Instead of</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Python 3.12+</strong></td>
+          <td>The blockchain, cryptography and data ecosystem lives here. Signature verification across four curve/encoding combinations was possible without writing any crypto.</td>
+          <td>Go or Rust — faster, but the work is I/O-bound on rate-limited vendor APIs, so concurrency matters far more than raw speed.</td>
+        </tr>
+        <tr>
+          <td><strong>FastAPI</strong></td>
+          <td>Async-native, and its Pydantic models double as the validation layer <em>and</em> the OpenAPI schema. A malformed request is rejected before any handler runs. The API documents itself at <code>/docs</code>, which matters when a reviewer wants to see the contract.</td>
+          <td>Flask or Django. Django brings an ORM and admin this project does not want; Flask's async story is retrofitted.</td>
+        </tr>
+        <tr>
+          <td><strong>PostgreSQL 16</strong></td>
+          <td><code>NUMERIC(78,0)</code> holds a uint256 exactly. Partial and expression indexes, JSONB for evidence references, and CHECK constraints strong enough to make illegal states unrepresentable at the storage layer.</td>
+          <td>SQLite (no NUMERIC of that precision, weak concurrency) or MongoDB (no constraints — every invariant would live only in application code).</td>
+        </tr>
+        <tr>
+          <td><strong>SQLAlchemy 2.0, async</strong></td>
+          <td>Typed declarative models that mypy checks in strict mode, with hand-written SQL available where the query matters. Sessions are per-unit-of-work; there is no global session.</td>
+          <td>Raw asyncpg — every constraint and join hand-maintained. Or the Django ORM, which is not async-native.</td>
+        </tr>
+        <tr>
+          <td><strong>Alembic</strong></td>
+          <td>Migrations autogenerate by diffing against the models, under a naming convention that makes the output deterministic. The test suite applies them to a throwaway database, so the migrations themselves are tested.</td>
+          <td>Hand-written SQL migrations, or schema-sync-on-startup — which cannot express the two downgrades in this project that must <em>refuse</em> to run rather than corrupt records.</td>
+        </tr>
+        <tr>
+          <td><strong>httpx</strong></td>
+          <td>One async client, shared across the process, with per-request timeouts and a mock transport that lets recorded vendor payloads be replayed through the <em>real</em> client and pool.</td>
+          <td>requests (synchronous) or aiohttp (no equivalent test transport).</td>
+        </tr>
+        <tr>
+          <td><strong>pytest, async by default</strong></td>
+          <td>352 tests. Storage and engine tests run against a real Postgres 16 container that the fixture starts, migrates and truncates per test.</td>
+          <td>SQLite or mocks for the database — which would test a different database than the one that ships, and would not exercise the CHECK constraints that hold half the invariants.</td>
+        </tr>
+        <tr>
+          <td><strong>ruff + mypy --strict</strong></td>
+          <td>Eight lint rule families at 100 columns, and strict typing across the whole package. Run after every change.</td>
+          <td>black + flake8 + isort as three tools, and optional typing — under which the frozen domain model's guarantees would be advisory.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <p><strong>There is no machine learning in this system, deliberately.</strong> Every conclusion must be explainable to a court. A model that outputs "87% likely to be an exchange" cannot be cross-examined; a rule that says "25 or more distinct senders and 25 or more distinct recipients and 60 or more total counterparties, version 1" can. Detectors are versioned so that the same inputs and the same version reproduce the same findings.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="verification">
+  <h2>How it is verified</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Area</th><th class="num">Tests</th><th>What they hold</th></tr></thead>
+      <tbody>
+        <tr><td>chains</td><td class="num">93</td><td>Every adapter against recorded real vendor payloads, with expectations recomputed from the fixture</td></tr>
+        <tr><td>analysis</td><td class="num">92</td><td>Detector thresholds, the benign-lookalike requirement, infrastructure veto, OFAC screening</td></tr>
+        <tr><td>intel</td><td class="num">45</td><td>Every lifecycle rule, and four demonstrated attacks as regression tests</td></tr>
+        <tr><td>storage</td><td class="num">29</td><td>Constraints, migrations, movement identity, audit-log immutability</td></tr>
+        <tr><td>providers</td><td class="num">25</td><td>The pipeline as an executable specification: cache-first, failover, breaker, 429 policy</td></tr>
+        <tr><td>investigation</td><td class="num">22</td><td>Traversal, terminators, the tie-break, budget exhaustion</td></tr>
+        <tr><td>core</td><td class="num">21</td><td>What must not be constructible, isn't</td></tr>
+        <tr><td>api</td><td class="num">17</td><td>Full lifecycle over HTTP, chain-resolution refusals, graph truncation</td></tr>
+        <tr><td>runtime &amp; regression</td><td class="num">8</td><td>Composition root, plus specific review findings by name</td></tr>
+        <tr><td><strong>Total</strong></td><td class="num"><strong>352</strong></td><td>Passing, against a real Postgres 16 container, in 33 seconds</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Two testing practices are worth naming to a reviewer, because they are the reason several of the defects in this document were found before they reached a report.</p>
+
+  <p><strong>Adversarial review.</strong> Each subsystem is reviewed before commit by independent agents working from different angles, whose findings are then <em>refuted</em> by other agents rather than accepted. Three rounds on this codebase produced 23 findings, including three attacks demonstrated end-to-end against the label lifecycle. Every one is now a named regression test.</p>
+
+  <p><strong>Mutation testing.</strong> Rules are deliberately broken to see whether the suite notices. This found tests that passed against code with the rule removed — for instance, loading pending labels into the attributor passed the entire suite, and a quiet fallback to reading label files when the store was empty also passed. Both are now pinned at the production wiring point, not at a helper.</p>
+
+  <p>The document produced from this codebase went through the same process: eight agents read one subsystem each from source, and two more cross-checked their output against the code. That pass caught ten factual errors before publication — an invented class name, and two claims that endpoints exist which do not.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="limits">
+  <h2>Limits and refusals</h2>
+  <p class="lede">Stated plainly, because a tool that hides its limits is more dangerous than one that has them.</p>
+
+  <h3>What it refuses to do, by design</h3>
+  <ul>
+    <li><strong>It will not follow value through a mixer.</strong> That is de-anonymisation, out of scope, and the finding says the trail was <em>cut</em> rather than that it ran dry.</li>
+    <li><strong>It will not name an operator from behaviour.</strong> A behavioural inference reports the role only and stands beside the honest "no named endpoint" terminal, never instead of it.</li>
+    <li><strong>It will not choose between two chains that both hold history.</strong> It stops with a 422 and names both.</li>
+    <li><strong>It will not report a provider outage as an empty ledger.</strong></li>
+    <li><strong>It will not let an unverified claim name anyone,</strong> at any confidence.</li>
+    <li><strong>It ships no bridge address and no VASP label it has not verified.</strong> The bridge registry is empty by default.</li>
+  </ul>
+
+  <h3>Known gaps</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Gap</th><th>Effect</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>No authentication anywhere in the API</td><td>Anyone who can reach the port can start cases and read findings</td><td>Blocking all public surface; API-key layer scoped and approved</td></tr>
+        <tr><td>The reconcile cycle has no scheduler</td><td>Promotions and demotions only happen when an operator runs them; a demotion does not reach a running process until restart</td><td>Harvester worker is the next build step</td></tr>
+        <tr><td>Solana has zero labels</td><td>Solana traces run but can never name an endpoint</td><td>Verifier built and tested; blocked on obtaining the source file</td></tr>
+        <tr><td>Tron history does not paginate</td><td>A busy Tron address returns one page and is recorded as fully read</td><td>Open — the coverage statement cannot flag it there</td></tr>
+        <tr><td>Detectors see at most 500 stored movements per address</td><td>A busy address may be judged on a window, and the coverage statement does not say when that cap bound</td><td>Open</td></tr>
+        <tr><td>Raw vendor payloads live in a TTL cache, not an archive</td><td>A cited digest may no longer resolve to stored bytes weeks later</td><td>Open — see the auditor's second question</td></tr>
+        <tr><td>Bridge crossings are detected, never followed</td><td>Cross-chain matching is a separate problem needing two chains at once</td><td>Deliberately deferred</td></tr>
+        <tr><td>No formal report output (PDF/DOCX) yet</td><td>Findings are available over the API and in the interface, not as a filed document</td><td>The largest remaining gap against the original goal</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="audit">
+  <h2>The auditor's questions</h2>
+  <p class="lede">Nine attacks on this system's forensic soundness, each with the honest answer the code supports.</p>
+
+  <div class="qa">
+    <p class="q">"Your evidence is forgeable. I deploy a worthless token, emit a transfer to your victim and another from them to an exchange, and your tool manufactures a pattern against a target I chose — the victim signed nothing."</p>
+    <p class="verdict ok">Answered</p>
+    <p>An asset provenance floor runs before any detector: native assets always pass, tokens only if the contract is in a verified pack. Forged movements cannot reach a heuristic, and cannot steer the traversal ranking either. The fail-closed default accepts native assets only, so an incorrectly wired engine still cannot be fed a forged token. The movements are still stored and still expand the graph — deliberately, since hiding real events would erase the attacker's own footprints — and the graph marks every edge with whether its asset was verified.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"Your findings cite a hash of the exact vendor bytes so they can be replayed. Show me the bytes behind this six-week-old finding."</p>
+    <p class="verdict no">Largely unanswered — the most significant open weakness</p>
+    <p>The digest is stored on every movement, but the raw bytes live only in the provider cache — which is a cache keyed by request, not a content-addressed archive keyed by digest. Address-history entries expire after five minutes and are overwritten on the next fetch. The digest then verifies nothing. What does hold: cache hits preserve the original provider name and digest rather than restamping them, and canonical JSON makes digests order-independent. An immutable payload store is not built.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"Your coverage statement claims to name every limit that closed a branch. It doesn't mention that the detectors only ever saw 500 movements of an address that has 40,000."</p>
+    <p class="verdict no">Not answered</p>
+    <p>A 500-row cap governs every read feeding counterparty derivation and the detectors, and nothing records when it bound. The coverage statement reports page-truncated histories, depth-horizon nodes and the unexplored frontier — and will append "no address was left partially read" while the detectors judged a busy exchange address on 500 of its rows. The machinery to report it exists; this input is not wired into it.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"You told a court this address is Binance. Who says so, when did they say it, and was that claim still standing on the day you ran the trace?"</p>
+    <p class="verdict part">Mostly answered, with one live gap</p>
+    <p>Naming can only come from a third-party claim carrying a source and a source date, enforced at construction. Confidence is strictly below 1.0 at three layers including a database constraint. Only active rows reach the attributor, every transition writes an audit row in the same transaction, and the audit log cannot be deleted as a side effect. Corroboration is re-derived each cycle rather than stamped. <strong>The gap:</strong> the reconcile cycle has no production caller — "continuously justified" is a property of a scheduler that does not yet exist in this repository. Second gap: findings record the label's source string but not the label row id, so a report cannot be bound back to that row's exact event history.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"A bare 0x address exists on Ethereum and Polygon. You picked one. How do you know you traced the right money?"</p>
+    <p class="verdict ok">Answered — and the refusal <em>is</em> the answer</p>
+    <p>Each candidate is probed with one cheap call; chains holding nothing are eliminated. Resolution happens only when exactly one live candidate remains <em>and</em> nothing was unreadable. Two live candidates raise a structured error rather than guessing. A chain that could not be probed deliberately poisons the result, because one live candidate plus a chain we could not read is still not one candidate.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"Your report says 'nearest next VASP: service endpoint' — that's a guess about an address, dressed as an endpoint an investigator can act on."</p>
+    <p class="verdict ok">Answered</p>
+    <p>The heuristic says "operator unnamed" in its own summary, carries a versioned inference capped at 0.75, and cannot close the objective — that requires a citable third-party claim, so the honest "trace exhausted without a named endpoint" terminal is filed beside it. A sourced infrastructure label vetoes the inference outright, and burn addresses are excluded. The two answer slots are surfaced separately and refuse to collapse.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"Your sanctions screening returned clean. Was the list actually loaded, and how old is it?"</p>
+    <p class="verdict part">Half answered</p>
+    <p>A missing dataset logs a warning naming the chain whose screening is disabled — deliberately not silent — but nothing about that degradation reaches the investigation record. A reader cannot distinguish a clean screen from an unloaded list. Staleness <em>is</em> stamped into every claim: the snapshot date rides on the evidence to the wire. But the refresh script the module's own documentation names does not exist yet, so the snapshot is fixed with no shipped way to update it.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"Two runs over the same stored data produced two different reports — which one do I file?"</p>
+    <p class="verdict ok">Answered at the level the code controls</p>
+    <p>Ordering ties break on chain data, never on database row ids. Evidence references are sorted before truncation everywhere. Movement identity is vantage-stable under a uniqueness constraint, so re-reading a transaction from a different feed deduplicates rather than duplicating. A resumed run carries prior spend forward. Residual non-determinism the code does not remove: elapsed seconds are per-run by design, and detector inputs depend on the 500-row window, which depends on what other investigations have written into the shared fact store.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">"Who else could have started, altered or read this case? Show me the chain of custody on the case file itself."</p>
+    <p class="verdict no">Not answered, and disclosed</p>
+    <p>There is no authentication, authorisation or rate limiting anywhere in the API. The only control is the loopback bind in the demo runner, with a comment saying exactly why. Partial mitigations that do exist: the HTTP client loggers are raised to WARNING specifically so provider credentials in URLs never land in the retained log, and every log line carries the bound investigation id, making the application log a per-investigation trail. Closing this is the next build item and blocks everything public-facing.</p>
+  </div>
+</section>
+
+<footer>
+  <p>CipherChain 0.1.0 · backend technical reference · compiled 13 August 2026 from branch feat/backend-v1<br>
+  Every symbol name, count and threshold in this document was read from the source at compile time. Where this document and the code disagree, the code is right.<br>
+  This system is decision support. It makes no claim of court admissibility or legal certification.</p>
+</footer>
+
+</main>
+</div>

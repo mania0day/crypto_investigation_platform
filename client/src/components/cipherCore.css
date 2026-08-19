@@ -1,0 +1,271 @@
+/* ── Cipher Core dashboard hero ───────────────────────────────────────── */
+.cc-wrap {
+  position: relative;
+  width: 100%;
+  height: 68vh;
+  min-height: 540px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 240, 255, 0.14);
+  background: #050b1a;
+  box-shadow: inset 0 0 120px rgba(6, 20, 48, 0.9);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.cc-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 46%, rgba(20, 60, 112, 0.5), rgba(5, 11, 26, 0) 62%),
+    linear-gradient(160deg, #050b1a 0%, #0a1630 100%);
+}
+
+.cc-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.06) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 38%, transparent 80%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 38%, transparent 80%);
+  opacity: 0.55;
+}
+
+.cc-coreglow {
+  position: absolute;
+  width: 540px;
+  height: 540px;
+  max-width: 70vw;
+  max-height: 70vw;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(24, 116, 190, 0.42), rgba(24, 116, 190, 0) 62%);
+  filter: blur(14px);
+  pointer-events: none;
+}
+
+.cc-canvas {
+  position: absolute !important;
+  inset: 0;
+}
+
+.cc-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cc-flow {
+  animation: cc-dash 1.3s linear infinite;
+}
+@keyframes cc-dash {
+  to {
+    stroke-dashoffset: -60;
+  }
+}
+
+/* ── Top-left text panel ─────────────────────────────────────────────── */
+.cc-panel {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  max-width: 330px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 240, 255, 0.16);
+  background: rgba(6, 13, 28, 0.55);
+  backdrop-filter: blur(8px);
+}
+.cc-panel h2 {
+  font-family: Orbitron, Inter, sans-serif;
+  letter-spacing: 0.26em;
+  color: #eafcff;
+  font-size: 16px;
+  font-weight: 700;
+}
+.cc-panel .cc-tag {
+  color: #35e0ff;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  margin-top: 5px;
+  text-transform: uppercase;
+}
+.cc-panel p {
+  color: #7f9bbd;
+  font-size: 11.5px;
+  margin-top: 9px;
+  line-height: 1.55;
+}
+
+/* ── Input source chips ──────────────────────────────────────────────── */
+.cc-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  background: rgba(10, 22, 48, 0.62);
+  backdrop-filter: blur(6px);
+  color: #cfe6ff;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  transition: border-color 0.35s, box-shadow 0.35s, color 0.35s;
+}
+.cc-chip .cc-em {
+  font-size: 15px;
+  filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.55));
+}
+.cc-chip.cc-active {
+  border-color: rgba(0, 240, 255, 0.75);
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.28);
+  color: #eaffff;
+}
+
+/* ── Output verified orb ─────────────────────────────────────────────── */
+.cc-orb {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 190px;
+}
+.cc-ring {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  display: grid;
+  place-items: center;
+}
+.cc-ring svg {
+  position: absolute;
+  inset: 0;
+}
+.cc-ring .cc-ring-rot {
+  animation: cc-spin 9s linear infinite;
+  transform-origin: 50% 50%;
+}
+.cc-orb .cc-orb-title {
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: #8fe9ff;
+  text-align: center;
+  text-shadow: 0 0 14px rgba(0, 240, 255, 0.4);
+}
+.cc-scanlog {
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: #4f6f92;
+  text-align: center;
+}
+.cc-scanlog .cc-on {
+  color: #43ffd0;
+  text-shadow: 0 0 10px rgba(67, 255, 208, 0.5);
+}
+
+/* ── Core label ──────────────────────────────────────────────────────── */
+.cc-corelabel {
+  position: absolute;
+  transform: translate(-50%, 0);
+  color: #8fd8ff;
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.55);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Bottom HUD ──────────────────────────────────────────────────────── */
+.cc-hud {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+.cc-hud-block {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 240, 255, 0.14);
+  background: rgba(6, 13, 28, 0.5);
+  backdrop-filter: blur(6px);
+}
+.cc-hud-label {
+  font-family: ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: #5f7ba0;
+  text-transform: uppercase;
+}
+.cc-bar {
+  margin-top: 6px;
+  width: 180px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 240, 255, 0.1);
+  overflow: hidden;
+}
+.cc-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #1f7fbf, #35e0ff);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+  transition: width 0.12s linear;
+}
+.cc-pct {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #cfe6ff;
+  margin-top: 4px;
+}
+.cc-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 26px;
+  margin-top: 6px;
+}
+.cc-wave i {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #35e0ff, #1f7fbf);
+  transform-origin: bottom;
+  animation: cc-wavebar 1.1s ease-in-out infinite;
+  opacity: 0.85;
+}
+@keyframes cc-wavebar {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+.cc-ticker {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #8fd8ff;
+  text-align: right;
+}
+.cc-ticker b {
+  color: #eafcff;
+  letter-spacing: 0.05em;
+}
+
+@keyframes cc-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 860px) {
+  .cc-chip, .cc-orb, .cc-corelabel { display: none; }
+  .cc-hud { flex-wrap: wrap; }
+}

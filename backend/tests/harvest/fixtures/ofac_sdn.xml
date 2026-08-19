@@ -1,0 +1,608 @@
+<?xml version="1.0" standalone="yes"?>
+<sdnList xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/XML">
+  <publshInformation>
+    <Publish_Date>08/18/2026</Publish_Date>
+    <Record_Count>8</Record_Count>
+  </publshInformation>
+  <sdnEntry>
+    <uid>48432</uid>
+    <lastName>OKO DESIGN BUREAU</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>RUSSIA-EO14024</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>170746</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>13fhnkmpBBWXUQucJd6efWvXdEj78DKavk</idNumber>
+      </id>
+      <id>
+        <uid>170744</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x19F8f2B0915Daa12a3f5C9CF01dF9E24D53794F7</idNumber>
+      </id>
+      <id>
+        <uid>171287</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>See Section 11 of Executive Order 14024.</idNumber>
+      </id>
+      <id>
+        <uid>171663</uid>
+        <idType>Organization Type:</idType>
+        <idNumber>Manufacture of air and spacecraft and related machinery</idNumber>
+      </id>
+      <id>
+        <uid>170745</uid>
+        <idType>Digital Currency Address - TRX</idType>
+        <idNumber>TFdTr9C3BqQrzKBXqSxJfAZFTh8UwBAfSg</idNumber>
+      </id>
+      <id>
+        <uid>170742</uid>
+        <idType>Organization Established Date</idType>
+        <idNumber>2022</idNumber>
+      </id>
+      <id>
+        <uid>170743</uid>
+        <idType>Website</idType>
+        <idNumber>https://www.oko-kb.ru</idNumber>
+      </id>
+    </idList>
+    <addressList>
+      <address>
+        <uid>72662</uid>
+        <city>Saint Petersburg</city>
+        <country>Russia</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>45314</uid>
+    <lastName>VALERIAN LABS, INC.</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>ILLICIT-DRUGS-EO14059</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>35018</uid>
+        <idType>Company Number</idType>
+        <idNumber>755260288</idNumber>
+        <idCountry>Canada</idCountry>
+      </id>
+      <id>
+        <uid>165752</uid>
+        <idType>Digital Currency Address - USDT</idType>
+        <idNumber>0x983a81ca6FB1e441266D2FbcB7D8E530AC2E05A2</idNumber>
+      </id>
+      <id>
+        <uid>165753</uid>
+        <idType>Digital Currency Address - USDC</idType>
+        <idNumber>0x983a81ca6FB1e441266D2FbcB7D8E530AC2E05A2</idNumber>
+      </id>
+      <id>
+        <uid>166051</uid>
+        <idType>Website</idType>
+        <idNumber>www.valerianlabs.com</idNumber>
+      </id>
+      <id>
+        <uid>165750</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>bc1qardcxz845jw83vgfvcmewhuxa0ag9gchjwmcfd</idNumber>
+      </id>
+      <id>
+        <uid>165751</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x983a81ca6FB1e441266D2FbcB7D8E530AC2E05A2</idNumber>
+      </id>
+    </idList>
+    <addressList>
+      <address>
+        <uid>67420</uid>
+        <address1>1130-1971 Broadway St</address1>
+        <city>Port Coquitlam</city>
+        <stateOrProvince>British Columbia</stateOrProvince>
+        <postalCode>V3C 0C9</postalCode>
+        <country>Canada</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>36025</uid>
+    <lastName>GARANTEX EUROPE OU</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>CYBER4</program>
+      <program>RUSSIA-EO14024</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>25416</uid>
+        <idType>Business Registration Number</idType>
+        <idNumber>14850239</idNumber>
+        <idCountry>Estonia</idCountry>
+        <issueDate>18 Nov 2019</issueDate>
+      </id>
+      <id>
+        <uid>149355</uid>
+        <idType>Website</idType>
+        <idNumber>garantex.io</idNumber>
+      </id>
+      <id>
+        <uid>185346</uid>
+        <idType>Website</idType>
+        <idNumber>garantex.org</idNumber>
+      </id>
+      <id>
+        <uid>149348</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>3Lpoy53K625zVeE47ZasiG5jGkAxJ27kh1</idNumber>
+      </id>
+      <id>
+        <uid>149349</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x7FF9cFad3877F21d41Da833E2F775dB0569eE3D9</idNumber>
+      </id>
+      <id>
+        <uid>185347</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x8Dce2aAC0dE82bdCAf6b4373B79f94331b8e4995</idNumber>
+      </id>
+      <id>
+        <uid>185348</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0xf4377edA661e04B6DDA78969796Ed31658D602D4</idNumber>
+      </id>
+      <id>
+        <uid>185349</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0xb338962B92CD818D6aef0A32a9ECD01212a71f33</idNumber>
+      </id>
+      <id>
+        <uid>185350</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x57EC89A0C056163A0314e413320f9B3ABe761259</idNumber>
+      </id>
+      <id>
+        <uid>185351</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0xD8500C631dC32FA18645B7436344a99E4825e10e</idNumber>
+      </id>
+      <id>
+        <uid>185352</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x7CEd75026204aC29C34bEA98905D4C949F27361e</idNumber>
+      </id>
+      <id>
+        <uid>173328</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>See Section 11 of Executive Order 14024.</idNumber>
+      </id>
+      <id>
+        <uid>192415</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>Ukraine-/Russia-Related Sanctions Regulations, 31 CFR 589.201</idNumber>
+      </id>
+      <id>
+        <uid>192158</uid>
+        <idType>Organization Established Date</idType>
+        <idNumber>18 Nov 2019</idNumber>
+      </id>
+      <id>
+        <uid>149350</uid>
+        <idType>Digital Currency Address - USDT</idType>
+        <idNumber>3E6ZCKRrsdPc35chA9Eftp1h3DLW18NFNV</idNumber>
+      </id>
+      <id>
+        <uid>189504</uid>
+        <idType>Digital Currency Address - TRX</idType>
+        <idNumber>TFwjPScaJRCbSWVAywE1S1WgaUgSnyYUbD</idNumber>
+      </id>
+      <id>
+        <uid>189505</uid>
+        <idType>Digital Currency Address - TRX</idType>
+        <idNumber>TJkBr9TZ1xBeJoF7RNWqyEMbYqVJ6fXXHR</idNumber>
+      </id>
+      <id>
+        <uid>189506</uid>
+        <idType>Digital Currency Address - TRX</idType>
+        <idNumber>TNDjh6WGLYyWmkh8vfu42bXVHUqFNQ3rDq</idNumber>
+      </id>
+    </idList>
+    <akaList>
+      <aka>
+        <uid>82979</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>GARANTEX</lastName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <uid>54126</uid>
+        <address1>Harju maakond, Kesklinna linnaosa, J., Poska tn 51a/1-3</address1>
+        <city>Tallinn</city>
+        <postalCode>10150</postalCode>
+        <country>Estonia</country>
+      </address>
+      <address>
+        <uid>54128</uid>
+        <address1>Harju maakond, Lasnamae linnaosa, Peterburi tee 47</address1>
+        <city>Tallinn</city>
+        <postalCode>11415</postalCode>
+        <country>Estonia</country>
+      </address>
+      <address>
+        <uid>54129</uid>
+        <city>Moscow</city>
+        <country>Russia</country>
+      </address>
+      <address>
+        <uid>54131</uid>
+        <city>St. Petersburg</city>
+        <country>Russia</country>
+      </address>
+      <address>
+        <uid>81030</uid>
+        <address1>12, Presnenskaya Embankment</address1>
+        <address2>Floor 14, Federation East Tower, Moscow City</address2>
+        <city>Moscow</city>
+        <country>Russia</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>44445</uid>
+    <firstName>Ali</firstName>
+    <lastName>SHAFIU</lastName>
+    <sdnType>Individual</sdnType>
+    <remarks>(Linked To: ISIL KHORASAN)</remarks>
+    <programList>
+      <program>SDGT</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>34010</uid>
+        <idType>National ID No.</idType>
+        <idNumber>A325164</idNumber>
+        <idCountry>Maldives</idCountry>
+      </id>
+      <id>
+        <uid>34011</uid>
+        <idType>Passport</idType>
+        <idNumber>E0491095</idNumber>
+        <idCountry>Maldives</idCountry>
+        <expirationDate>16 Jun 2019</expirationDate>
+      </id>
+      <id>
+        <uid>164442</uid>
+        <idType>Digital Currency Address - USDT</idType>
+        <idNumber>TVacWx7F5wgMgn49L5frDf9KLgdYy8nPHL</idNumber>
+      </id>
+      <id>
+        <uid>164261</uid>
+        <idType>Gender</idType>
+        <idNumber>Male</idNumber>
+      </id>
+      <id>
+        <uid>164441</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>section 1(b) of Executive Order 13224, as amended by Executive Order 13886</idNumber>
+      </id>
+    </idList>
+    <addressList>
+      <address>
+        <uid>66157</uid>
+        <country>Afghanistan</country>
+      </address>
+    </addressList>
+    <nationalityList>
+      <nationality>
+        <uid>64262</uid>
+        <country>Maldives</country>
+        <mainEntry>true</mainEntry>
+      </nationality>
+    </nationalityList>
+    <dateOfBirthList>
+      <dateOfBirthItem>
+        <uid>64439</uid>
+        <dateOfBirth>07 Sep 1988</dateOfBirth>
+        <mainEntry>true</mainEntry>
+      </dateOfBirthItem>
+    </dateOfBirthList>
+    <placeOfBirthList>
+      <placeOfBirthItem>
+        <uid>64440</uid>
+        <placeOfBirth>Male, Maldives</placeOfBirth>
+        <mainEntry>true</mainEntry>
+      </placeOfBirthItem>
+    </placeOfBirthList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>58287</uid>
+    <lastName>SHPS SHELBIT</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>SDGT</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>52957</uid>
+        <idType>Registration Number</idType>
+        <idNumber>400430477</idNumber>
+        <idCountry>Georgia</idCountry>
+      </id>
+      <id>
+        <uid>200118</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>section 1(b) of Executive Order 13224, as amended by Executive Order 13886</idNumber>
+      </id>
+      <id>
+        <uid>200095</uid>
+        <idType>Organization Established Date</idType>
+        <idNumber>29 Apr 2025</idNumber>
+      </id>
+      <id>
+        <uid>200097</uid>
+        <idType>Organization Type:</idType>
+        <idNumber>Other business support service activities n.e.c.</idNumber>
+      </id>
+      <id>
+        <uid>200104</uid>
+        <idType>Digital Currency Address - TRX</idType>
+        <idNumber>TXN3hVukebhyYR31YPCYd7aJAvmUeXu1ab</idNumber>
+      </id>
+      <id>
+        <uid>200100</uid>
+        <idType>Digital Currency Address - SOL</idType>
+        <idNumber>6wjqWWra8ombzaw6VHrG5xpQ972jCYF6bbHiFCbWmr4U</idNumber>
+      </id>
+      <id>
+        <uid>200096</uid>
+        <idType>Website</idType>
+        <idNumber>www.shelbit.com</idNumber>
+      </id>
+      <id>
+        <uid>200102</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>bc1qjzk63wwatq2f638psymq3qapn00aqgksyx56l3t8eg7zuuccwasq498khf</idNumber>
+      </id>
+      <id>
+        <uid>200105</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>bc1qz654h5qcqzalv6ltpxsk4ksdcc3e20wkedqntgnarv3a0t2e2p7scr48pl</idNumber>
+      </id>
+      <id>
+        <uid>200098</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0xe05f529f5284d75624eba386cb716928c3b54a2a</idNumber>
+      </id>
+      <id>
+        <uid>200106</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0x6b69e2a7545c166417a80c61a77562052bffa9c5</idNumber>
+      </id>
+    </idList>
+    <akaList>
+      <aka>
+        <uid>90175</uid>
+        <type>a.k.a.</type>
+        <category>weak</category>
+        <lastName>SHELBIT EXCHANGE</lastName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <uid>89576</uid>
+        <city>Tblisi</city>
+        <country>Georgia</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>29585</uid>
+    <firstName>Dmitrii</firstName>
+    <lastName>KARASAVIDI</lastName>
+    <sdnType>Individual</sdnType>
+    <programList>
+      <program>CYBER2</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>19749</uid>
+        <idType>Passport</idType>
+        <idNumber>75 5276391</idNumber>
+        <idCountry>Russia</idCountry>
+        <expirationDate>29 Jun 2027</expirationDate>
+      </id>
+      <id>
+        <uid>136450</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>1Q6saNmqKkyFB9mFR68Ck8F7Dp7dTopF2W</idNumber>
+      </id>
+      <id>
+        <uid>136451</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>1DDA93oZPn7wte2eR1ABwcFoxUFxkKMwCf</idNumber>
+      </id>
+      <id>
+        <uid>136452</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b</idNumber>
+      </id>
+      <id>
+        <uid>136454</uid>
+        <idType>Digital Currency Address - XMR</idType>
+        <idNumber>5be5543ff73456ab9f2d207887e2af87322c651ea1a873c5b25b7ffae456c320</idNumber>
+      </id>
+      <id>
+        <uid>154573</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>Ukraine-/Russia-Related Sanctions Regulations, 31 CFR 589.201</idNumber>
+      </id>
+      <id>
+        <uid>136492</uid>
+        <idType>Gender</idType>
+        <idNumber>Male</idNumber>
+      </id>
+      <id>
+        <uid>136453</uid>
+        <idType>Digital Currency Address - LTC</idType>
+        <idNumber>LNwgtMxcKUQ51dw7bQL1yPQjBVZh6QEqsd</idNumber>
+      </id>
+      <id>
+        <uid>136448</uid>
+        <idType>Email Address</idType>
+        <idNumber>2000@911.af</idNumber>
+      </id>
+      <id>
+        <uid>136449</uid>
+        <idType>Email Address</idType>
+        <idNumber>dm.karasavi@yandex.ru</idNumber>
+      </id>
+      <id>
+        <uid>136473</uid>
+        <idType>Digital Currency Address - ZEC</idType>
+        <idNumber>t1g7wowvQ8gn2v8jrU1biyJ26sieNqNsBJy</idNumber>
+      </id>
+      <id>
+        <uid>136474</uid>
+        <idType>Digital Currency Address - DASH</idType>
+        <idNumber>XnPFsRWTaSgiVauosEwQ6dEitGYXgwznz2</idNumber>
+      </id>
+      <id>
+        <uid>136475</uid>
+        <idType>Digital Currency Address - BTG</idType>
+        <idNumber>GPwg61XoHqQPNmAucFACuQ5H9sGCDv9TpS</idNumber>
+      </id>
+      <id>
+        <uid>136472</uid>
+        <idType>Digital Currency Address - ETC</idType>
+        <idNumber>0xd882cfc20f52f2599d84b8e8d58c7fb62cfe344b</idNumber>
+      </id>
+    </idList>
+    <akaList>
+      <aka>
+        <uid>46413</uid>
+        <type>a.k.a.</type>
+        <category>strong</category>
+        <lastName>KARASAVIDI</lastName>
+        <firstName>Dmitriy</firstName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <uid>44632</uid>
+        <city>Moscow</city>
+        <country>Russia</country>
+      </address>
+    </addressList>
+    <dateOfBirthList>
+      <dateOfBirthItem>
+        <uid>36493</uid>
+        <dateOfBirth>09 Jul 1985</dateOfBirth>
+        <mainEntry>true</mainEntry>
+      </dateOfBirthItem>
+    </dateOfBirthList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>58258</uid>
+    <lastName>CRYPTO HOME DMCC</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>SDGT</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>52911</uid>
+        <idType>Company Number</idType>
+        <idNumber>AE0120005822</idNumber>
+        <idCountry>United Arab Emirates</idCountry>
+      </id>
+      <id>
+        <uid>52962</uid>
+        <idType>Commercial Registry Number</idType>
+        <idNumber>DMCC192801</idNumber>
+        <idCountry>United Arab Emirates</idCountry>
+      </id>
+      <id>
+        <uid>52963</uid>
+        <idType>License</idType>
+        <idNumber>DMCC-839525</idNumber>
+        <idCountry>United Arab Emirates</idCountry>
+      </id>
+      <id>
+        <uid>199985</uid>
+        <idType>Digital Currency Address - XBT</idType>
+        <idNumber>1G1V1b9s9uPsFCNL15ibZk44xsVygKsP2u</idNumber>
+      </id>
+      <id>
+        <uid>199984</uid>
+        <idType>Digital Currency Address - ETH</idType>
+        <idNumber>0xbb69e01921b17cd22080968bcc96ba6115da6062</idNumber>
+      </id>
+      <id>
+        <uid>200119</uid>
+        <idType>Secondary sanctions risk:</idType>
+        <idNumber>section 1(b) of Executive Order 13224, as amended by Executive Order 13886</idNumber>
+      </id>
+      <id>
+        <uid>199987</uid>
+        <idType>Organization Established Date</idType>
+        <idNumber>08 Mar 2022</idNumber>
+      </id>
+      <id>
+        <uid>199988</uid>
+        <idType>Organization Type:</idType>
+        <idNumber>Financial and Insurance Activities</idNumber>
+      </id>
+      <id>
+        <uid>199986</uid>
+        <idType>Digital Currency Address - BNB</idType>
+        <idNumber>bnb136ns6lfw4zs5hg4n85vdthaad7hq5m4gtkgf23</idNumber>
+      </id>
+      <id>
+        <uid>199983</uid>
+        <idType>Digital Currency Address - TRX</idType>
+        <idNumber>TTVJuXWCusAURrpNShiypauagEH1N4CrxV</idNumber>
+      </id>
+    </idList>
+    <addressList>
+      <address>
+        <uid>89613</uid>
+        <address1>DMCC Business Centre</address1>
+        <address2>BA1024</address2>
+        <city>Dubai</city>
+        <country>United Arab Emirates</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+  <sdnEntry>
+    <uid>52272</uid>
+    <lastName>GALAXY MANAGEMENT NV</lastName>
+    <sdnType>Entity</sdnType>
+    <programList>
+      <program>IRAN-EO13846</program>
+    </programList>
+    <idList>
+      <id>
+        <uid>45227</uid>
+        <idType>Identification Number</idType>
+        <idNumber>IMO 6219160</idNumber>
+      </id>
+      <id>
+        <uid>183966</uid>
+        <idType>Executive Order 13846 information:</idType>
+        <idNumber>BLOCKING PROPERTY AND INTERESTS IN PROPERTY.  Sec. 5(a)(iv)</idNumber>
+      </id>
+    </idList>
+    <addressList>
+      <address>
+        <uid>79844</uid>
+        <address1>Keizer Straat 40</address1>
+        <city>Paramaribo</city>
+        <country>Suriname</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+</sdnList>

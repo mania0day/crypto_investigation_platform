@@ -1,0 +1,98 @@
+{
+  "source": "token issuer primary sources, confirmed on-chain",
+  "source_date": "2026-08-09",
+  "license": "CC0-1.0",
+  "_note": "Contracts read from issuer documentation (Tether, Circle, MakerDAO) and CONFIRMED on-chain before shipping: EVM via eth_getCode plus symbol()/decimals(); Tron via wallet/getcontract plus decimals(); Solana via getAccountInfo (owner must be the SPL token program). Only confirmed entries appear here. A movement in an asset that is NOT native and NOT listed here cannot found a heuristic inference — see analysis/assets.py.",
+  "assets": [
+    {
+      "chain": "ethereum",
+      "contract": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "symbol": "USDT",
+      "decimals": 6,
+      "issuer": "Tether",
+      "onchain_symbol": "USDT",
+      "source_url": "https://tether.to/en/supported-protocols"
+    },
+    {
+      "chain": "ethereum",
+      "contract": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "symbol": "USDC",
+      "decimals": 6,
+      "issuer": "Circle",
+      "onchain_symbol": "USDC",
+      "source_url": "https://www.circle.com/multi-chain-usdc"
+    },
+    {
+      "chain": "ethereum",
+      "contract": "0x6b175474e89094c44da98b954eedeac495271d0f",
+      "symbol": "DAI",
+      "decimals": 18,
+      "issuer": "MakerDAO",
+      "onchain_symbol": "DAI",
+      "source_url": "https://docs.makerdao.com/smart-contract-modules/dai-module"
+    },
+    {
+      "chain": "ethereum",
+      "contract": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+      "symbol": "WETH",
+      "decimals": 18,
+      "issuer": "WETH9 canonical contract",
+      "onchain_symbol": "WETH",
+      "source_url": "https://ethereum.org/en/wrapped-eth/"
+    },
+    {
+      "chain": "polygon",
+      "contract": "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+      "symbol": "USDT",
+      "decimals": 6,
+      "issuer": "Tether",
+      "onchain_symbol": "USDT0",
+      "_note": "On-chain symbol now reads USDT0 (Tether's omnichain deployment); recorded verbatim rather than normalised.",
+      "source_url": "https://tether.to/en/supported-protocols"
+    },
+    {
+      "chain": "polygon",
+      "contract": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+      "symbol": "USDC",
+      "decimals": 6,
+      "issuer": "Circle",
+      "onchain_symbol": "USDC",
+      "source_url": "https://www.circle.com/multi-chain-usdc"
+    },
+    {
+      "chain": "polygon",
+      "contract": "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
+      "symbol": "USDC.e",
+      "decimals": 6,
+      "issuer": "Circle (bridged)",
+      "onchain_symbol": "USDC",
+      "_note": "The bridged USDC that predates Circle's native Polygon deployment; still widely held.",
+      "source_url": "https://www.circle.com/multi-chain-usdc"
+    },
+    {
+      "chain": "tron",
+      "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      "symbol": "USDT",
+      "decimals": 6,
+      "issuer": "Tether",
+      "onchain_symbol": "TetherToken",
+      "source_url": "https://tether.to/en/supported-protocols"
+    },
+    {
+      "chain": "solana",
+      "contract": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "USDC",
+      "decimals": 6,
+      "issuer": "Circle",
+      "source_url": "https://www.circle.com/multi-chain-usdc"
+    },
+    {
+      "chain": "solana",
+      "contract": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      "symbol": "USDT",
+      "decimals": 6,
+      "issuer": "Tether",
+      "source_url": "https://tether.to/en/supported-protocols"
+    }
+  ]
+}

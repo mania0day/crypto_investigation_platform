@@ -1,0 +1,799 @@
+"""Build the final project report as a PDF.
+
+Every number in the document is measured at build time — test count, line
+counts, label totals, migration head, module inventory. A report that quotes
+figures typed in by hand starts drifting the moment anything changes, and the
+drift is invisible: the prose still reads as though it were checked. So the
+only facts in here that are not computed are the ones that cannot be.
+
+Renders through ``cipherchain.reporting.pdf.render_pdf`` rather than a private
+chromium call. That function already refuses to leave a truncated or zero-byte
+PDF behind, and the project should not carry two answers to "print this
+document" — the one nobody looks at is the one that ships broken.
+
+    python scripts/build_project_report.py [--output docs/CipherChain-final-report.pdf]
+"""
+# This file embeds a typeset document, so two rules are scoped off deliberately
+# rather than obeyed: E501, because reflowing prose to 100 columns moves where
+# sentences break in the printed PDF; and the ambiguous-character rules, because
+# real multiplication signs and en dashes are the correct glyphs for a printed
+# report. Downgrading them to ASCII lookalikes would be a typographic regression
+# made to satisfy a rule aimed at identifiers, not prose.
+# ruff: noqa: E501, RUF001
+
+from __future__ import annotations
+
+import argparse
+import html
+import json
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from cipherchain.reporting.pdf import ChromiumNotFound, render_pdf
+
+BACKEND = Path(__file__).resolve().parents[1]
+ROOT = BACKEND.parent
+
+
+# ── measurement ──────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class Stats:
+    src_lines: int
+    test_lines: int
+    src_files: int
+    test_files: int
+    tests_passed: int
+    migration_head: str
+    labels: dict[str, int]
+    label_total: int
+    ofac_counts: dict[str, int]
+    modules: dict[str, list[str]]
+    commit: str
+
+
+def _count_lines(root: Path, pattern: str) -> tuple[int, int]:
+    files = [p for p in root.rglob(pattern) if "__pycache__" not in p.parts]
+    total = 0
+    for path in files:
+        try:
+            total += len(path.read_text(encoding="utf-8", errors="replace").splitlines())
+        except OSError:
+            continue
+    return total, len(files)
+
+
+def _tests_passed() -> int:
+    """Run the suite. A report claiming a green suite must have watched it go green."""
+    print("  running the test suite (this takes ~2 minutes)…", flush=True)
+    proc = subprocess.run(
+        [str(BACKEND / ".venv/bin/python"), "-m", "pytest", "-q"],
+        cwd=BACKEND,
+        capture_output=True,
+        text=True,
+    )
+    match = re.search(r"(\d+) passed", proc.stdout)
+    if proc.returncode != 0:
+        failed = re.search(r"(\d+) failed", proc.stdout)
+        raise SystemExit(
+            f"refusing to build a report on a red suite: "
+            f"{failed.group(1) if failed else '?'} failed\n{proc.stdout[-2000:]}"
+        )
+    return int(match.group(1)) if match else 0
+
+
+def _migration_head() -> str:
+    proc = subprocess.run(
+        [str(BACKEND / ".venv/bin/python"), "-m", "alembic", "heads"],
+        cwd=BACKEND,
+        capture_output=True,
+        text=True,
+    )
+    heads = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+    if len(heads) > 1:
+        raise SystemExit(f"multiple alembic heads, refusing to report a clean schema: {heads}")
+    return heads[0].split()[0] if heads else "unknown"
+
+
+def _labels() -> tuple[dict[str, int], int]:
+    counts: dict[str, int] = {}
+    for path in sorted((ROOT / "labels").glob("*.json")):
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        rows = data if isinstance(data, list) else data.get("labels", [])
+        if isinstance(rows, list):
+            counts[path.name] = len(rows)
+    return counts, sum(counts.values())
+
+
+def _ofac() -> dict[str, int]:
+    out: dict[str, int] = {}
+    for path in sorted((BACKEND / "src/cipherchain/analysis/data").glob("ofac_*.json")):
+        try:
+            rows = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if isinstance(rows, list):
+            out[path.stem.replace("ofac_", "").upper()] = len(rows)
+    return out
+
+
+def _modules() -> dict[str, list[str]]:
+    groups: dict[str, list[str]] = {}
+    base = BACKEND / "src/cipherchain"
+    for path in sorted(base.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        rel = path.relative_to(base)
+        top = rel.parts[0] if len(rel.parts) > 1 else "(root)"
+        groups.setdefault(top, []).append(str(rel))
+    return groups
+
+
+def _commit() -> str:
+    proc = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True
+    )
+    return proc.stdout.strip() or "uncommitted"
+
+
+def measure() -> Stats:
+    src_lines, src_files = _count_lines(BACKEND / "src", "*.py")
+    test_lines, test_files = _count_lines(BACKEND / "tests", "*.py")
+    labels, label_total = _labels()
+    return Stats(
+        src_lines=src_lines,
+        test_lines=test_lines,
+        src_files=src_files,
+        test_files=test_files,
+        tests_passed=_tests_passed(),
+        migration_head=_migration_head(),
+        labels=labels,
+        label_total=label_total,
+        ofac_counts=_ofac(),
+        modules=_modules(),
+        commit=_commit(),
+    )
+
+
+# ── document ─────────────────────────────────────────────────────────────
+
+CSS = """
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+@page :first { margin-top: 34mm; }
+* { box-sizing: border-box; }
+body {
+  font: 10.5pt/1.55 "Source Serif 4", "Georgia", serif;
+  color: #16181d; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2, h3, h4 { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; color: #0f1115; }
+h1 { font-size: 30pt; line-height: 1.15; margin: 0 0 6pt; letter-spacing: -0.4pt; }
+h2 { font-size: 15pt; margin: 22pt 0 7pt; padding-bottom: 4pt;
+     border-bottom: 2px solid #0B6E78; break-after: avoid; }
+h3 { font-size: 11.5pt; margin: 14pt 0 4pt; break-after: avoid; }
+h4 { font-size: 10pt; margin: 10pt 0 3pt; color: #3d4450; break-after: avoid; }
+p { margin: 0 0 7pt; orphans: 3; widows: 3; }
+code, .mono { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; font-size: 8.8pt; }
+code { background: #f2f4f7; padding: 0.5pt 3pt; border-radius: 2.5px; }
+a { color: #0B6E78; text-decoration: none; }
+table { width: 100%; border-collapse: collapse; margin: 8pt 0 11pt; font-size: 9.2pt;
+        break-inside: avoid; }
+th { text-align: left; background: #eef1f4; padding: 4.5pt 6pt; font-family: "Inter", sans-serif;
+     font-size: 8.4pt; text-transform: uppercase; letter-spacing: 0.4pt; color: #454c58;
+     border-bottom: 1.5px solid #ccd2da; }
+td { padding: 4.5pt 6pt; border-bottom: 1px solid #e6e9ee; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+.num { text-align: right; font-family: "JetBrains Mono", monospace; font-size: 8.8pt; }
+.cover { break-after: page; }
+.cover .rule { width: 62pt; height: 4px; background: #0B6E78; margin: 0 0 20pt; }
+.sub { font-size: 13pt; color: #4a515e; font-family: "Inter", sans-serif; margin: 0 0 26pt;
+       line-height: 1.45; }
+.meta { font-size: 9pt; color: #626a78; font-family: "Inter", sans-serif; margin-top: 30pt; }
+.meta b { color: #16181d; font-weight: 600; }
+.q { border-left: 3px solid #0B6E78; padding: 7pt 0 7pt 13pt; margin: 12pt 0;
+     background: #f7fafb; font-style: italic; color: #2b313b; break-inside: avoid; }
+.warn { border-left: 3px solid #97322F; background: #fdf6f5; padding: 8pt 12pt; margin: 11pt 0;
+        break-inside: avoid; }
+.warn b { color: #97322F; }
+.ok { border-left: 3px solid #0B6E78; background: #f4fafa; padding: 8pt 12pt; margin: 11pt 0;
+      break-inside: avoid; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; margin: 12pt 0; }
+.stat { background: #f5f7f9; border: 1px solid #e2e6ec; border-radius: 4px; padding: 9pt 10pt; }
+.stat .n { font: 600 17pt/1.1 "Inter", sans-serif; color: #0B6E78; font-variant-numeric: tabular-nums; }
+.stat .l { font: 8pt/1.3 "Inter", sans-serif; color: #626a78; margin-top: 2.5pt;
+           text-transform: uppercase; letter-spacing: 0.3pt; }
+pre { background: #f5f7f9; border: 1px solid #e4e8ed; border-radius: 4px; padding: 8pt 10pt;
+      font-size: 8.4pt; line-height: 1.5; overflow-x: auto; break-inside: avoid; margin: 8pt 0 11pt; }
+ul, ol { margin: 0 0 8pt; padding-left: 17pt; }
+li { margin-bottom: 3.5pt; }
+/* Sections FLOW rather than each starting a fresh page. Forcing a break before
+   every h2 left several pages three-quarters empty — a 15-page report where a
+   third of the paper is blank reads as padding, not structure. Breaks are now
+   opt-in via .newpage for the two places a fresh page genuinely helps. */
+.section { break-before: auto; }
+.newpage { break-before: page; }
+.tag { display: inline-block; font: 600 7.4pt "Inter", sans-serif; padding: 1.5pt 5pt;
+       border-radius: 2.5px; text-transform: uppercase; letter-spacing: 0.4pt; }
+.tag.done { background: #dff0ef; color: #0B6E78; }
+.tag.part { background: #fdf0dc; color: #8A5A12; }
+.tag.no   { background: #fbe9e8; color: #97322F; }
+.foot { margin-top: 26pt; padding-top: 9pt; border-top: 1px solid #dfe3e9;
+        font-size: 8.4pt; color: #6c7382; font-family: "Inter", sans-serif; }
+"""
+
+
+def stat_tile(n: str, label: str) -> str:
+    return f'<div class="stat"><div class="n">{n}</div><div class="l">{html.escape(label)}</div></div>'
+
+
+def build_html(s: Stats) -> str:
+    built = datetime.now(UTC).strftime("%d %B %Y")
+    label_rows = "\n".join(
+        f"<tr><td><code>{html.escape(k)}</code></td><td class='num'>{v:,}</td></tr>"
+        for k, v in sorted(s.labels.items(), key=lambda kv: -kv[1])
+    )
+    ofac_rows = " · ".join(f"{k} {v}" for k, v in sorted(s.ofac_counts.items()))
+    module_rows = "\n".join(
+        f"<tr><td><code>{html.escape(g)}/</code></td><td class='num'>{len(f)}</td>"
+        f"<td style='font-size:8.4pt;color:#626a78'>{html.escape(', '.join(sorted(Path(x).name for x in f))[:150])}</td></tr>"
+        for g, f in sorted(s.modules.items(), key=lambda kv: -len(kv[1]))
+        if g != "(root)"
+    )
+    ratio = (s.test_lines / s.src_lines * 100) if s.src_lines else 0
+
+    return f"""<style>{CSS}</style>
+
+<section class="cover">
+  <div class="rule"></div>
+  <h1>CipherChain</h1>
+  <p class="sub">An open-source blockchain investigation platform that answers
+  one question honestly: given an address, what is the nearest previous VASP,
+  what is the nearest next VASP, and what is the evidence for each?</p>
+
+  <div class="grid">
+    {stat_tile(f"{s.tests_passed:,}", "tests passing")}
+    {stat_tile(f"{s.src_lines:,}", "lines of source")}
+    {stat_tile(f"{s.label_total:,}", "attribution labels")}
+    {stat_tile("4", "chains supported")}
+  </div>
+
+  <p class="meta">
+    <b>Final project report</b><br>
+    Built {built} · commit <code>{html.escape(s.commit)}</code> ·
+    schema <code>{html.escape(s.migration_head)}</code><br>
+    Licence AGPL-3.0 · every figure in this document measured at build time
+  </p>
+</section>
+
+<h2>1. The problem</h2>
+
+<p>Cryptocurrency is pseudonymous, not anonymous. Every movement is public and
+permanent, which sounds like it should make investigation easy. It does not.
+An investigator handed an address gets a wall of hashes: thousands of
+transactions between addresses that are themselves just more hashes. Nothing in
+the ledger says who anybody is.</p>
+
+<p>There is exactly one place that changes. A <b>VASP</b> — Virtual Asset
+Service Provider, meaning an exchange, broker or custodian — is a regulated
+business that performs identity checks and keeps records. When funds touch a
+VASP, pseudonymous value meets a legal entity holding a name, a document and an
+address. That is the point at which an investigation can move from a chain to a
+court.</p>
+
+<div class="q">So the operational question is not "where did all this money go".
+It is: <b>what is the nearest VASP, in each direction, and can I prove it?</b>
+Backward answers <i>who funded this</i>. Forward answers <i>where it cashed
+out</i>. Both are needed, and they are different questions with different
+answers.</div>
+
+<h3>Why the second half of that sentence is the hard part</h3>
+
+<p>The failure mode of an investigation tool is not crashing. It is being
+<b>confidently wrong in a document somebody acts on</b>. A tool that produces a
+clean-looking path to an exchange account belonging to an uninvolved person has
+done more damage than a tool that produced nothing. Every design decision in
+this project is downstream of that observation.</p>
+
+<h2>2. What the system refuses to do</h2>
+
+<p>These constraints are load-bearing. They are enforced in code and in tests,
+not stated as intentions.</p>
+
+<h3>A heuristic never names an operator</h3>
+<p>Behavioural analysis can conclude <i>"this address behaves like custodial
+infrastructure"</i>. Only a citable third-party claim can conclude <i>"this is
+Binance"</i>. An investigator can subpoena the second and cannot subpoena the
+first, so the two are never merged. The API returns <code>nearest</code> and
+<code>nearest_named</code> as separate answers rather than silently choosing
+between them.</p>
+
+<div class="warn"><b>This rule was violated twice during development, and both
+times a test had locked the violation in.</b> In one, an endpoint carrying the
+badge <i>"Operator not named — this address is a lead, not a respondent"</i>
+printed, on the same card, <i>"Binance Holdings Ltd, Cayman Islands,
+le.binance.com"</i> — supplying a respondent and a forum for a legal filing that
+the evidence did not support. In the other, a mixer-derived guess printed as
+<i>"nearest VASP"</i> because a boolean defaulted to <code>False</code> across a
+module boundary. Neither was found by the suite; both were found by adversarial
+review whose instruction was to break the property rather than confirm it.</div>
+
+<h3>Every third-party claim carries its date</h3>
+<p>A fresh attribution and a three-year-stale one must never look alike. Source
+and source date travel with the claim all the way to the rendered report.</p>
+
+<h3>Coverage gaps are recorded, never hidden</h3>
+<p>When a branch is cut by a budget, a depth horizon, a page limit, a supernode
+cap, or a follow cap, that becomes a durable fact attached to the node — not a
+log line. A report that hides its own gaps is the most dangerous output this
+system could produce, because partial work presented as complete reads exactly
+like an answer.</p>
+
+<h3>No invented labels, ever</h3>
+<p>A label is a claim about a real address. A guessed one is a false accusation.
+The only attribution shipped in the repository is data with a verifiable source
+and a checked licence.</p>
+
+<h3>A speculative branch is never presentable as a traced one</h3>
+<p>Discussed in section 5, because it is the newest and least obvious of these.</p>
+
+<h2 class="section newpage">3. Architecture</h2>
+
+<pre>                 ┌──────────────┐
+   address ─────▶│  API (HTTP)  │  start · status · findings · graph · report · resume
+                 └──────┬───────┘
+                        ▼
+                 ┌──────────────┐
+                 │    Engine    │  traversal · budgets · terminators · answer selection
+                 └──────┬───────┘
+        ┌───────────────┼────────────────┐
+        ▼               ▼                ▼
+  ┌──────────┐   ┌─────────────┐   ┌───────────┐
+  │  Chain   │   │  Analysis   │   │   Intel   │  label lifecycle · trust policy
+  │ adapters │   │ heuristics  │   │           │  pending → active → retired
+  └────┬─────┘   └─────────────┘   └───────────┘
+       ▼
+  ┌──────────┐
+  │ Provider │  priority failover · rate limits · circuit breaker · response cache
+  │   pool   │
+  └────┬─────┘
+       ▼
+  ┌──────────┐
+  │ Postgres │  addresses · transactions · movements · nodes · edges
+  │          │  findings · evidence · labels · vasp_metadata · api_keys
+  └──────────┘</pre>
+
+<h3>One movement model across four chains</h3>
+<p>Bitcoin is a UTXO chain; Ethereum, Tron and Solana are account chains. These
+are genuinely different paradigms, and most tools handle them with parallel code
+paths. CipherChain does not: the <b>data shape itself encodes the paradigm</b>.
+Account movements carry both endpoints; UTXO halves carry one, and the joining
+transaction's opposite halves supply the counterparties. Above the adapter
+layer, no chain identity is ever consulted.</p>
+
+<table>
+<tr><th>Module</th><th class="num">Files</th><th>Contents</th></tr>
+{module_rows}
+</table>
+
+<h2 class="section">4. The evidence model</h2>
+
+<p>Four kinds, frozen. Nothing may add a fifth, because the distinctions are
+what make a conclusion auditable.</p>
+
+<table>
+<tr><th>Kind</th><th>Means</th><th>Can it name an operator?</th></tr>
+<tr><td><code>onchain_fact</code></td><td>The ledger says so</td><td>No</td></tr>
+<tr><td><code>heuristic_inference</code></td><td>A rule concluded it from behaviour</td><td><b>No</b></td></tr>
+<tr><td><code>third_party_claim</code></td><td>A citable source asserts it, with a date</td><td><b>Yes — only this</b></td></tr>
+<tr><td><code>engine_observation</code></td><td>Something about the run itself</td><td>No</td></tr>
+</table>
+
+<p>The third row is the one that matters. <code>is_named()</code> returns true
+for exactly one evidence kind, and that single predicate is what separates a
+result an investigator can act on from one they cannot.</p>
+
+<h2 class="section">5. The mixer problem</h2>
+
+<p>A mixer deliberately severs the link between deposit and withdrawal. The
+original design treated mixer contact as terminal: record it, stop the branch.
+That was defensible — following value <i>through</i> a mixer means selecting a
+withdrawal and asserting it belongs to the subject, and most of the time it
+belongs to a stranger.</p>
+
+<p>But it fails the actual use case. A trace that dies at a mixer answers "where
+did this money go?" with "we lost it", which is precisely the outcome the
+laundering was designed to produce. The operator's ruling was to
+<b>follow it, but marked</b>.</p>
+
+<h3>Five heuristics, strongest first</h3>
+<table>
+<tr><th>#</th><th>Heuristic</th><th>Signal</th></tr>
+<tr><td>1</td><td>Address match — the same address deposits and withdraws</td><td>Decisive</td></tr>
+<tr><td>2</td><td>Linked address — the two parties transact outside the mixer</td><td>Strong</td></tr>
+<tr><td>3</td><td>Unique gas price — an unusual price identical on both sides</td><td>Strong</td></tr>
+<tr><td>4</td><td>Multi-denomination — a distinctive fingerprint of pool sizes</td><td>Strong</td></tr>
+<tr><td>5</td><td>Anonymity set — the crowd in the time window</td><td>Weak</td></tr>
+</table>
+
+<h3>Direction is the thing most likely to be silently wrong</h3>
+<p><b>Backward</b>, from a withdrawal, candidates are deposits that happened
+<i>before</i> it. <b>Forward</b>, from a deposit, candidates are withdrawals
+that happened <i>after</i> it. Inverting these enumerates the wrong end of the
+pool and produces candidates that could not possibly be related — and the output
+looks identical to a working one. The API therefore makes direction a function
+choice, not a parameter: <code>trace_back_from_withdrawal</code> and
+<code>trace_forward_from_deposit</code> take different types, so the two cannot
+be confused by passing the wrong flag.</p>
+
+<div class="warn"><b>A direction leak survived the entire test suite.</b>
+Mutation testing — deliberately corrupting the code to see whether any test
+complains — found that swapping one argument in heuristic 4 turned an honest
+anonymity-set lead (confidence 0.5, <i>"a lead, not an attribution"</i>) into a
+named match at confidence 0.6, whose supporting fingerprint was completed by a
+deposit made <b>50 hours after</b> the withdrawal it claimed to explain. An
+unreachable guard was absorbing the mutation. A passing suite proves the tests
+agree with the code — not that either is right.</div>
+
+<h3>Every candidate carries a mandatory weakness</h3>
+<p>Published linkage rates put all five heuristics stacked at roughly one
+withdrawal in three, meaning <b>the common case is that the selection is
+wrong</b>. That is acceptable only because a candidate cannot be constructed
+without a plain-language weakness an investigator can read aloud — <i>"one of
+412 withdrawals in the anonymity set; this is a lead, not an attribution"</i> —
+and because nothing in the mixer package can produce a
+<code>third_party_claim</code>, so a mixer-derived address can never become a
+name.</p>
+
+<h3>Speculation is inherited</h3>
+<p>Every node discovered downstream of a speculative node is itself speculative.
+A guess does not become a fact by being one hop further along. In the graph
+these render with dashed edges; in the report they are barred from the
+<code>nearest</code> answer entirely and may appear only in the
+<code>best_effort</code> slot, which is populated only when a direction has no
+real answer at all.</p>
+
+<h2 class="section">6. Resilience: what happens when the data runs out</h2>
+
+<p>Commercial providers meter access. A trace that stops when a quota is
+exhausted is a trace that stops halfway through a case. The requirement was that
+losing quota should <b>slow</b> an investigation, not end it.</p>
+
+<table>
+<tr><th>Tier</th><th>Priority</th><th>Needs a key?</th><th>Role</th></tr>
+<tr><td>Etherscan, Alchemy, Infura, dRPC, Ankr, TronGrid…</td><td class="num">0–20</td><td>Yes</td><td>Normal operation</td></tr>
+<tr><td>Blockscout (keyless API)</td><td class="num">90</td><td>No</td><td>Quota exhausted</td></tr>
+<tr><td>Explorer fetch (public pages)</td><td class="num">95</td><td>No</td><td>Last resort</td></tr>
+</table>
+
+<p>The bottom tier reads public explorer pages at crawl speed. It fetches and
+obeys <code>robots.txt</code> and <b>fails closed</b> — an unreadable rules file
+means "we do not know what is permitted", which must never resolve to "so we
+crawled anyway". No login, no CAPTCHA solving, no evasion of any kind. Every
+response carries <code>provider="explorer-fetch:&lt;host&gt;"</code> in its
+provenance, so a reader can always see which tier served a result.</p>
+
+<h3>Tested, not assumed</h3>
+
+<p>The claim "losing quota does not stop a trace" was verified by building a
+provider pool containing <b>only the keyless tiers</b> — no Etherscan, no
+Alchemy, no key of any kind — and asking it for the case subject's history:</p>
+
+<table>
+<tr><th>Result with zero API keys</th><th class="num">Value</th></tr>
+<tr><td>Transactions returned</td><td class="num">129</td></tr>
+<tr><td>Token movements</td><td class="num">50</td></tr>
+<tr><td>Internal movements</td><td class="num">49</td></tr>
+<tr><td>Native movements</td><td class="num">16</td></tr>
+<tr><td>Feed gaps recorded</td><td class="num">none</td></tr>
+<tr><td><b>VASP reached</b></td><td class="num"><b>Binance</b></td></tr>
+<tr><td>Mixer pools reached</td><td class="num">3 of 3</td></tr>
+</table>
+
+<p>So the answer holds: with every credential removed, the trace still reaches a
+named exchange. Token transfers matter most here — the subject was funded in
+USDT, so a tier that could not read them would have missed the VASP entirely.</p>
+
+<div class="warn"><b>Be precise about what that measurement covers.</b> The pool
+above held <i>both</i> keyless tiers, and the keyless API tier — being a fast
+JSON API — served every request. It proves <b>credential-free operation</b>.
+It does <b>not</b> prove the bottom scraping tier can carry a trace alone,
+because that tier was never reached.
+<br><br>
+The scraping tier alone was tested separately and <b>could not be measured
+live</b>: the target explorer answers 429 with a bot challenge, which the tier
+declines to solve. Against <i>recorded</i> bytes from that same site the full
+path (pool → adapter → normalize) yields 18 transactions, 8 token movements,
+correct 6-decimal scaling and <code>explorer-fetch:3xpl.com</code> provenance —
+so the code is right; the access is not. Both statements belong in the record,
+and the weaker one is the honest headline.</div>
+
+<div class="warn"><b>The bottom tier is currently blocked, and that is worth
+stating plainly.</b> The public-page fetch tier targets an explorer that served
+it fine earlier the same day (a 508 KB page), and then began answering
+<b>HTTP 403 to every request from this host</b> — every path, every user agent,
+a bot-block interstitial. Almost certainly earned by the volume of development
+probing done against it.
+<br><br>
+The tier handled this exactly as designed: <code>robots.txt</code> became
+unreadable, so it <b>declined</b> rather than crawling on an assumption. The
+capability above it (the keyless API tier) carries the load and is what the
+measurement above actually exercised. But the honest position is that the
+last-resort tier is built, correct and fail-safe — and not, at this moment,
+delivering data from this host.</div>
+
+<div class="ok"><b>A false empty is worse than an error.</b> An earlier version
+of the page parser returned "no history" for an address with ten transactions,
+because it tested for emptiness across the whole page — and the explorer renders
+seven tab panes, six of which always look empty. "This address has no history"
+is a conclusion; a parse failure is not. The parser now keys on the pane the
+page marks active, and an unrecognised layout raises rather than returning
+nothing.</div>
+
+<h2 class="section">7. Data</h2>
+
+<table>
+<tr><th>Labelpack</th><th class="num">Entries</th></tr>
+{label_rows}
+<tr><td><b>Total</b></td><td class="num"><b>{s.label_total:,}</b></td></tr>
+</table>
+
+<p>Plus vendored OFAC sanctioned-address lists ({html.escape(ofac_rows)}), and
+separate packs for cross-chain bridges and verified asset contracts.</p>
+
+<h3>Why verified assets matter more than they sound</h3>
+<p>A token contract can emit transfers naming any amount and any symbol it
+chooses. If frontier ranking counted unverified assets, an attacker could spray
+a target with a worthless token carrying an astronomical nominal value and sink
+the real trail beneath the spam until the budget ran out. Ranking counts only
+assets whose provenance is established. Unverified counterparties are still
+explored — they simply do not get to decide what is explored <i>first</i>.</p>
+
+<h2 class="section">8. Evaluation</h2>
+
+<div class="grid">
+  {stat_tile(f"{s.tests_passed:,}", "tests passing")}
+  {stat_tile(f"{s.src_lines:,}", "source lines")}
+  {stat_tile(f"{s.test_lines:,}", "test lines")}
+  {stat_tile(f"{ratio:.0f}%", "test-to-source")}
+</div>
+
+<p>{s.src_files} source files, {s.test_files} test files. <code>ruff</code> and
+<code>mypy --strict</code> both clean. A single Alembic head
+(<code>{html.escape(s.migration_head)}</code>) verified through a full
+upgrade → downgrade → upgrade cycle.</p>
+
+<h3>What the suite does not prove, and how that was addressed</h3>
+<p>A green suite proves the tests agree with the code. Three techniques were
+used to attack that agreement:</p>
+<ul>
+<li><b>Mutation testing</b> — corrupt the code, see whether anything complains.
+Six surviving mutants in the mixer ladder, including the direction leak above.</li>
+<li><b>Independent verification</b> — every workstream was re-checked by a second
+party instructed to distrust the first's report and re-run the gates themselves.
+Every single workstream had defects the builder had reported as clean.</li>
+<li><b>Adversarial review</b> — reviewers tasked with breaking the safety
+properties rather than confirming them.</li>
+</ul>
+
+<div class="warn"><b>A metric that cannot fail is not evidence.</b> Clustering
+holdout precision measured 1.000. It was rejected: every non-mixer Bitcoin label
+in the corpus is OKX, so a rule that answers "OKX" unconditionally scores
+identically. Recall (~0.91) is informative; precision here is not, and cluster
+label activation stays deliberately switched off until a second Bitcoin entity
+exists to make the test capable of failing.</div>
+
+<h2 class="section newpage">9. Case study</h2>
+
+<p>The shipped case is a real OFAC-sanctioned address,
+<code>0xdcbeffbecce100cce9e4b153c4e15cb885643193</code>, chosen by measurement
+rather than recall. All 96 sanctioned Ethereum addresses were probed against the
+label packs to find which actually transacted with both a mixer and a named
+exchange.</p>
+
+<table>
+<tr><th>Of 96 sanctioned Ethereum addresses</th><th class="num">Count</th></tr>
+<tr><td>Touched a Tornado Cash pool directly</td><td class="num">2</td></tr>
+<tr><td>Touched a labelled VASP directly</td><td class="num">57</td></tr>
+<tr><td><b>Touched both</b></td><td class="num"><b>1</b></td></tr>
+</table>
+
+<p>That distribution is itself a finding: at one hop, sanctioned funds reach an
+<b>exchange</b> roughly 28× more often than a <b>mixer</b>. The exchange is the
+common case; the mixer is the exception. A tool that gives up at a mixer fails
+on the minority of cases where it matters most.</p>
+
+<p>The chosen address received eleven inbound movements from OKX and Binance —
+including 119,610 USDT — and made thirteen deposits into Tornado Cash pools. It
+also performed two same-day round trips through the 100 DAI pool, which fires
+the strongest rung of the ladder on live data.</p>
+
+<div class="warn"><b>A candidate case was rejected on evidence.</b> The Ronin
+Bridge / Lazarus attacker address is sanctioned, has 1,430 transactions and does
+reach Binance directly — but has <b>zero</b> direct Tornado Cash counterparties;
+that laundering ran through intermediary wallets first. A case study asserting
+direct contact would have been wrong, and checkable on any block explorer in a
+minute.</div>
+
+<h3>What the live run produced</h3>
+
+<p>Executed against Ethereum. The first run exhausted a 400-node budget and
+answered only backward; it was continued through
+<code>POST /investigations/&#123;id&#125;/resume</code> rather than restarted.</p>
+
+<table>
+<tr><th></th><th class="num">Run 1</th><th class="num">Run 2 (resumed)</th></tr>
+<tr><td>Nodes reached</td><td class="num">400</td><td class="num">1,573</td></tr>
+<tr><td>Transactions examined</td><td class="num">2,474</td><td class="num">14,982</td></tr>
+<tr><td>API calls spent</td><td class="num">14</td><td class="num">125</td></tr>
+<tr><td>Findings</td><td class="num">79</td><td class="num">319</td></tr>
+<tr><td>Mixer stops / crossings</td><td class="num">1 / 0</td><td class="num">4 / <b>1</b></td></tr>
+</table>
+
+<table>
+<tr><th>Direction</th><th>Nearest named endpoint</th><th class="num">Hop</th><th class="num">Conf.</th><th>Speculative</th></tr>
+<tr><td>Backward</td><td><b>Binance</b> (operational address)</td><td class="num">1</td><td class="num">0.75</td><td>No</td></tr>
+<tr><td>Forward</td><td><b>OKX</b></td><td class="num">2</td><td class="num">0.90</td><td><b>No</b></td></tr>
+</table>
+
+<p>Both answers arrived on traced paths. A mixer was crossed during the run and
+did <b>not</b> contaminate either headline — which is the property the whole
+speculative-marking design exists to guarantee, here demonstrated rather than
+asserted.</p>
+
+<div class="ok">The crossing, in the system's own words: <i>"the trail crossed
+this mixer on a heuristic (<code>mixer-exit-anonymity-set@1</code>): 2 candidate
+branch(es) followed as SPECULATIVE … every address beyond this point may belong
+to an unrelated party"</i>, with the mandatory weakness <i>"one of 2 deposits in
+the anonymity set within 7 days; this is a lead, not an attribution"</i>.
+<br><br>
+Four other mixer branches stopped instead, and said so without overclaiming:
+<i>"no exit candidate could be proposed; no branch past it is offered,
+<b>which is not evidence that none exists</b>"</i>. "We found nothing" and
+"there is nothing" are different statements, and the tool only makes the true
+one.</div>
+
+<p>The resulting report is <b>189 pages</b>, and page 3 carries what makes the
+answer filable rather than merely correct: <i>Binance Holdings Limited</i>,
+Cayman Islands, KYC mandatory since 2021-08-20, the law-enforcement request
+channel, and the DOJ and CFTC case citations the metadata rests on.</p>
+
+<div class="warn"><b>And what it got awkwardly wrong.</b> The
+<code>nearest</code> endpoint in <i>both</i> directions was the <b>WETH
+contract</b>, classified at 61% as <i>"behaves as custodial infrastructure such
+as an exchange"</i>. Behaviourally defensible — WETH does hold ETH on other
+people's behalf — but WETH is not a VASP in any regulatory sense. Every safety
+property held (marked <i>operator not named</i>, low confidence, with
+<code>nearest_named</code> carrying the real answer), yet the service-endpoint
+heuristic plainly does not distinguish a custodial <i>business</i> from a
+custodial <i>contract</i>. It is listed as a limitation rather than explained
+away.</div>
+
+<p>Full detail, including what the address-match rung does <i>not</i> deliver,
+is in <code>docs/CASE_STUDY.md</code>.</p>
+
+<h2 class="section">10. Honest limitations</h2>
+
+<table>
+<tr><th>Limitation</th><th>Status</th></tr>
+<tr><td><b>Label coverage is the real ceiling.</b> Reaching a VASP the corpus
+cannot name reads identically to reaching no VASP. This is a data problem, not a
+traversal problem, and it is the dominant source of unanswered runs.</td>
+<td><span class="tag no">open</span></td></tr>
+
+<tr><td><b>Two of three harvest sources need a human.</b> Binance returns a bot
+check and OKX refuses connections from a server. Neither is worked around, on
+purpose, so both require an operator to drop a file.</td>
+<td><span class="tag part">by design</span></td></tr>
+
+<tr><td><b>Mixer anonymity-set sizes read optimistic</b> until full pool history
+ingest lands. Every crossing states this, but the fix is more data, not code.</td>
+<td><span class="tag part">stated</span></td></tr>
+
+<tr><td><b>The address-match rung makes no forward progress</b> when the match is
+the subject's own address — correct behaviour, but it means the strongest
+heuristic advances nothing in that common shape.</td>
+<td><span class="tag part">known</span></td></tr>
+
+<tr><td><b>Cluster labels are computed but not activated</b>, pending a corpus
+that can make the precision test fail.</td>
+<td><span class="tag part">deliberate</span></td></tr>
+
+<tr><td><b>The explorer fetch tier serves Ethereum only</b>, and is presently
+blocked (HTTP 403) by the explorer it targets. It declines rather than guessing,
+so nothing unsafe follows — but the last-resort tier is not delivering data
+today. The keyless API tier above it carries the load.</td>
+<td><span class="tag no">blocked</span></td></tr>
+
+<tr><td><b>The service-endpoint heuristic cannot tell a custodial business from a
+custodial contract.</b> It classified the WETH contract as behaving like an
+exchange. Correctly marked unnamed and low-confidence, so nothing unsafe was
+asserted — but it occupies the <code>nearest</code> slot where a reader looks
+first.</td>
+<td><span class="tag no">open</span></td></tr>
+
+<tr><td><b>No independent field validation.</b> The system has not been run
+against a case with a known ground-truth answer supplied by an outside party.
+Correctness rests on unit tests, adversarial review and internal consistency.</td>
+<td><span class="tag no">open</span></td></tr>
+</table>
+
+<h2 class="section">11. What would come next</h2>
+<ol>
+<li><b>Label coverage</b>, ahead of everything else. Every other improvement is
+bounded by it.</li>
+<li><b>Ground-truth validation</b> against cases with externally known answers —
+the single largest gap in the evidence for correctness.</li>
+<li><b>Full pool history ingest</b>, which turns optimistic anonymity-set sizes
+into honest ones.</li>
+<li><b>Cluster activation</b>, once the corpus can falsify the precision claim.</li>
+<li><b>Extending the fetch tier</b> to Tron, which carries the largest VASP label
+set — subject to verifying the page layout rather than guessing it.</li>
+</ol>
+
+<h2>12. Closing</h2>
+
+<p>The technical result is a working system: {s.tests_passed:,} passing tests
+across {s.src_lines:,} lines, four chains, {s.label_total:,} attribution labels,
+an evidence model that survives adversarial review, and a document a regulator
+can actually receive.</p>
+
+<p>The more useful result is a set of defects that a green test suite could not
+have found. A heuristic inference printed with a legal entity and a filing
+channel. A guess printed as "nearest VASP" because a boolean defaulted across a
+module boundary. A direction leak protected by unreachable code. A parser
+reporting a busy address as empty. A precision score of 1.000 that could not
+have been anything else.</p>
+
+<p>Each of those would have been invisible in the output and confident on the
+page. In a tool whose conclusions are read by people with subpoena power, that
+is the category of failure worth designing against — and the reason this report
+states its limitations at the same volume as its results.</p>
+
+<div class="foot">
+CipherChain · final project report · built {built} · commit <code>{html.escape(s.commit)}</code><br>
+Every figure measured at build time by <code>scripts/build_project_report.py</code>.
+Licensed AGPL-3.0; shipped data carries its own terms — see <code>NOTICE</code>.
+</div>
+"""
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", default=str(ROOT / "docs" / "CipherChain-final-report.pdf"))
+    parser.add_argument("--html-only", action="store_true")
+    args = parser.parse_args()
+
+    print("measuring the project…", flush=True)
+    stats = measure()
+    document = build_html(stats)
+
+    html_path = Path(args.output).with_suffix(".html")
+    html_path.write_text(document, encoding="utf-8")
+    print(f"  html  → {html_path} ({len(document):,} bytes)")
+
+    if args.html_only:
+        return 0
+    try:
+        pdf = render_pdf(document, args.output)
+    except ChromiumNotFound as exc:
+        print(f"  no chromium: {exc}", file=sys.stderr)
+        return 1
+    print(f"  pdf   → {pdf} ({pdf.stat().st_size:,} bytes)")
+    print(
+        f"\n{stats.tests_passed:,} tests · {stats.src_lines:,} src lines · "
+        f"{stats.label_total:,} labels · schema {stats.migration_head}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

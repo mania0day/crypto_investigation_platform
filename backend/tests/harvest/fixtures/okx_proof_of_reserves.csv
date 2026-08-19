@@ -1,0 +1,13 @@
+Proof of Reserves snapshot,,,
+Coin,Balance,,
+BTC,132500.12,,
+ETH,2100333.40,,
+,,,
+Network,Address,Message,Signature1
+ETH,0x28C6c06298d514Db089934071355E5743bf21d60,I am an OKX address,0xdeadbeef01
+ETH,0xDFd5293D8e347dFe59E90eFd55b2956a1343963d,I am an OKX address,0xdeadbeef02
+BTC,bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97,I am an OKX address,H8x0
+TRON,TAUN6FwrnwwmaEqYcckffC7wYmbaS6cBiX,I am an OKX address,0xdeadbeef03
+SOL,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,I am an OKX address,3nRvL
+TON,UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,I am an OKX address,unverifiable
+,,,

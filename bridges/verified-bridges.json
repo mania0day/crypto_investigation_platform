@@ -1,0 +1,613 @@
+{
+ "source": "official protocol documentation & repos (agent-researched, independently corroborated)",
+ "source_date": "2026-08-07",
+ "_note": "Every entry was read from an official docs page or protocol repo AND independently corroborated by a second agent. Proxy addresses are used deliberately: they are what users transact against.",
+ "bridges": [
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 RootChainManagerProxy",
+   "chain": "ethereum",
+   "address": "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://docs.polygon.technology/pos/how-to/bridging/l1-l2-communication/state-transfer/",
+   "corroborating_url": "https://etherscan.io/address/0xa0c68c638235ee32657e8f720a23cec1bfc77c77"
+  },
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 ERC20PredicateProxy",
+   "chain": "ethereum",
+   "address": "0x40ec5B33f54e0E8A33A975908C5BA1c14e5BbbDf",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://raw.githubusercontent.com/maticnetwork/static/master/network/mainnet/v1/index.json",
+   "corroborating_url": "https://etherscan.io/address/0x40ec5b33f54e0e8a33a975908c5ba1c14e5bbbdf"
+  },
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 EtherPredicateProxy",
+   "chain": "ethereum",
+   "address": "0x8484Ef722627bf18ca5Ae6BcF031c23E6e922B30",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://raw.githubusercontent.com/maticnetwork/static/master/network/mainnet/v1/index.json",
+   "corroborating_url": "https://explorer.bitquery.io/ethereum/smart_contract/0x8484ef722627bf18ca5ae6bcf031c23e6e922b30"
+  },
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 ERC721PredicateProxy",
+   "chain": "ethereum",
+   "address": "0xE6F45376f64e1F568BD1404C155e5fFD2F80F7AD",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://raw.githubusercontent.com/maticnetwork/static/master/network/mainnet/v1/index.json",
+   "corroborating_url": "https://etherscan.io/address/0xe6f45376f64e1f568bd1404c155e5ffd2f80f7ad"
+  },
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 ERC1155PredicateProxy",
+   "chain": "ethereum",
+   "address": "0x0B9020d4E32990D67559b1317c7BF0C15D6EB88f",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://raw.githubusercontent.com/maticnetwork/static/master/network/mainnet/v1/index.json",
+   "corroborating_url": "https://etherscan.io/address/0x0B9020d4E32990D67559b1317c7BF0C15D6EB88f"
+  },
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 MintableERC20PredicateProxy",
+   "chain": "ethereum",
+   "address": "0x9923263fA127b3d1484cFD649df8f1831c2A74e4",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://raw.githubusercontent.com/maticnetwork/static/master/network/mainnet/v1/index.json",
+   "corroborating_url": "https://etherscan.io/address/0x9923263fa127b3d1484cfd649df8f1831c2a74e4"
+  },
+  {
+   "bridge_id": "polygon-pos-bridge",
+   "name": "Polygon PoS Bridge \u2014 StateSender",
+   "chain": "ethereum",
+   "address": "0x28e4F3a7f651294B9564800b2D01f35189A5bFbE",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://docs.polygon.technology/pos/how-to/bridging/l1-l2-communication/state-transfer/",
+   "corroborating_url": "https://etherscan.io/address/0x28e4F3a7f651294B9564800b2D01f35189A5bFbE"
+  },
+  {
+   "bridge_id": "polygon-plasma-bridge",
+   "name": "Polygon Plasma Bridge \u2014 DepositManagerProxy",
+   "chain": "ethereum",
+   "address": "0x401F6c983eA34274ec46f84D70b31C151321188b",
+   "direction": "deposit",
+   "counterpart_chain": "polygon",
+   "source_url": "https://docs.polygon.technology/pos/reference/contracts/genesis-contracts/",
+   "corroborating_url": "https://blockscan.com/address/0x401F6c983eA34274ec46f84D70b31C151321188b"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 L1 Gateway Router",
+   "chain": "ethereum",
+   "address": "0x72Ce9c846789fdB6fC1f34aC4AD25Dd9ef7031ef",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://explorer.bitquery.io/ethereum/smart_contract/0x72ce9c846789fdb6fc1f34ac4ad25dd9ef7031ef"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 L1 ERC20 Gateway",
+   "chain": "ethereum",
+   "address": "0xa3A7B6F88361F48403514059F1F16C8E78d60EeC",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://etherscan.io/address/0xa3a7b6f88361f48403514059f1f16c8e78d60eec"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 L1 Custom Gateway",
+   "chain": "ethereum",
+   "address": "0xcEe284F754E854890e311e3280b767F80797180d",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://bloxy.info/address/0xcee284f754e854890e311e3280b767f80797180d"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 L1 WETH Gateway",
+   "chain": "ethereum",
+   "address": "0xd92023E9d9911199a6711321D1277285e6d4e2db",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://etherscan.io/address/0xd92023E9d9911199a6711321D1277285e6d4e2db"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 Delayed Inbox",
+   "chain": "ethereum",
+   "address": "0x4Dbd4fc535Ac27206064B68FfCf827b0A60BAB3f",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://etherscan.io/address/0x4dbd4fc535ac27206064b68ffcf827b0a60bab3f"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 Bridge",
+   "chain": "ethereum",
+   "address": "0x8315177aB297bA92A06054cE80a67Ed4DBd7ed3a",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://etherscan.io/address/0x8315177ab297ba92a06054ce80a67ed4dbd7ed3a"
+  },
+  {
+   "bridge_id": "arbitrum-one",
+   "name": "Arbitrum One \u2014 Outbox",
+   "chain": "ethereum",
+   "address": "0x0B9857ae2D4A3DBe74ffE1d7DF045bb7F96E4840",
+   "direction": "deposit",
+   "counterpart_chain": "arbitrum",
+   "source_url": "https://docs.arbitrum.io/build-decentralized-apps/reference/useful-addresses",
+   "corroborating_url": "https://etherscan.io/address/0x0b9857ae2d4a3dbe74ffe1d7df045bb7f96e4840"
+  },
+  {
+   "bridge_id": "op-mainnet-optimism",
+   "name": "OP Mainnet (Optimism) \u2014 L1StandardBridge",
+   "chain": "ethereum",
+   "address": "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1",
+   "direction": "deposit",
+   "counterpart_chain": "optimism",
+   "source_url": "https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/main/superchain/configs/mainnet/op.toml",
+   "corroborating_url": "https://etherscan.io/address/0x99c9fc46f92e8a1c0dec1b1747d010903e884be1"
+  },
+  {
+   "bridge_id": "op-mainnet-optimism",
+   "name": "OP Mainnet (Optimism) \u2014 L1CrossDomainMessenger",
+   "chain": "ethereum",
+   "address": "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1",
+   "direction": "deposit",
+   "counterpart_chain": "optimism",
+   "source_url": "https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/main/superchain/extra/addresses/addresses.json",
+   "corroborating_url": "https://etherscan.io/address/0x25ace71c97b33cc4729cf772ae268934f7ab5fa1"
+  },
+  {
+   "bridge_id": "op-mainnet-optimism",
+   "name": "OP Mainnet (Optimism) \u2014 OptimismPortal",
+   "chain": "ethereum",
+   "address": "0xbEb5Fc579115071764c7423A4f12eDde41f106Ed",
+   "direction": "deposit",
+   "counterpart_chain": "optimism",
+   "source_url": "https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/main/superchain/configs/mainnet/op.toml",
+   "corroborating_url": "https://etherscan.io/address/0xbeb5fc579115071764c7423a4f12edde41f106ed"
+  },
+  {
+   "bridge_id": "op-mainnet-optimism",
+   "name": "OP Mainnet (Optimism) \u2014 L1ERC721Bridge",
+   "chain": "ethereum",
+   "address": "0x5a7749f83b81B301cAb5f48EB8516B986DAef23D",
+   "direction": "deposit",
+   "counterpart_chain": "optimism",
+   "source_url": "https://raw.githubusercontent.com/ethereum-optimism/superchain-registry/main/superchain/extra/addresses/addresses.json",
+   "corroborating_url": "https://etherscan.io/address/0x5a7749f83b81b301cab5f48eb8516b986daef23d"
+  },
+  {
+   "bridge_id": "wormhole",
+   "name": "Wormhole \u2014 Token Bridge (Portal)",
+   "chain": "ethereum",
+   "address": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
+   "direction": "deposit",
+   "source_url": "https://wormhole.com/docs/reference/contract-addresses/",
+   "corroborating_url": "https://blockscan.com/Address/0x3ee18b2214aff97000d974cf647e7c347e8fa585"
+  },
+  {
+   "bridge_id": "wormhole",
+   "name": "Wormhole \u2014 Core Contract",
+   "chain": "ethereum",
+   "address": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
+   "direction": "deposit",
+   "source_url": "https://wormhole.com/docs/reference/contract-addresses/",
+   "corroborating_url": "https://github.com/wormhole-foundation/wormhole-networks/blob/master/mainnetv2/info.md"
+  },
+  {
+   "bridge_id": "wormhole",
+   "name": "Wormhole \u2014 Token Bridge (Portal)",
+   "chain": "polygon",
+   "address": "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE",
+   "direction": "deposit",
+   "source_url": "https://wormhole.com/docs/reference/contract-addresses/",
+   "corroborating_url": "https://polygonscan.com/address/0x5a58505a96d1dbf8df91cb21b54419fc36e93fde"
+  },
+  {
+   "bridge_id": "wormhole",
+   "name": "Wormhole \u2014 Core Contract",
+   "chain": "polygon",
+   "address": "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
+   "direction": "deposit",
+   "source_url": "https://wormhole.com/docs/reference/contract-addresses/",
+   "corroborating_url": "https://polygonscan.com/address/0x7a4b5a56256163f07b2c80a7ca55abe66c4ec4d7"
+  },
+  {
+   "bridge_id": "stargate-v1",
+   "name": "Stargate V1 \u2014 Router",
+   "chain": "ethereum",
+   "address": "0x8731d54E9D02c286767d56ac03e8037C07e01e98",
+   "direction": "deposit",
+   "source_url": "https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet",
+   "corroborating_url": "https://www.codeslaw.app/contracts/ethereum/0x8731d54e9d02c286767d56ac03e8037c07e01e98"
+  },
+  {
+   "bridge_id": "stargate-v1",
+   "name": "Stargate V1 \u2014 RouterETH",
+   "chain": "ethereum",
+   "address": "0x150f94B44927F078737562f0fcF3C95c01Cc2376",
+   "direction": "deposit",
+   "source_url": "https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet",
+   "corroborating_url": "https://etherscan.io/address/0x150f94b44927f078737562f0fcf3c95c01cc2376"
+  },
+  {
+   "bridge_id": "stargate-v1",
+   "name": "Stargate V1 \u2014 Bridge",
+   "chain": "ethereum",
+   "address": "0x296F55F8Fb28E498B858d0BcDA06D955B2Cb3f97",
+   "direction": "deposit",
+   "source_url": "https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet",
+   "corroborating_url": "https://etherscan.io/address/0x296f55f8fb28e498b858d0bcda06d955b2cb3f97"
+  },
+  {
+   "bridge_id": "stargate-v1",
+   "name": "Stargate V1 \u2014 Router",
+   "chain": "polygon",
+   "address": "0x45A01E4e04F14f7A4a6702c74187c5F6222033cd",
+   "direction": "deposit",
+   "source_url": "https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet",
+   "corroborating_url": "https://blockscan.com/address/0x45a01e4e04f14f7a4a6702c74187c5f6222033cd"
+  },
+  {
+   "bridge_id": "stargate-v1",
+   "name": "Stargate V1 \u2014 Bridge",
+   "chain": "polygon",
+   "address": "0x9d1B1669c73b033DFe47ae5a0164Ab96df25B944",
+   "direction": "deposit",
+   "source_url": "https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet",
+   "corroborating_url": "https://polygonscan.com/address/0x9d1b1669c73b033dfe47ae5a0164ab96df25b944"
+  },
+  {
+   "bridge_id": "stargate-v2",
+   "name": "Stargate V2 \u2014 TokenMessaging",
+   "chain": "ethereum",
+   "address": "0x6d6620eFa72948C5f68A3C8646d58C00d3f4A980",
+   "direction": "deposit",
+   "source_url": "https://docs.stargate.finance/resources/contracts/mainnet-contracts",
+   "corroborating_url": "https://etherscan.io/address/0x6d6620efa72948c5f68a3c8646d58c00d3f4a980"
+  },
+  {
+   "bridge_id": "stargate-v2",
+   "name": "Stargate V2 \u2014 StargatePoolUSDC",
+   "chain": "ethereum",
+   "address": "0xc026395860Db2d07ee33e05fE50ed7bD583189C7",
+   "direction": "deposit",
+   "source_url": "https://docs.stargate.finance/resources/contracts/mainnet-contracts",
+   "corroborating_url": "https://etherscan.io/address/0xc026395860db2d07ee33e05fe50ed7bd583189c7"
+  },
+  {
+   "bridge_id": "stargate-v2",
+   "name": "Stargate V2 \u2014 StargatePoolUSDT",
+   "chain": "ethereum",
+   "address": "0x933597a323Eb81cAe705C5bC29985172fd5A3973",
+   "direction": "deposit",
+   "source_url": "https://docs.stargate.finance/resources/contracts/mainnet-contracts",
+   "corroborating_url": "https://etherscan.io/address/0x933597a323Eb81cAe705C5bC29985172fd5A3973"
+  },
+  {
+   "bridge_id": "stargate-v2",
+   "name": "Stargate V2 \u2014 TokenMessaging",
+   "chain": "polygon",
+   "address": "0x6CE9bf8CDaB780416AD1fd87b318A077D2f50EaC",
+   "direction": "deposit",
+   "source_url": "https://docs.stargate.finance/resources/contracts/mainnet-contracts",
+   "corroborating_url": "https://polygonscan.com/address/0x6CE9bf8CDaB780416AD1fd87b318A077D2f50EaC"
+  },
+  {
+   "bridge_id": "stargate-v2",
+   "name": "Stargate V2 \u2014 StargatePoolUSDC",
+   "chain": "polygon",
+   "address": "0x9Aa02D4Fae7F58b8E8f34c66E756cC734DAc7fe4",
+   "direction": "deposit",
+   "source_url": "https://docs.stargate.finance/resources/contracts/mainnet-contracts",
+   "corroborating_url": "https://polygonscan.com/address/0x9Aa02D4Fae7F58b8E8f34c66E756cC734DAc7fe4"
+  },
+  {
+   "bridge_id": "stargate-v2",
+   "name": "Stargate V2 \u2014 StargatePoolUSDT",
+   "chain": "polygon",
+   "address": "0xd47b03ee6d86Cf251ee7860FB2ACf9f91B9fD4d7",
+   "direction": "deposit",
+   "source_url": "https://docs.stargate.finance/resources/contracts/mainnet-contracts",
+   "corroborating_url": "https://polygonscan.com/address/0xd47b03ee6d86Cf251ee7860FB2ACf9f91B9fD4d7"
+  },
+  {
+   "bridge_id": "across-protocol",
+   "name": "Across Protocol \u2014 SpokePool",
+   "chain": "ethereum",
+   "address": "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5",
+   "direction": "deposit",
+   "source_url": "https://docs.across.to/reference/contract-addresses/mainnet-chain-id-1",
+   "corroborating_url": "https://etherscan.io/address/0x5c7bcd6e7de5423a257d81b442095a1a6ced35c5"
+  },
+  {
+   "bridge_id": "across-protocol",
+   "name": "Across Protocol \u2014 HubPool",
+   "chain": "ethereum",
+   "address": "0xc186fA914353c44b2E33eBE05f21846F1048bEda",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/across-protocol/contracts/master/broadcast/deployed-addresses.json",
+   "corroborating_url": "https://cn.etherscan.com/address/0xc186fA914353c44b2E33eBE05f21846F1048bEda"
+  },
+  {
+   "bridge_id": "across-protocol",
+   "name": "Across Protocol \u2014 SpokePool",
+   "chain": "polygon",
+   "address": "0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096",
+   "direction": "deposit",
+   "source_url": "https://docs.across.to/reference/contract-addresses/polygon-chain-id-137",
+   "corroborating_url": "https://polygonscan.com/address/0x9295ee1d8c5b022be115a2ad3c30c72e34e7f096"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L1 Bridge (USDC)",
+   "chain": "ethereum",
+   "address": "0x3666f603Cc164936C1b87e207F36BEBa4AC5f18a",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://etherscan.io/address/0x3666f603cc164936c1b87e207f36beba4ac5f18a"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L1 Bridge (USDT)",
+   "chain": "ethereum",
+   "address": "0x3E4a3a4796d16c0Cd582C382691998f7c06420B6",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://etherscan.io/address/0x3e4a3a4796d16c0cd582c382691998f7c06420b6"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L1 Bridge (DAI)",
+   "chain": "ethereum",
+   "address": "0x3d4Cc8A61c7528Fd86C55cfe061a78dCBA48EDd1",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://etherscan.io/address/0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L1 Bridge (ETH)",
+   "chain": "ethereum",
+   "address": "0xb8901acB165ed027E32754E0FFe830802919727f",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://etherscan.io/address/0xb8901acB165ed027E32754E0FFe830802919727f"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L1 Bridge (MATIC)",
+   "chain": "ethereum",
+   "address": "0x22B1Cbb8D98a01a3B71D034BB899775A76Eb1cc2",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://etherscan.io/address/0x22b1cbb8d98a01a3b71d034bb899775a76eb1cc2"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 AMM Wrapper (USDC)",
+   "chain": "polygon",
+   "address": "0x76b22b8C1079A44F1211D867D68b1eda76a635A7",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x76b22b8c1079a44f1211d867d68b1eda76a635a7"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 Bridge (USDC)",
+   "chain": "polygon",
+   "address": "0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 AMM Wrapper (USDT)",
+   "chain": "polygon",
+   "address": "0x8741Ba6225A6BF91f9D73531A98A89807857a2B3",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x8741Ba6225A6BF91f9D73531A98A89807857a2B3"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 Bridge (USDT)",
+   "chain": "polygon",
+   "address": "0x6c9a1ACF73bd85463A46B0AFc076FBdf602b690B",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x6c9a1ACF73bd85463A46B0AFc076FBdf602b690B"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 AMM Wrapper (ETH)",
+   "chain": "polygon",
+   "address": "0xc315239cFb05F1E130E7E28E603CEa4C014c57f0",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0xc315239cFb05F1E130E7E28E603CEa4C014c57f0"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 Bridge (ETH)",
+   "chain": "polygon",
+   "address": "0xb98454270065A31D71Bf635F6F7Ee6A518dFb849",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0xb98454270065A31D71Bf635F6F7Ee6A518dFb849"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 AMM Wrapper (DAI)",
+   "chain": "polygon",
+   "address": "0x28529fec439cfF6d7D1D5917e956dEE62Cd3BE5c",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x28529fec439cfF6d7D1D5917e956dEE62Cd3BE5c"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 Bridge (DAI)",
+   "chain": "polygon",
+   "address": "0xEcf268Be00308980B5b3fcd0975D47C4C8e1382a",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0xEcf268Be00308980B5b3fcd0975D47C4C8e1382a"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 AMM Wrapper (MATIC)",
+   "chain": "polygon",
+   "address": "0x884d1Aa15F9957E1aEAA86a82a72e49Bc2bfCbe3",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x884d1Aa15F9957E1aEAA86a82a72e49Bc2bfCbe3"
+  },
+  {
+   "bridge_id": "hop-protocol",
+   "name": "Hop Protocol \u2014 L2 Bridge (MATIC)",
+   "chain": "polygon",
+   "address": "0x553bC791D746767166fA3888432038193cEED5E2",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/hop-protocol/hop/develop/packages/sdk/src/addresses/mainnet.ts",
+   "corroborating_url": "https://polygonscan.com/address/0x553bC791D746767166fA3888432038193cEED5E2"
+  },
+  {
+   "bridge_id": "synapse-protocol",
+   "name": "Synapse Protocol \u2014 SynapseBridge",
+   "chain": "ethereum",
+   "address": "0x2796317b0fF8538F253012862c06787Adfb8cEb6",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/synapsecns/synapse-contracts/master/deployments/mainnet/SynapseBridge.json",
+   "corroborating_url": "https://etherscan.io/address/0x2796317b0ff8538f253012862c06787adfb8ceb6"
+  },
+  {
+   "bridge_id": "synapse-protocol",
+   "name": "Synapse Protocol \u2014 SynapseBridge",
+   "chain": "polygon",
+   "address": "0x8F5BBB2BB8c2Ee94639E55d5F41de9b4839C1280",
+   "direction": "deposit",
+   "source_url": "https://raw.githubusercontent.com/synapsecns/synapse-contracts/master/deployments/polygon/SynapseBridge.json",
+   "corroborating_url": "https://polygonscan.com/address/0x8f5bbb2bb8c2ee94639e55d5f41de9b4839c1280"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 Bridge (pool-based)",
+   "chain": "ethereum",
+   "address": "0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820",
+   "direction": "deposit",
+   "counterpart_chain": "base",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://etherscan.io/address/0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 OriginalTokenVault",
+   "chain": "ethereum",
+   "address": "0xB37D31b2A74029B5951a2778F959282E2D518595",
+   "direction": "deposit",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://etherscan.io/address/0xb37d31b2a74029b5951a2778f959282e2d518595"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 OriginalTokenVault V2",
+   "chain": "ethereum",
+   "address": "0x7510792A3B1969F9307F3845CE88e39578f2bAE1",
+   "direction": "deposit",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://etherscan.io/address/0x7510792a3b1969f9307f3845ce88e39578f2bae1"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 PeggedTokenBridge V2",
+   "chain": "ethereum",
+   "address": "0x52E4f244f380f8fA51816c8a10A63105dd4De084",
+   "direction": "deposit",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://etherscan.io/address/0x52e4f244f380f8fa51816c8a10a63105dd4de084"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 Bridge (pool-based)",
+   "chain": "polygon",
+   "address": "0x88DCDC47D2f83a99CF0000FDF667A468bB958a78",
+   "direction": "deposit",
+   "counterpart_chain": "base",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://polygonscan.com/address/0x88DCDC47D2f83a99CF0000FDF667A468bB958a78"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 OriginalTokenVault",
+   "chain": "polygon",
+   "address": "0xc1a2D967DfAa6A10f3461bc21864C23C1DD51EeA",
+   "direction": "deposit",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://polygonscan.com/address/0xc1a2d967dfaa6a10f3461bc21864c23c1dd51eea"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 OriginalTokenVault V2",
+   "chain": "polygon",
+   "address": "0x4C882ec256823eE773B25b414d36F92ef58a7c0C",
+   "direction": "deposit",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://polygonscan.com/address/0x4c882ec256823ee773b25b414d36f92ef58a7c0c"
+  },
+  {
+   "bridge_id": "celer-cbridge",
+   "name": "Celer cBridge \u2014 PeggedTokenBridge V2",
+   "chain": "polygon",
+   "address": "0xb51541df05DE07be38dcfc4a80c05389A54502BB",
+   "direction": "deposit",
+   "source_url": "https://cbridge-docs.celer.network/reference/contract-addresses",
+   "corroborating_url": "https://polygonscan.com/address/0xb51541df05DE07be38dcfc4a80c05389A54502BB"
+  },
+  {
+   "bridge_id": "multichain",
+   "name": "Multichain \u2014 Router V7",
+   "chain": "ethereum",
+   "address": "0x1633D66Ca91cE4D81F63Ea047B7B19Beb92dF7f3",
+   "direction": "deposit",
+   "source_url": "https://docs.multichain.org/developer-guide/bridge-funds-and-anycall-router-v7/mainnet",
+   "corroborating_url": "https://etherscan.io/address/0x1633d66ca91ce4d81f63ea047b7b19beb92df7f3"
+  },
+  {
+   "bridge_id": "multichain",
+   "name": "Multichain \u2014 Router V7",
+   "chain": "polygon",
+   "address": "0x1633D66Ca91cE4D81F63Ea047B7B19Beb92dF7f3",
+   "direction": "deposit",
+   "source_url": "https://docs.multichain.org/developer-guide/bridge-funds-and-anycall-router-v7/mainnet",
+   "corroborating_url": "https://polygonscan.com/address/0x1633D66Ca91cE4D81F63Ea047B7B19Beb92dF7f3"
+  },
+  {
+   "bridge_id": "multichain-anyswap",
+   "name": "Multichain/Anyswap \u2014 Router (V6-era)",
+   "chain": "ethereum",
+   "address": "0x6b7a87899490ece95443e979ca9485cbe7e71522",
+   "direction": "deposit",
+   "source_url": "https://github.com/anyswap/CrossChain-Router/wiki/How-to-integrate-AnySwap-Router",
+   "corroborating_url": "https://cn.etherscan.com/address/0x6b7a87899490ece95443e979ca9485cbe7e71522"
+  }
+ ]
+}

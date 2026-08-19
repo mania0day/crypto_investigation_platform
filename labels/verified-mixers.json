@@ -1,0 +1,569 @@
+{
+ "source": "OFAC SDN + official protocol sources (agent-researched, corroborated)",
+ "source_date": "2026-08-07",
+ "method": "first_party_published",
+ "_note": "Mixer contracts/addresses read from primary sources (OFAC recent actions, live SDN CSV, official tornado-cli config, DOJ filings) and independently corroborated.",
+ "default_confidence": 0.9,
+ "labels": [
+  {
+   "chain": "ethereum",
+   "address": "0x12D66f87A04A9E220743712cE6d9bB1B5616B8Fc",
+   "entity": "Tornado Cash — 0.1 ETH pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936",
+   "entity": "Tornado Cash — 1 ETH pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF",
+   "entity": "Tornado Cash — 10 ETH pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xA160cdAB225685dA1d56aa342Ad8841c3b53f291",
+   "entity": "Tornado Cash — 100 ETH pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xd90e2f925DA726b50C4Ed8D0Fb90Ad053324F31b",
+   "entity": "Tornado Cash — Proxy / router",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xD4B88Df4D29F5CedD6857912842cff3b20C8Cfa3",
+   "entity": "Tornado Cash — 100 DAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xFD8610d20aA15b7B2E3Be39B396a1bC3516c7144",
+   "entity": "Tornado Cash — 1000 DAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x07687e702b410Fa43f4cB4Af7FA097918ffD2730",
+   "entity": "Tornado Cash — 10000 DAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x23773E65ed146A459791799d01336DB287f25334",
+   "entity": "Tornado Cash — 100000 DAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x22aaA7720ddd5388A3c0A3333430953C68f1849b",
+   "entity": "Tornado Cash — 5000 cDAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x03893a7c7463AE47D46bc7f091665f1893656003",
+   "entity": "Tornado Cash — 50000 cDAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x2717c5e28cf931547B621a5dddb772Ab6A35B701",
+   "entity": "Tornado Cash — 500000 cDAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xD21be7248e0197Ee08E0c20D4a96DEBdaC3D20Af",
+   "entity": "Tornado Cash — 5000000 cDAI pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xd96f2B1c14Db8458374d9Aca76E26c3D18364307",
+   "entity": "Tornado Cash — 100 USDC pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x4736dCf1b7A3d580672CcE6E7c65cd5cc9cFBa9D",
+   "entity": "Tornado Cash — 1000 USDC pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x169AD27A470D064DEDE56a2D3ff727986b15D52B",
+   "entity": "Tornado Cash — 100 USDT pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x0836222F2B2B24A3F36f98668Ed8F0B38D1a872f",
+   "entity": "Tornado Cash — 1000 USDT pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x178169B423a011fff22B9e3F3abeA13414dDD0F1",
+   "entity": "Tornado Cash — 0.1 WBTC pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0x610B717796ad172B316836AC95a2ffad065CeaB4",
+   "entity": "Tornado Cash — 1 WBTC pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "ethereum",
+   "address": "0xbB93e510BbCD0B7beb5A853875f9eC60275CF498",
+   "entity": "Tornado Cash — 10 WBTC pool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20250321"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "bc1qq7p0es3dv5hcynjjf40f2xjjr6qp5py47d2f6n847vduuq9gvnyq7y9ecd",
+   "entity": "Sinbad.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20231129"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "1JHdQHkBZiim1cb4hyUh2PbzEbbg6z2TrF",
+   "entity": "Sinbad.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20231129"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3K35dyL85fR9ht7UgzPfd1gLRRXQtNTqE3",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3Q5dGfLKkWqWSwYtbMUyc8xGjN5LrRviK4",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3EPqGUw2q89pwPZ1UF8FJspE2AyojSTjdu",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3LhnVMcBq4gsR7aDaRr9XmUo17CuYBV4FN",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3F6bbvS1krsc1qR8FsbTDfYQyvkMm3QvmR",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3JHMz3mTna1gVCZSPp8NgRFiY7phkv5mA8",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "32DaxSzUhLBHY2WGSWQYiBSHnRsfQZrrRp",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3MTRvM5QrYZHKo8gh5qKcrPK3RLjxcDCZE",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "34pFGsSYbWEritXncW9unZtQQE9dKSvKku",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "38ncxqt932N9CcfNfYuHGZgCyR85hDkWBW",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3MD3riFB6U8PykypF6qkvSj8R2SGdUDPn3",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3JUwAS7seL3fh5hxWh9fu3HCiEzjuQLTfg",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3EUjqe9UpmyXCFd6jeu69hoTzndMRfxw9M",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3QEjBiPzw6WZUL4MYMmMU6DY1Y25aVbpQu",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3N3YSDvp4cbhEgNGabQxTN39kEzJmwG8Ah",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3J19qffPT6mxQUcV6k5yVURGZtdhpdGr4y",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "33KKjn4exdBJQkTtdWxqpdVsWxrw3LareG",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3GSXNXzyCDoQ1Rhsc7F1jjjFe7DGcHHdcM",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3QJyT8nThEQakbfqgX86YjCK1Sp9hfNCUW",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "35hh9dg3wSvUJz9vFk1FsezLE5Fx3Hudk2",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3NDzzVxiLBUs1WPvVGRfCYDTAD2Ua2PvW4",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3DCCgmyKozcZkFBzYb1A2x8abZCpAUTPPk",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3MvQ4gThF4mmuo49p4dBNchcmFHBRZnYfx",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3FBgeJdhiBe22UoSpp51Vd8dPHVa2A4wZX",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3HQDRyzwm82MFmLWtmyikDM9JQEtVT6vAp",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "31t4nEpcwyQJT1VuXdAoQZTT5givRDPsNP",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "39AALn7eTjdPzLb99hHhD6F7J8QWB3R2Rd",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3LDbNuDkKmLae5r3a5icPA5CQg2Y8F7ogW",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3JLyyLbwciWAC6re87D7mRknXakR4YbnUd",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3ANWhUnHujdwbw2jEuGSRH6bvFsD9BqEy9",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "32fbAZMTaQxNd2fAue1PgsiPgWfcsHBQQt",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3HupEUfKmMhvhXqf8TMoPAyqDcRC1kpe65",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "34kEYgpijvCmjvahRXXQEnBH76UGJVx2wg",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3GYbbYkvqvjF5oYhaKCgQYCvcVE1JENk6J",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3BazbaTP8ELJUEfPBV9z5HXEdgBziV9p7W",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3GMfGEDYMTq9G8dEHet1zLtUFJwYwSNa3Y",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "38LjCapRrJEW7w2zwbyS15P9D9UGPjWS44",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "36XqYWGvUQwBrYLRVuegN4pJJJSPWL1WEu",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "37g6WgqedzZx6nx51tYgssNG8Hnknyj5nL",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3QAdoc1rDCt8dii1GVPJXvvK6CEJLzCRZw",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "32PsiT8itBrEF84ebdaF82yBUEcz5Wc6uY",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3B4G1M8eF3cThbeMwhEWkKzczw9QoNTGak",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "34ETiHfQWEYFCCaXmEeQWVmhFH5vz2JMvd",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "3PyzSbFj3hbQQjTzDzyLSgvFVDjB7yw4Cj",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "15PggTG7YhJKiE6B16vkKzA1YDTZipXEX4",
+   "entity": "Blender.io",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://ofac.treasury.gov/recent-actions/20220506"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "n/a — CoinJoin protocol, no single contract or service address",
+   "entity": "Samourai Whirlpool",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://www.justice.gov/usao-sdny/media/1349321/dl"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "n/a — CoinJoin protocol, no coordinator and no service address",
+   "entity": "JoinMarket",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://arxiv.org/pdf/2311.12491"
+  },
+  {
+   "chain": "bitcoin",
+   "address": "n/a — no authoritative address list published",
+   "entity": "ChipMixer",
+   "category": "mixer",
+   "confidence": 0.9,
+   "source_url": "https://www.elliptic.co/blog/analysis/chipmixer-shut-down-after-laundering-over-840-million-in-criminal-proceeds"
+  }
+ ]
+}
