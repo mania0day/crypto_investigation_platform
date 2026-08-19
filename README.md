@@ -369,19 +369,6 @@ Interactive docs at `/docs`.
   a frontier, a budget, and stopping conditions.
 - **Evidence** is attached at the point a finding is made, never reconstructed afterwards.
 
-<details>
-<summary><b>Design concept — the full investigator workflow (not all built)</b></summary>
-
-<br>
-
-<div align="center"><img src="images/usage-concept.png" alt="Design concept" width="900"></div>
-
-**This is a design document, not a description of the shipped software.** It shows the intended
-end-state. Not yet built: pausing a running investigation, excluding or pinning branches, investigator
-notes, and JSON/CSV/ZIP export. The shipped report formats are **HTML and PDF**.
-
-</details>
-
 ---
 
 ## Repository layout
