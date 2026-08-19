@@ -224,21 +224,112 @@ curl -s -X POST http://127.0.0.1:8000/investigations \
 
 ### B · Choosing budgets — the part people get wrong
 
-| Budget | Default | Raised automatically? | What it controls |
+Six numbers control a run. Every one of them is explained below with figures taken from real
+traces in this repository's own database, not from an estimate.
+
+#### What depth actually means
+
+Depth is **how many hops from your subject** the trace will follow.
+
+```
+depth 0    the address you typed
+depth 1    everyone who paid it, and everyone it paid
+depth 2    everyone who paid them
+depth 3    …and so on outward
+```
+
+The reason depth is the budget people get wrong is that it is not linear. Here is the real shape of
+a Tron trace from this repo, counted per hop:
+
+| Hop | Addresses discovered | Growth |
+|---:|---:|---|
+| 0 | 1 | — |
+| 1 | 20 | ×20 |
+| 2 | 153 | ×7.7 |
+| 3 | 1,732 | ×11.3 |
+| 4 | **12,737** | ×7.4 |
+
+**Every hop multiplies the work by roughly 8–11×.** That single fact governs everything else on
+this page.
+
+#### How deep can you actually go?
+
+There is no cap in the software — the API accepts any depth ≥ 1, and the `max="10"` on the form is
+just an input hint. The arithmetic is the cap.
+
+Reaching depth *N* means opening every address found at depth *N−1*. The same trace measured
+**1,462 addresses opened in 2,872 seconds — about 1,800 per hour**, on a free TronGrid key with the
+fallback tiers behind it. From those two measurements:
+
+| Reach depth | Addresses to open | At ~1,800/hour | Verdict |
+|---:|---:|---|---|
+| 4 | 1,732 | ~1 hour | measured — this is the run above |
+| 5 | ~12,700 | **~7 hours** | the practical ceiling on one machine |
+| 6 | ~115,000 | ~2.5 days | possible, rarely worth it |
+| 7 | ~1,000,000 | ~3 weeks | not realistic without a cluster |
+
+A paid provider key raises the rate limit and moves those numbers, but not the shape: each hop still
+costs 8–11× the one before it, so one extra hop is always roughly one extra order of magnitude.
+
+> **Depth will not buy you more names.** The depth-4 run above covered 14,643 addresses across
+> 176,294 transactions and found **zero** new named operators. On Tron that is not a search failure,
+> it is the label ceiling — see [Limitations](#limitations-read-this). Raise depth when a trace
+> stops too early; do not raise it hoping a VASP appears.
+
+#### The other five
+
+| Budget | Default | Raised automatically? | What one unit buys |
 |---|---:|---|---|
-| `max_depth` | 6 | **NEVER** | Hops from the subject. |
-| `api_calls` | 100 | yes | Provider requests. |
-| `seconds` | 300 | yes | Wall clock. |
-| `max_nodes` | 500 | yes | Addresses held in the trace. |
-| `max_extensions` | 8 | — | How many times the above may be raised. |
-| `pursue_until_answered` | `true` | — | Turn off for a fixed, predictable spend. |
+| `max_depth` | 6 | **NEVER** | one more hop — see above |
+| `api_calls` | 100 | yes | **one address opened**, not one HTTP request |
+| `seconds` | 300 | yes | one second of wall clock |
+| `max_nodes` | 500 | yes | one address held in the trace |
+| `max_extensions` | 8 | — | one automatic raise of the three above |
+| `pursue_until_answered` | `true` | — | switch off for a fixed, predictable spend |
 
-**There is no upper limit on any of them.** You can pass 5000.
+**`api_calls` is the one most often misread.** It charges **one unit per address expanded**, not per
+network request. Opening one address fetches up to 100 transactions and can create dozens of new
+nodes from their counterparties. In the depth-4 run, **1,462 calls produced 14,643 nodes** — about
+ten nodes per unit of budget. Behind those 1,462 units the provider pool may have made considerably
+more actual requests (retries, failover down the tiers, paging); the budget counts addresses opened,
+because that is the unit you can reason about.
 
-> **The single most common mistake:** leaving `max_depth` low. Every other budget raises itself when
-> an objective is unanswered, so a run with `max_depth: 3` will burn all 8 extensions exploring
-> *wider at the same shallow depth*, spend everything, and stop having never looked further out.
-> If a direction is not answering, **raise depth first.**
+#### What "raised automatically" really does
+
+When a cost budget runs out and an objective is still unanswered, the engine grants itself more and
+keeps going — up to `max_extensions` times. This is on by default, and it means **the number you
+type is a starting point, not a ceiling.**
+
+A real run from this database asked for very little and spent six times as much:
+
+```
+asked for   api_calls 25    max_nodes 500     max_depth 3   seconds 300
+spent       api_calls 150   nodes 1,901       hop 3         seconds 260
+
+extensions  api_calls  25 → 50 → 75 → 100 → 125 → 150
+            max_nodes  500 → 1000 → 1500 → 2000
+            8 of 8 used, objective find_next_vasp still unanswered
+```
+
+Read the last line carefully. It burned every extension it was allowed and **still did not answer**,
+because `max_depth: 3` was the actual constraint and depth is the one budget that never raises
+itself. All eight extensions were spent exploring *wider at the same shallow depth*.
+
+> **The single most common mistake, in one sentence:** leaving `max_depth` low. If a direction is
+> not answering, **raise depth first** — raising anything else just buys a more thorough search of
+> ground the trace has already covered.
+
+#### Suggested starting points
+
+| You want | `max_depth` | `api_calls` | `max_nodes` | `seconds` |
+|---|---:|---:|---:|---:|
+| A quick look | 3 | 50 | 500 | 300 |
+| A normal case | 5 | 500 | 5,000 | 1,800 |
+| Exhaust the question | 8 | 5,000 | 100,000 | 7,200 |
+
+Nothing is lost by stopping early. A run that hits a budget finishes as `partial`, records exactly
+which branches it did not read, and can be resumed later with a larger budget — it does not start
+over. See [F · Resuming a run](#f-resuming-a-run).
 
 ### C · Reading the graph
 
