@@ -26,11 +26,24 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from cipherchain.harvest.exchanges import BINANCE, COINBASE, OKX, manual_drop_sources
-from cipherchain.harvest.sources import SourceSpec
+from cipherchain.harvest.exchanges import (
+    BINANCE,
+    COINBASE,
+    COINBASE_PARSERS,
+    OKX,
+    manual_drop_sources,
+)
+from cipherchain.harvest.parsers import parse_coinbase_reserves
+from cipherchain.harvest.sources import (
+    FirstAvailableSource,
+    HttpDocumentSource,
+    ManualDropSource,
+    SourceSpec,
+)
 from cipherchain.harvest.worker import HarvestReport, HarvestWorker, SourceOutcome
 from cipherchain.intel.policy import IntelClaim
 from cipherchain.intel.service import CORROBORATOR, IntelService
@@ -141,7 +154,13 @@ class TestCycle:
         assert by_source[OKX.name].added == 5
         assert by_source[COINBASE.name].error is not None
         assert by_source[BINANCE.name].error is not None
-        assert len(report.failed_sources) == 2
+        # Both contributed nothing and both are graded as AWAITING rather than
+        # broken: neither has ever put a label in this store, so there is
+        # nothing to have regressed. `failed_sources` is what the exit code and
+        # the sync panel paint red, and a drop-only source nobody has supplied
+        # yet would otherwise paint it red every day forever.
+        assert len(report.failed_sources) == 0
+        assert {o.source for o in report.unsupplied_sources} == {COINBASE.name, BINANCE.name}
         assert len(await labels(sessions)) == 5
 
     async def test_a_rejected_file_does_not_roll_back_a_good_source(
@@ -266,9 +285,12 @@ class TestFailureContainment:
                 return self._factory()  # type: ignore[return-value]
 
         drop(tmp_path, BINANCE.name, "binance_labelpack.json")
-        # coinbase and okx have no drop, so only binance opens a session before
-        # the reconcile pass does.
-        factory = FailsAfter(sessions, allowed=1)
+        # Two sessions precede the reconcile pass: the cycle reads which sources
+        # have ever contributed (once, up front — see
+        # `_sources_that_have_contributed`), then binance ingests. coinbase and
+        # okx have no drop and open nothing, so the count does not move when a
+        # drop appears or disappears.
+        factory = FailsAfter(sessions, allowed=2)
         report = await HarvestWorker(
             factory,  # type: ignore[arg-type]
             manual_drop_sources(tmp_path),
@@ -277,6 +299,80 @@ class TestFailureContainment:
         assert report.reconcile_error is not None
         assert next(o for o in report.sources if o.source == BINANCE.name).added == 3
         assert len(await labels(sessions)) == 3
+
+
+class TestNeverSuppliedVersusGone:
+    """The grading that keeps the panel readable.
+
+    Binance and OKX can never fetch for themselves — their disclosure pages
+    answer a bot check, and getting past one is out of bounds. So on any
+    deployment where nobody has done the download by hand, treating them as
+    failures paints the panel red every morning forever, and a warning light
+    that is always on is one nobody reads on the morning OFAC breaks.
+    """
+
+    async def test_a_source_nobody_ever_supplied_is_not_a_failure(
+        self, sessions: async_sessionmaker[AsyncSession], tmp_path: Path
+    ) -> None:
+        report = await HarvestWorker(sessions, manual_drop_sources(tmp_path)).run()
+        assert report.failed_sources == ()
+        assert {o.source for o in report.unsupplied_sources} == {
+            COINBASE.name,
+            BINANCE.name,
+            OKX.name,
+        }
+        assert "AWAITING DROP" in report.summary()
+
+    async def test_a_drop_that_worked_and_then_vanished_IS_a_failure(
+        self, sessions: async_sessionmaker[AsyncSession], tmp_path: Path
+    ) -> None:
+        """The case the grading must not swallow. Once a source has put labels
+        in the store, a directory with no file in it means somebody deleted
+        what was working — coverage is now ageing silently, which is exactly
+        the condition this subsystem exists to shout about."""
+        path = drop(tmp_path, BINANCE.name, "binance_labelpack.json")
+        first = await HarvestWorker(sessions, manual_drop_sources(tmp_path)).run()
+        assert next(o for o in first.sources if o.source == BINANCE.name).added > 0
+
+        path.unlink()
+        second = await HarvestWorker(sessions, manual_drop_sources(tmp_path)).run()
+        binance = next(o for o in second.sources if o.source == BINANCE.name)
+        assert binance.not_supplied is False
+        assert [o.source for o in second.failed_sources] == [BINANCE.name]
+        # coinbase and okx never contributed, so they stay graded as setup even
+        # in the same cycle that reports a real regression beside them.
+        assert {o.source for o in second.unsupplied_sources} == {COINBASE.name, OKX.name}
+
+
+    async def test_a_fetchable_source_is_never_merely_awaiting_a_drop(
+        self, sessions: async_sessionmaker[AsyncSession], tmp_path: Path
+    ) -> None:
+        """Coinbase and OFAC reach the drop path only as a fallback behind a
+        fetch that failed. Grading either as "awaiting its first drop" would
+        file a dead publisher under "somebody still has to do the download",
+        and nobody would go and look.
+
+        It holds because `FirstAvailableSource.load` raises a plain
+        SourceUnavailable summarising every transport rather than re-raising
+        the last one — which is easy to "tidy" away, hence this test.
+        """
+        source = FirstAvailableSource(
+            COINBASE,
+            [
+                HttpDocumentSource(
+                    COINBASE,
+                    httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(503))),
+                    parser=parse_coinbase_reserves,
+                    media="html",
+                ),
+                ManualDropSource(COINBASE, tmp_path, parsers=COINBASE_PARSERS),
+            ],
+            parsers=COINBASE_PARSERS,
+        )
+        report = await HarvestWorker(sessions, [source]).run()
+        outcome = report.sources[0]
+        assert outcome.not_supplied is False
+        assert report.failed_sources == (outcome,)
 
 
 class TestStaleness:
@@ -360,10 +456,23 @@ class TestScheduler:
     is exactly the state nobody notices, and a green cron job would hide it."""
 
     @staticmethod
-    def _run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, report: Any, *extra: str) -> int:
+    def _run(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        report: Any,
+        *extra: str,
+        expected_stale_after_days: int | None = None,
+    ) -> int:
         from cipherchain.harvest import scheduler
 
-        async def fake(database_url: str, drop_dir: Path) -> Any:
+        async def fake(
+            database_url: str, drop_dir: Path, *, stale_after_days: int | None = None
+        ) -> Any:
+            # The override has to reach `run_once`, because that is where the
+            # run row is closed with an exit code. If `main` applied it and
+            # `run_once` did not, the cron mail and the sync panel would judge
+            # the same cycle differently.
+            assert stale_after_days == expected_stale_after_days
             return report
 
         monkeypatch.setattr(scheduler, "run_once", fake)
@@ -423,7 +532,13 @@ class TestScheduler:
     ) -> None:
         report = report_of(published(10, allowed=35, name="okx-proof-of-reserves"))
         assert self._run(monkeypatch, tmp_path, report) == 0
-        assert self._run(monkeypatch, tmp_path, report, "--stale-after-days", "7") == 3
+        assert (
+            self._run(
+                monkeypatch, tmp_path, report, "--stale-after-days", "7",
+                expected_stale_after_days=7,
+            )
+            == 3
+        )
 
     def test_a_misspelt_threshold_stops_the_run_instead_of_disarming_it(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

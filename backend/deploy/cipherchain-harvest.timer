@@ -1,0 +1,21 @@
+# Daily, at 03:15 with jitter.
+#
+# 03:15 rather than 00:00 for two reasons: publishers restate overnight and a
+# midnight run reads yesterday's document, and every naive cron on the internet
+# fires at 00:00 — including against OFAC and coinbase.com.
+[Unit]
+Description=CipherChain label harvest, daily
+Documentation=file:///srv/cipherchain/backend/deploy/README.md
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+# Up to 20 minutes of scatter, so a fleet of these does not arrive at a
+# publisher as a synchronised burst.
+RandomizedDelaySec=20min
+# The point of a 24/7 server is that this rarely matters — but a host that was
+# down at 03:15 should harvest when it comes back, not wait a full day. Missing
+# a cycle silently is how a sanctions list goes a week stale.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -49,10 +49,17 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from cipherchain.harvest.sources import DEFAULT_STALE_AFTER_DAYS, HarvestError, HarvestSource
+from cipherchain.harvest.sources import (
+    DEFAULT_STALE_AFTER_DAYS,
+    HarvestError,
+    HarvestSource,
+    SourceNotSupplied,
+)
 from cipherchain.intel.service import IntelService
+from cipherchain.storage.tables import LabelRow
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +76,11 @@ class SourceOutcome:
     updated: int = 0
     unchanged: int = 0
     error: str | None = None
+    # A drop-only source nobody has ever supplied. Distinct from `error`
+    # because the reader's next move differs: "do the download for the first
+    # time" is a setup step, "the file that was working is gone" is a
+    # regression. Both still contributed nothing this cycle.
+    not_supplied: bool = False
     # The newest date the source's own document declared. Not `retrieved_at`:
     # re-reading a stale file at 03:15 today says nothing about the file.
     published_at: datetime | None = None
@@ -103,7 +115,17 @@ class HarvestReport:
 
     @property
     def failed_sources(self) -> tuple[SourceOutcome, ...]:
-        return tuple(outcome for outcome in self.sources if not outcome.ok)
+        """Sources that BROKE. A drop-only source nobody has ever supplied is
+        excluded — it is a setup step, and counting it here makes the cycle
+        exit 1 every day forever on any deployment that has not done the
+        Binance and OKX downloads. See :class:`SourceNotSupplied`."""
+        return tuple(
+            outcome for outcome in self.sources if not outcome.ok and not outcome.not_supplied
+        )
+
+    @property
+    def unsupplied_sources(self) -> tuple[SourceOutcome, ...]:
+        return tuple(outcome for outcome in self.sources if outcome.not_supplied)
 
     def stale_sources(self, *, stale_after_days: int | None = None) -> tuple[SourceOutcome, ...]:
         """Sources that succeeded on a document nobody has republished lately.
@@ -130,6 +152,12 @@ class HarvestReport:
             )
             for outcome in self.sources
         ]
+        for outcome in self.unsupplied_sources:
+            parts.append(
+                f"AWAITING DROP: {outcome.source} has never been supplied. Not a failure — "
+                "download the publisher's file onto a machine that can reach them and put it "
+                "in the drop directory (drops/README.md)."
+            )
         parts.append(
             f"reconcile: {len(self.promoted)} promoted, {len(self.demoted)} demoted"
             if self.reconcile_error is None
@@ -162,7 +190,10 @@ class HarvestWorker:
 
     async def run(self) -> HarvestReport:
         started = datetime.now(UTC)
-        outcomes = [await self._harvest(source) for source in self._sources]
+        # One read, before anything else touches the store, so that grading a
+        # missing drop cannot interleave with a source's own ingest.
+        contributed = await self._sources_that_have_contributed()
+        outcomes = [await self._harvest(source, contributed) for source in self._sources]
         promoted: tuple[int, ...] = ()
         demoted: tuple[int, ...] = ()
         reconcile_error: str | None = None
@@ -187,13 +218,57 @@ class HarvestWorker:
             reconcile_error=reconcile_error,
         )
 
-    async def _harvest(self, source: HarvestSource) -> SourceOutcome:
+    async def _sources_that_have_contributed(self) -> frozenset[str]:
+        """Which sources have ever put a label in this store.
+
+        Read ONCE per cycle, before any source runs, rather than per source at
+        the moment one turns out to be unsupplied. Both work; reading it up
+        front is what makes the cycle's database usage independent of how many
+        drops happen to be missing today, so a test — or a connection pool —
+        cannot see its session accounting shift because somebody deleted a file.
+
+        The drop directory cannot answer this question: an empty directory looks
+        identical whether nobody ever supplied a file or somebody deleted one
+        that was working. Retired labels count, because a source whose rows have
+        all retired still worked once, and grading that as "awaiting its first
+        drop" would hide a regression behind a setup message.
+        """
+        try:
+            async with self._session_factory() as session:
+                rows = await session.scalars(select(LabelRow.source).distinct())
+                return frozenset(rows)
+        except Exception:  # pragma: no cover - grading must never end a cycle
+            # If the store cannot be read, grade DOWN to the harsher answer:
+            # every unsupplied source reports as a plain failure. Saying
+            # "awaiting first drop" on a database error would file a broken
+            # source under "nothing to worry about".
+            logger.exception("harvest: could not read which sources have contributed")
+            return frozenset()
+
+    async def _harvest(self, source: HarvestSource, contributed: frozenset[str]) -> SourceOutcome:
         name = source.spec.name
         limit = source.spec.stale_after_days
         retrieved_at = datetime.now(UTC)
         try:
             document = await source.load()
             claims = source.parse(document, retrieved_at=retrieved_at)
+        except SourceNotSupplied as exc:
+            # Never supplied is setup; supplied-then-gone is a regression. The
+            # store is the only thing that knows which, because the drop
+            # directory looks identical in both cases.
+            ever = name in contributed
+            logger.info(
+                "harvest: %s contributed nothing (%s)%s",
+                name,
+                exc,
+                "" if ever else " — awaiting its first drop",
+            )
+            return SourceOutcome(
+                source=name,
+                error=str(exc),
+                not_supplied=not ever,
+                stale_after_days=limit,
+            )
         except HarvestError as exc:
             logger.info("harvest: %s contributed nothing (%s)", name, exc)
             return SourceOutcome(source=name, error=str(exc), stale_after_days=limit)

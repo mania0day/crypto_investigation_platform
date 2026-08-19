@@ -76,6 +76,26 @@ class SourceUnavailable(HarvestError):
     """
 
 
+class SourceNotSupplied(SourceUnavailable):
+    """Nobody has ever put a file here — a configuration state, not a fault.
+
+    Binance and OKX are drop-only permanently: their disclosure pages answer a
+    bot check and getting past one is out of bounds. So on a deployment where
+    nobody has done the download, every cycle forever reports them as failures,
+    and a panel that is red every morning is a panel nobody reads — including
+    on the morning OFAC genuinely breaks.
+
+    Distinguished so the difference the reader cares about survives: *waiting
+    for a file that has never existed* and *the file that was working is gone*
+    need different reactions, and :meth:`HarvestWorker._harvest` separates them
+    by asking whether this source ever put a label in the store. A subclass of
+    :class:`SourceUnavailable` rather than a sibling, because every existing
+    handler must keep treating it as "contributed nothing, keep yesterday's
+    rows" — the grading is a presentation decision layered on top, never a
+    reason to ingest less carefully.
+    """
+
+
 class SourceRejected(HarvestError):
     """The document is not what the source declared it to be.
 
@@ -231,7 +251,7 @@ class ManualDropSource:
                 ) from exc
             candidates.append((declared_date, path, extension))
         if not candidates:
-            raise SourceUnavailable(
+            raise SourceNotSupplied(
                 f"{self.spec.name}: no drop in {self._dir} matching "
                 f"'{self.spec.name}__<YYYY-MM-DD>.<{'|'.join(sorted(self._parsers))}>'"
             )

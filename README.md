@@ -30,7 +30,8 @@ Every conclusion carries the evidence it rests on. Every gap in coverage is stat
 | [Usage manual](#usage-manual-a-to-z) | A to Z, every screen and every flag |
 | [API reference](#api-reference) | every endpoint |
 | [Architecture](#architecture) · [Repository layout](#repository-layout) | how it is built |
-| [How data is gathered](#how-data-is-gathered) | providers and labels |
+| [How data is gathered](#how-data-is-gathered) | providers, and how the label database updates |
+| [**Adding a VASP**](#3-adding-a-vasp-yourself) | **found one? here is how to file it** |
 | [**Limitations**](#limitations-read-this) | **the data ceiling — read this** |
 | [Testing](#testing) · [Licence](#licence) | the rest |
 
@@ -542,17 +543,145 @@ breaker sit in front of every provider.
 
 ### 2 · Label data — batch, out of band
 
-This is what lets the platform say a *name*, and it is completely separate from chain data.
+This is what lets the platform say a *name*, and it is completely separate from chain data. A chain
+API can tell you what moved; it can never tell you who owns anything. There is no name field on a
+blockchain. So every name in a report traces back to a document somebody published.
 
-- `labels/*.json` → `scripts/import_labelpacks.py` → the `labels` table
-- `harvest/` — OFAC SDN sanctions (daily), exchange proof-of-reserves, Etherscan public tags
-- `--drop-dir` for first-party sources that block automated download
+#### What is admitted, and what is not
 
-**What is admitted as a citable label** is deliberately narrow — signature-verified, first-party
-published, or licensed. Community lists are refused, and the reason is concrete: an entry like
-`Binance (successor wallet 0xATTACKER)` would stem to "binance", promote against real Binance data,
-and become an active, citable label attributing an attacker's wallet to an exchange. Untrusted sources
-arrive `pending` and never become evidence.
+Only three kinds of claim arrive **active** — able to name an endpoint in a report:
+
+| Method | What it means | In this store |
+|---|---|---:|
+| `signature` | the operator signed a message with the key. Survives them disappearing, because anyone can re-verify it | 36,049 |
+| `first_party_published` | the operator published the list themselves, and you can point at where | 1,036 |
+| `licensed_dataset` | a vendor you hold a licence from published it | 38,809 |
+
+Anything else arrives **`pending`**: stored, auditable, and unable to name anything until an
+independent trusted source agrees. Community lists are refused for a concrete reason — an entry like
+`Binance (successor wallet 0xATTACKER)` stems to "binance", promotes against real Binance data, and
+becomes an active citable label attributing an attacker's wallet to an exchange. A review
+demonstrated exactly that.
+
+#### How the label database gets updated
+
+One cycle per day, as its own process that exits — not a loop, and not a thread inside the API, or
+"restart the API" and "skip a harvest" become the same action.
+
+| Source | Transport | Why |
+|---|---|---|
+| OFAC SDN | **automatic** | ~28 MB, a few minutes. The long pole of the cycle |
+| Coinbase cbBTC reserves | **automatic** | `robots.txt` permits it and the page is server-rendered |
+| Binance PoR | **manual drop** | the page answers HTTP 202 with an empty body — a bot check |
+| OKX PoR | **manual drop** | the page is a JavaScript shell; the download URL returns HTML, not CSV |
+
+Binance and OKX will not become automatic. Getting past a bot check means executing it or
+impersonating a browser, which is the same boundary the scraping tier holds.
+
+Three ways to run a cycle:
+
+```sh
+# 1. the dashboard — press "Sync now" on the Label sync panel
+# 2. by hand
+DATABASE_URL=... ./scripts/harvest.sh
+# 3. daily on a server (see backend/deploy/README.md)
+sudo systemctl enable --now cipherchain-harvest.timer
+```
+
+The **Label sync** panel shows what happened: `syncing` / `idle` / `stalled` / `never_run`, each
+source's publication date and age, and a line per source saying what a human has to do. A source
+nobody has ever supplied reads *awaiting first drop* in grey — not red, because Binance and OKX can
+never supply themselves and a panel that is red every morning is one nobody reads. A drop that was
+working and then vanished **does** turn red: from that moment coverage is ageing silently.
+
+> Exit codes are the cron mail: `0` fine · `1` a source broke or reconcile failed · `2`
+> misconfigured, nothing ran · `3` nothing failed and a publisher has gone quiet.
+
+### 3 · Adding a VASP yourself
+
+Short answer to the common question — *I found a VASP during an investigation, can I just enter the
+address?* **You can add it, but you must say where you learned it.** The engine will not let you
+type in a name and have it become citable evidence, and that restriction is the product working.
+
+#### If you have the operator's published file
+
+This is the case for Binance and OKX, the two sources the daily cycle is wired for. Download the
+file in a browser on a machine that can reach them, then:
+
+```sh
+python scripts/add_vasp.py \
+  --entity "Binance" --chain tron \
+  --source-date 2026-08-14 \
+  --source-url https://www.binance.com/en/proof-of-reserves \
+  --method first_party_published \
+  --drop-for binance-proof-of-reserves \
+  --addresses ~/Downloads/binance-tron.txt
+```
+
+Then press **Sync now**. `--drop-for` exists because a hand-written drop has two traps that only
+bite after you have done the download: the pack's `source` must equal the harvesting source's
+**name** exactly, and `method` must match what that source is declared to use. It sets both, names
+the file `<source>__<publication-date>.json`, and puts it in the drop directory.
+
+**Date it with the publication date, not today's.** Leave older drops in place — the newest declared
+date wins. Dating a June file as today does not make the coverage fresh; it only hides that it is
+not, from the one alarm built to say so.
+
+If the file you downloaded is already an OKX-style CSV — a header row containing both `address` and
+`message`, plus a `network` column reading `TRX`/`TRON`/`ETH`/`BTC`/`SOL`/`POLYGON` — drop it as
+`.csv` and skip the script. If it carries **signatures**, use `scripts/import_por_labelpack.py`
+instead: it verifies each one and drops the rows that fail, which is how the 36,049 signature-backed
+labels in this store got here.
+
+#### If the source is your own casework
+
+An address confirmed by a compliance response, a court order, or the exchange's own reply to you is
+a real, citable source. Name it:
+
+```sh
+python scripts/add_vasp.py \
+  --entity "Binance" --chain tron \
+  --source "Binance compliance response, case ref 2026-0814" \
+  --source-date 2026-08-14 \
+  --method first_party_published \
+  --address TXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX \
+  --out ../labels/binance-casework.json
+
+DATABASE_URL=... python scripts/import_labelpacks.py
+```
+
+The script refuses, at the point of writing rather than the point of reading, everything that would
+otherwise fail silently: a method that arrives pending, `confidence` of 1.0, an unparseable
+`source_date`, and an address that is not valid for the chain it is filed under. That last one is
+the quiet killer — a Tron address filed under Ethereum loads fine, sits in the table looking like
+coverage, and matches nothing forever.
+
+#### If you only inferred it
+
+Then you do not have a label, and the platform will not pretend otherwise. A branch that *looks*
+custodial is already reported as a `heuristic_inference` on the graph — a lead to pursue, not a
+name. Turning a suspicion into a citable attribution is the one thing this system is built to
+prevent, because a wrong label and a right one read identically in a report and somebody acts on
+both.
+
+#### Why one drop is worth more than a week of compute
+
+Tron currently has **exactly one nameable exchange**:
+
+| Chain | VASP labels | Exchanges it can name |
+|---|---:|---:|
+| Ethereum | 40,786 | 20 |
+| **Tron** | 17,803 | **1 — OKX** |
+| Bitcoin | 3,365 | 2 |
+| Polygon | 70 | 1 |
+
+One Binance Tron drop takes that from one to two. No amount of depth or API budget does the same —
+see [Limitations](#limitations-read-this).
+
+Another publisher can be added the same way: give it a `SourceSpec` in `harvest/exchanges.py` and a
+row in `add_vasp.py`'s `DROP_SOURCES`, and its drops are read by the same cycle under the same
+lifecycle. Bitget is the obvious next one — it is this store's largest Ethereum operator at 19,027
+labels and has **zero** on Tron.
 
 ---
 
@@ -565,21 +694,27 @@ more dangerous than one that has them.
 
 The engine can only name an operator it has a **sourced label** for. Measured coverage:
 
-| Chain | Labels | Operators it can name |
-|---|---:|---|
-| Ethereum | 53,692 | **13** — Bitget, OKX, Binance, Coinbase, Kraken, HTX, KuCoin, Crypto.com, Bitstamp, Bybit, Bitfinex, MEXC, Gemini |
-| **Tron** | 17,803 | **1 — OKX, and nothing else** |
-| Bitcoin | 3,363 | OKX |
-| Polygon | 70 | OKX |
-| BSC, Arbitrum, Optimism, Avalanche, Solana | **0** | none |
+| Chain | Labels | VASP labels | Exchanges it can name |
+|---|---:|---:|---|
+| Ethereum | 53,796 | 40,786 | **20** — Bitget, OKX, Binance, Coinbase, Kraken, HTX, KuCoin, Crypto.com, Bitstamp, Bybit, Bitfinex, MEXC, Gemini and others |
+| **Tron** | 18,080 | 17,803 | **1 — OKX, and nothing else** |
+| Bitcoin | 3,944 | 3,365 | 2 |
+| Polygon | 70 | 70 | 1 — OKX |
+| Solana | 4 | 0 | **none** — sanctions rows only |
+| BSC, Arbitrum, Optimism, Avalanche | **0** | 0 | none |
 
-**What this means in practice.** On a real Tron case this platform traced 6,113 addresses across
-57,086 transactions, four hops in both directions. Labelled addresses found in the entire trace: **8,
-all OKX, all in one direction.** The other direction reached 1,661 addresses and not one carried a
-label.
+Total: **75,894 active labels across 12,760 entities** — but read the third column, not the second.
+Ethereum's entity count is inflated by 12,620 `infrastructure` labels (DEX routers, settlement
+contracts); those close a branch honestly but never name an exchange.
+
+**What this means in practice.** On a real Tron case this platform traced 14,643 addresses across
+176,294 transactions, four hops in both directions. Labelled addresses found in the entire trace:
+**8, all OKX, all in one direction.** The other direction reached 1,661 addresses and not one
+carried a label.
 
 Tripling the node count and adding a whole hop of depth bought **zero** new named operators. More
-compute does not fix this. Only more label data does.
+compute does not fix this. Only more label data does — see
+[Adding a VASP yourself](#3-adding-a-vasp-yourself).
 
 <details>
 <summary><b>Why Tron coverage is hard, specifically</b></summary>

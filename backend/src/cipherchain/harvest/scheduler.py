@@ -64,6 +64,7 @@ import httpx
 
 from cipherchain.core.config import get_settings
 from cipherchain.harvest.exchanges import daily_sources
+from cipherchain.harvest.runs import close_run, open_run
 from cipherchain.harvest.worker import HarvestReport, HarvestWorker
 from cipherchain.storage.db import create_engine, create_session_factory
 
@@ -130,20 +131,73 @@ def _optional_int(raw: str | None) -> int | None:
         raise SystemExit(2) from None
 
 
-async def run_once(database_url: str, drop_dir: Path) -> HarvestReport:
+async def run_once(
+    database_url: str, drop_dir: Path, *, stale_after_days: int | None = None
+) -> HarvestReport:
     """One cycle. Separated from :func:`main` so a test drives it directly.
 
     ``follow_redirects`` is off deliberately: a moved document is a thing a
     person has to look at, not a thing to chase. See
     :class:`cipherchain.harvest.sources.HttpDocumentSource`.
+
+    The cycle also records ITSELF, in ``harvest_runs``, so that something which
+    exits between runs can still be asked "are you running?" by the dashboard
+    (:mod:`cipherchain.harvest.runs`). The row opens before the first source is
+    contacted and closes in a ``finally``, including when the cycle raises —
+    an open row means in-flight, so a crash that left one open would render on
+    screen as a sync that is still going.
+
+    ``stale_after_days`` is threaded through only to decide the recorded exit
+    code. The operator's override has to reach the row, or the panel would call
+    a run healthy that the same run's cron mail called stale.
     """
     engine = create_engine(database_url)
+    session_factory = create_session_factory(engine)
     try:
-        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_SECONDS, follow_redirects=False) as http:
-            worker = HarvestWorker(create_session_factory(engine), daily_sources(drop_dir, http))
-            return await worker.run()
+        run_id = await open_run(session_factory)
+        report: HarvestReport | None = None
+        failure: str | None = None
+        try:
+            async with httpx.AsyncClient(
+                timeout=FETCH_TIMEOUT_SECONDS, follow_redirects=False
+            ) as http:
+                worker = HarvestWorker(session_factory, daily_sources(drop_dir, http))
+                report = await worker.run()
+            return report
+        except BaseException as exc:
+            # BaseException, not Exception: a cycle cancelled or SIGINTed part
+            # way through must still close its row. Leaving it open is the one
+            # outcome that misreports — "syncing" forever — and the exception
+            # is re-raised untouched, so nothing about the failure is swallowed.
+            failure = f"{type(exc).__name__}: {exc}"
+            raise
+        finally:
+            await close_run(
+                session_factory,
+                run_id,
+                report=report,
+                exit_code=_exit_code(report, stale_after_days=stale_after_days),
+                error=failure,
+            )
     finally:
         await engine.dispose()
+
+
+def _exit_code(report: HarvestReport | None, *, stale_after_days: int | None) -> int:
+    """The scheduler's exit code, computed once and used twice.
+
+    :func:`main` returns it to cron and :func:`close_run` stores it, and those
+    two must not be able to disagree — a panel saying "ok" beside a cron mail
+    saying "3" is worse than either alone. 2 is absent by construction: it means
+    nothing ran, and nothing that never ran opened a row.
+    """
+    if report is None:
+        return 1
+    if report.reconcile_error is not None or report.failed_sources:
+        return 1
+    if report.stale_sources(stale_after_days=stale_after_days):
+        return 3
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -162,16 +216,15 @@ def main(argv: list[str] | None = None) -> int:
         # ran" invites the assumption that an unset DATABASE_URL produces it.
         print("error: no database url — set DATABASE_URL or pass --database-url", file=sys.stderr)
         return 2
-    report = asyncio.run(run_once(url, args.drop_dir))
+    report = asyncio.run(run_once(url, args.drop_dir, stale_after_days=args.stale_after_days))
     print(report.summary(stale_after_days=args.stale_after_days))
-    if report.reconcile_error is not None or report.failed_sources:
-        return 1
-    if report.stale_sources(stale_after_days=args.stale_after_days):
-        # Nothing failed, and the answer is still not "fine". Reported after
-        # the outright failures because a source that is down is the more
-        # urgent of the two, and a run can be both.
-        return 3
-    return 0
+    # Deliberately NOT recomputed here. `_exit_code` is what the run row was
+    # closed with, and the cron mail and the dashboard have to be the same
+    # judgement — a panel that says 'ok' beside an exit 3 is worse than either
+    # alone. The precedence it encodes is unchanged: a failure outranks
+    # staleness, because a source that is down is the more urgent of the two
+    # and a run can be both.
+    return _exit_code(report, stale_after_days=args.stale_after_days)
 
 
 if __name__ == "__main__":  # pragma: no cover - process entry point

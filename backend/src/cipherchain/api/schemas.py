@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from cipherchain.core.models import Evidence, EvidenceKind, Finding
+from cipherchain.harvest.runs import SyncStatus
 from cipherchain.investigation.answers import BestEffortFinding, DirectionAnswer, RankedFinding
 from cipherchain.investigation.budgets import Budgets
 from cipherchain.investigation.objectives import Objective
@@ -452,3 +453,73 @@ class GraphResponse(BaseModel):
     edges: list[GraphEdgeOut]
     node_total: int
     truncated: bool
+
+
+class SyncSourceOut(BaseModel):
+    """One source's line in the sync panel.
+
+    ``ok`` and ``stale`` are tri-state on purpose. ``None`` means the newest
+    run said nothing about this source — it was scheduled after that run, or
+    no run has happened — which is a different fact from "it failed" and must
+    not render as either a tick or a cross.
+    """
+
+    source: str
+    entity: str | None = None
+    transport: str
+    document_url: str | None = None
+    ok: bool | None = None
+    # True when this drop-only source has never been supplied here. A setup
+    # step, not a break — see harvest.sources.SourceNotSupplied.
+    not_supplied: bool | None = None
+    error: str | None = None
+    claims: int | None = None
+    added: int | None = None
+    updated: int | None = None
+    unchanged: int | None = None
+    published_at: str | None = None
+    age_days: float | None = None
+    stale_after_days: int | None = None
+    stale: bool | None = None
+
+
+class SyncStatusResponse(BaseModel):
+    """Is the label store being kept current, and if not, whose move is it?
+
+    ``state`` separates four things a single boolean would flatten:
+    ``syncing`` (a cycle is in flight), ``idle`` (one finished, the timer is
+    working), ``stalled`` (a cycle was killed and never closed its row) and
+    ``never_run`` (nothing has ever harvested against this database, so every
+    label in it arrived by hand).
+    """
+
+    state: str
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    outcome: str | None = None
+    exit_code: int | None = None
+    error: str | None = None
+    host: str | None = None
+    sources: list[SyncSourceOut] = []
+    labels_total: int = 0
+    labels_by_chain: dict[str, int] = {}
+    # Prose, already worded for the reader, because the action differs by
+    # transport: a stale fetched source means the publisher went quiet, a stale
+    # dropped source means somebody owes the drop directory a download.
+    attention: list[str] = []
+
+    @classmethod
+    def of(cls, status: SyncStatus) -> SyncStatusResponse:
+        return cls(
+            state=status.state,
+            started_at=status.started_at,
+            finished_at=status.finished_at,
+            outcome=status.outcome,
+            exit_code=status.exit_code,
+            error=status.error,
+            host=status.host,
+            sources=[SyncSourceOut(**row) for row in status.sources],
+            labels_total=status.labels_total,
+            labels_by_chain=dict(status.labels_by_chain),
+            attention=list(status.attention),
+        )

@@ -111,6 +111,7 @@ swept into" less well; deposit-address coverage comes from clustering
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
@@ -228,3 +229,57 @@ def daily_sources(drop_dir: Path, http: httpx.AsyncClient) -> list[HarvestSource
         *(ManualDropSource(spec, drop_dir, parsers=PARSERS_BY_SUFFIX) for spec in (BINANCE, OKX)),
         *sanctions_sources(drop_dir, http),
     ]
+
+
+@dataclass(frozen=True, slots=True)
+class SourcePlan:
+    """One line of "what the daily cycle will try, and who has to help".
+
+    The dashboard needs this to answer the question a red panel provokes —
+    *can I fix this, or am I waiting on a machine?* — and the answer differs
+    per source: Coinbase and OFAC repair themselves overnight, Binance and OKX
+    never will, because working around a bot check is out of bounds here.
+    """
+
+    name: str
+    entity: str
+    transport: str
+    document_url: str
+    stale_after_days: int
+
+
+def _transport(source: HarvestSource) -> str:
+    """Read the transport off the source OBJECT, never off a second list.
+
+    Deriving it from the class is what keeps this honest: a source added to
+    :func:`daily_sources` shows up here automatically, and one described here
+    but never scheduled cannot exist. The module docstring above makes the same
+    point about assembly points, and this function is where it would break
+    first if the plan were restated by hand.
+    """
+    if isinstance(source, FirstAvailableSource):
+        return "fetch_or_drop"
+    if isinstance(source, ManualDropSource):
+        return "manual_drop"
+    return "automatic"
+
+
+async def describe_daily_plan(drop_dir: Path) -> tuple[SourcePlan, ...]:
+    """The cycle's source list, described without running it.
+
+    Builds the real sources so there is exactly one place that decides what
+    runs. The client is constructed and closed without a request being made —
+    :func:`daily_sources` only stores it — so this costs no network at all and
+    is safe to call from a request handler.
+    """
+    async with httpx.AsyncClient() as http:
+        return tuple(
+            SourcePlan(
+                name=source.spec.name,
+                entity=source.spec.entity,
+                transport=_transport(source),
+                document_url=source.spec.document_url,
+                stale_after_days=source.spec.stale_after_days,
+            )
+            for source in daily_sources(drop_dir, http)
+        )

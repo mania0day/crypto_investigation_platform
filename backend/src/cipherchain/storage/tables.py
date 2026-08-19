@@ -629,3 +629,59 @@ class ApiKeyRow(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (UniqueConstraint("key_id", name="uq_api_keys_key_id"),)
+
+
+class HarvestRunRow(Base):
+    """One harvest cycle, recorded so somebody can see whether it is happening.
+
+    The harvester is a process that starts, works, and exits (``harvest.sh``
+    argues that case: not a resident loop, and not a thread inside the API, or
+    "restart the API" and "skip a harvest" become the same action). That design
+    is right and it has one cost — when the API is asked "are the labels being
+    refreshed?", there is no running thing to ask. So the cycle writes here
+    instead: a row at the start, the same row closed at the end.
+
+    ``finished_at IS NULL`` therefore means *in flight*, which is exactly what
+    the dashboard's sync box shows. It also means a cycle that was killed
+    mid-run leaves a row that says "running" forever — the same stranding that
+    an interrupted investigation suffers. That is not papered over here by a
+    heartbeat column; the reader resolves it, because only the reader knows
+    what "too long" is (:data:`STALLED_AFTER_SECONDS`). A killed run is a real
+    event and the operator should see it named, not silently rewritten.
+
+    ``sources`` is the per-source outcome list, stored as the report produced
+    it. Denormalised on purpose: this is an operational log read as a whole
+    row, never joined against, and freezing the shape here would turn adding a
+    source into a migration.
+    """
+
+    __tablename__ = "harvest_runs"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Mirrors the scheduler's exit code, which is the cron mail and so is
+    # already the vocabulary an operator has: 0 ok, 1 failed, 3 stale. A run
+    # that both failed and went stale is 'failed', for the same reason the
+    # exit code prefers 1 — a source that is down is the more urgent of the two.
+    status: Mapped[str] = mapped_column(Text, default="running", server_default="running")
+    exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sources: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    # Set when reconcile blew up, or when the process itself raised. Separate
+    # from a source's own error, which lives in ``sources``.
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Which machine ran it. On a 24/7 server this is noise; the moment somebody
+    # also runs a cycle from a laptop it is the first question asked.
+    host: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('running','ok','failed','stale')",
+            name="status_values",
+        ),
+        # The reader always wants the newest run, and the "is one in flight"
+        # check is a partial scan of the open ones.
+        Index("ix_harvest_runs_started", "started_at"),
+    )

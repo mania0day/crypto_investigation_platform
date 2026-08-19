@@ -59,12 +59,15 @@ from cipherchain.api.schemas import (
     ResumeInvestigationRequest,
     StartInvestigationRequest,
     StartInvestigationResponse,
+    SyncStatusResponse,
 )
 from cipherchain.chains.base import ChainRegistry
 from cipherchain.core.config import Settings, get_settings
 from cipherchain.core.errors import UnknownChain
 from cipherchain.core.logging import configure_logging
 from cipherchain.core.models import Address
+from cipherchain.harvest.runs import CycleAlreadyRunning, start_cycle, sync_status
+from cipherchain.harvest.scheduler import DEFAULT_DROP_DIR
 from cipherchain.intel.attributor_source import build_store_attributor
 from cipherchain.investigation.answers import RankedFinding, select_answers
 from cipherchain.investigation.budgets import Budgets
@@ -190,6 +193,7 @@ def create_app(
     static_dir: Path | None = None,
     auth: ApiKeyAuth | None = None,
     demo_api_key: str | None = None,
+    harvest_drop_dir: Path | None = None,
 ) -> FastAPI:
     """Build the API.
 
@@ -222,6 +226,18 @@ def create_app(
     # required argument keeps every existing caller working; defaulting it to
     # None-means-open would have kept them working too, and silently.
     guard = auth if auth is not None else ApiKeyAuth.from_settings(session_factory)
+    # Resolved from the same env var the scheduler reads, so the panel reports
+    # on the directory the cycle actually loads from. Pointing them at different
+    # places would make the panel say "no drop" while a drop sits ingested.
+    drops = (
+        harvest_drop_dir
+        if harvest_drop_dir is not None
+        else Path(os.environ.get("CIPHERCHAIN_DROP_DIR", DEFAULT_DROP_DIR))
+    )
+    # Resolved from this module's location rather than the working directory:
+    # the API is started from several places (demo.sh, start.sh, systemd) and a
+    # relative path would make the Sync-now button work from some of them.
+    harvest_script = Path(__file__).resolve().parents[3] / "scripts" / "harvest.sh"
     # Bound to names first: a bare ``Depends(...)`` call in a default argument
     # is what ruff's B008 objects to, and the name reads the same to FastAPI.
     # NEVER write ``Annotated[AuthenticatedKey, Depends(guard.requires(...))]``
@@ -352,6 +368,55 @@ def create_app(
         await launch(active, investigation_id)
         async with session_factory() as session:
             return await _status_response(session, investigation_id)
+
+    @app.post("/harvest/run", status_code=202, dependencies=[investigator])
+    async def harvest_run() -> dict[str, object]:
+        """Start a harvest cycle now, without waiting for the timer.
+
+        Guarded by INVESTIGATE, not READ. It spends bandwidth (a ~28 MB
+        sanctions download) and writes labels, which is exactly the separation
+        those two scopes exist for — the read-only key a reviewing analyst
+        carries must not be able to start expensive work.
+
+        202, not 200: the cycle takes minutes and this returns as soon as the
+        child process exists. Watch it finish on the sync panel, which polls
+        the same run row the cycle writes.
+
+        409 when one is already in flight. Refused rather than queued — two
+        concurrent reconciles over a half-written harvest can promote a label
+        on evidence the other transaction has not committed.
+        """
+        async with session_factory() as session:
+            try:
+                pid = await start_cycle(session, script=harvest_script, drop_dir=drops)
+            except CycleAlreadyRunning as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            except OSError as exc:
+                # The script is missing or not executable — a deployment fault,
+                # not a client error, and worth saying precisely because the
+                # button would otherwise look broken for no visible reason.
+                raise HTTPException(
+                    status_code=500, detail=f"could not start {harvest_script}: {exc}"
+                ) from exc
+        return {"started": True, "pid": pid}
+
+    @app.get("/harvest/status", response_model=SyncStatusResponse, dependencies=[reader])
+    async def harvest_status() -> SyncStatusResponse:
+        """Is the label store being kept current — and if not, whose move is it?
+
+        Guarded by READ rather than left open like ``/healthz``. It names the
+        sources this deployment harvests, their publication dates and its label
+        counts, which is a description of the operator's intelligence coverage
+        and not a liveness check.
+
+        Read-only against ``harvest_runs``; it never starts a cycle. Starting
+        one from an HTTP request would put a 28 MB download and a full
+        reconcile inside the API process, which is the arrangement
+        ``scripts/harvest.sh`` argues against — the cycle belongs to a timer
+        that owns its own process and exits.
+        """
+        async with session_factory() as session:
+            return SyncStatusResponse.of(await sync_status(session, drop_dir=drops))
 
     @app.get(
         "/investigations/{investigation_id}",

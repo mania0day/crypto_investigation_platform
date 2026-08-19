@@ -1,0 +1,48 @@
+# One harvest cycle. Type=oneshot because that is what it is: the process
+# starts, refreshes every label source, re-settles the lifecycle and exits.
+#
+# Deliberately NOT a Restart=always daemon. scripts/harvest.sh argues the case
+# and it holds here — a resident loop makes "restart the service" and "skip a
+# harvest" the same action, and running it inside the API would run it once per
+# worker. The timer owns the schedule; this unit owns one run.
+[Unit]
+Description=CipherChain label harvest (one cycle)
+Documentation=file:///srv/cipherchain/backend/scripts/harvest.sh
+# Ordering only. The harvester writes to Postgres, and on a host where the DB
+# is a local unit this keeps a boot-time catch-up run from failing on a socket
+# that is two seconds from existing. Harmless when the DB is remote.
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cipherchain
+WorkingDirectory=/srv/cipherchain/backend
+# DATABASE_URL and CIPHERCHAIN_DROP_DIR live here, not in this unit: the
+# harvester writes to the same store the API reads, and a second opinion about
+# where that is would be a very quiet way to harvest into the wrong database.
+EnvironmentFile=/srv/cipherchain/backend/.env
+ExecStart=/srv/cipherchain/backend/scripts/harvest.sh
+
+# The OFAC SDN document alone is ~28 MB and took 196s on the host that measured
+# it, 353.8s on a slower one. 45 minutes is far above the worst measured cycle
+# and still bounded, so a hung fetch cannot hold the timer's next run off.
+TimeoutStartSec=45min
+
+# Exit 3 means "nothing failed, and a publisher has gone quiet" (see
+# scheduler.py). It is a real signal and it is NOT a unit failure — marking it
+# one would put the service in failed state every morning until somebody
+# refreshed a drop, and a permanently-red unit is a red light nobody reads.
+# The sync panel is where that condition is meant to be seen.
+SuccessExitStatus=0 3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The drop directory is the one path it writes: an operator puts a published
+# disclosure there and the cycle reads it. Everything else is read-only.
+ReadWritePaths=/srv/cipherchain/backend/drops
+
+[Install]
+WantedBy=multi-user.target
