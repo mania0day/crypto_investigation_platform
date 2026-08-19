@@ -33,6 +33,7 @@ Every conclusion carries the evidence it rests on. Every gap in coverage is stat
 | [How data is gathered](#how-data-is-gathered) | providers, and how the label database updates |
 | [**Adding a VASP**](#3-adding-a-vasp-yourself) | **found one? here is how to file it** |
 | [**Limitations**](#limitations-read-this) | **the data ceiling — read this** |
+| [**Complete report (PDF)**](docs/CipherChain-complete-report.pdf) | **17 pages — plain introduction, operating guide, technical reference** |
 | [Testing](#testing) · [Licence](#licence) | the rest |
 
 ---

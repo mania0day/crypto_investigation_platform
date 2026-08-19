@@ -1,0 +1,751 @@
+<style>
+@page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+@page :first { margin: 0; }
+* { box-sizing: border-box; }
+body {
+  font: 10.5pt/1.58 "Source Serif 4", Georgia, serif;
+  color: #16181d; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+h1, h2, h3, h4, .ui { font-family: "Inter", "Helvetica Neue", Arial, sans-serif; color: #0f1115; }
+h2 { font-size: 16pt; margin: 24pt 0 8pt; padding-bottom: 5pt;
+     border-bottom: 2px solid #0B6E78; break-after: avoid; }
+h3 { font-size: 12pt; margin: 16pt 0 5pt; break-after: avoid; color: #123; }
+h4 { font-size: 10pt; margin: 11pt 0 3pt; color: #3d4450; break-after: avoid;
+     text-transform: uppercase; letter-spacing: .5pt; font-size: 8.6pt; }
+p { margin: 0 0 8pt; orphans: 3; widows: 3; }
+code, .mono { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; font-size: 8.6pt; }
+code { background: #f2f4f7; padding: .5pt 3pt; border-radius: 2.5px; }
+a { color: #0B6E78; text-decoration: none; }
+table { width: 100%; border-collapse: collapse; margin: 9pt 0 12pt; font-size: 9.2pt; }
+/* Rows stay whole, tables may split. Making the TABLE atomic pushed an 11-row
+   table onto a fresh page and left the previous one half blank — which reads as
+   padding rather than structure. */
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
+th { text-align: left; background: #eef1f4; padding: 5pt 6pt; font-family: "Inter", sans-serif;
+     font-size: 8.2pt; text-transform: uppercase; letter-spacing: .4pt; color: #454c58;
+     border-bottom: 1.5px solid #ccd2da; }
+td { padding: 5pt 6pt; border-bottom: 1px solid #e6e9ee; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-family: "JetBrains Mono", monospace; font-size: 8.6pt; }
+pre { background: #f5f7f9; border: 1px solid #e4e8ed; border-radius: 4px; padding: 9pt 11pt;
+      font-size: 8.3pt; line-height: 1.5; break-inside: avoid; margin: 9pt 0 12pt;
+      white-space: pre-wrap; }
+ul, ol { margin: 0 0 9pt; padding-left: 18pt; }
+li { margin-bottom: 4pt; }
+.newpage { break-before: page; }
+.avoid { break-inside: avoid; }
+
+/* Cover — full-bleed, so @page:first drops its margins and this supplies its own. */
+.cover { break-after: page; height: 297mm; padding: 34mm 22mm 20mm;
+         background: linear-gradient(160deg, #0a1418 0%, #10262b 55%, #0B6E78 190%);
+         color: #eaf2f3; display: flex; flex-direction: column; }
+.cover .rule { width: 70pt; height: 5px; background: #35c8b4; margin: 0 0 22pt; }
+.cover h1 { font-size: 40pt; line-height: 1.05; margin: 0 0 4pt; letter-spacing: -1pt;
+            color: #fff; font-weight: 700; }
+.cover .tagline { font: 400 15pt/1.4 "Inter", sans-serif; color: #9fdad2; margin: 0 0 30pt; }
+.cover .lede { font: 400 11.5pt/1.65 "Source Serif 4", Georgia, serif; color: #cfe3e4;
+               max-width: 128mm; margin: 0 0 auto; }
+.cover .foot { font: 9.5pt/1.7 "Inter", sans-serif; color: #86a8ab; border-top: 1px solid #24484d;
+               padding-top: 12pt; }
+.cover .foot b { color: #eaf2f3; font-weight: 600; }
+.cover .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10pt; margin: 0 0 26pt; }
+.cover .stat { border: 1px solid #24484d; border-radius: 5px; padding: 10pt 11pt;
+               background: rgba(255,255,255,.03); }
+.cover .stat .n { font: 700 18pt/1.1 "Inter", sans-serif; color: #35c8b4;
+                  font-variant-numeric: tabular-nums; }
+.cover .stat .l { font: 8pt/1.35 "Inter", sans-serif; color: #86a8ab; margin-top: 3pt;
+                  text-transform: uppercase; letter-spacing: .4pt; }
+
+/* Callouts */
+.q { border-left: 3px solid #0B6E78; padding: 8pt 0 8pt 14pt; margin: 12pt 0;
+     background: #f7fafb; color: #2b313b; break-inside: avoid; }
+.q p:last-child { margin-bottom: 0; }
+.warn { border-left: 3px solid #97322F; background: #fdf6f5; padding: 9pt 13pt; margin: 12pt 0;
+        break-inside: avoid; }
+.warn b { color: #97322F; }
+.ok { border-left: 3px solid #0B6E78; background: #f4fafa; padding: 9pt 13pt; margin: 12pt 0;
+      break-inside: avoid; }
+.plain { font-size: 11.2pt; line-height: 1.7; }
+
+/* Figures */
+figure { margin: 12pt 0 14pt; break-inside: avoid; text-align: center; }
+figure img { max-width: 100%; border: 1px solid #dce1e7; border-radius: 4px; }
+figcaption { font: 8.6pt/1.45 "Inter", sans-serif; color: #626a78; margin-top: 5pt;
+             text-align: left; }
+figcaption b { color: #16181d; }
+
+/* Contents */
+.toc { font-family: "Inter", sans-serif; font-size: 9.6pt; }
+.toc td { padding: 3.5pt 6pt; border-bottom: 1px solid #eef1f4; }
+.toc .n { color: #0B6E78; font-weight: 600; width: 26pt; }
+.toc .d { color: #626a78; }
+
+.tag { display: inline-block; font: 600 7.4pt "Inter", sans-serif; padding: 1.5pt 5pt;
+       border-radius: 2.5px; text-transform: uppercase; letter-spacing: .4pt; }
+.tag.done { background: #dff0ef; color: #0B6E78; }
+.tag.part { background: #fdf0dc; color: #8A5A12; }
+.tag.no   { background: #fbe9e8; color: #97322F; }
+.foot { margin-top: 28pt; padding-top: 10pt; border-top: 1px solid #dfe3e9;
+        font-size: 8.4pt; color: #6c7382; font-family: "Inter", sans-serif; }
+</style>
+
+<section class="cover">
+  <div class="rule"></div>
+  <h1>CipherChain</h1>
+  <p class="tagline">Blockchain investigation, end to end</p>
+
+  <p class="lede">A cryptocurrency address is a wall of numbers. This system takes
+  one, follows the money automatically in both directions, and reports the nearest
+  exchange it can identify — with the evidence for every step, and an honest
+  statement of everything it could not read.</p>
+
+  <div style="margin-top:auto">
+    <div class="grid">
+      <div class="stat"><div class="n">{{loc}}</div><div class="l">lines of source</div></div>
+      <div class="stat"><div class="n">1,189</div><div class="l">tests passing</div></div>
+      <div class="stat"><div class="n">{{labels_total}}</div><div class="l">attribution labels</div></div>
+      <div class="stat"><div class="n">5</div><div class="l">blockchains</div></div>
+    </div>
+    <p class="foot">
+      <b>Complete project report</b> &nbsp;·&nbsp; Part 1 plain introduction &nbsp;·&nbsp;
+      Part 2 operating guide &nbsp;·&nbsp; Part 3 technical reference<br>
+      Built {{built}} · commit <code style="background:none;color:#9fdad2">{{commit}}</code>
+      · every figure in this document measured at build time
+    </p>
+  </div>
+</section>
+
+<h2 style="margin-top:0">Contents</h2>
+
+<table class="toc">
+  <tr><td class="n">1</td><td>What this is, in plain words</td><td class="d">the problem, and what the system does about it</td></tr>
+  <tr><td class="n">2</td><td>How an investigation runs</td><td class="d">the five steps, start to report</td></tr>
+  <tr><td class="n">3</td><td>Reading the four kinds of evidence</td><td class="d">why a name is never a guess</td></tr>
+  <tr><td class="n">4</td><td>Depth, budgets and what they cost</td><td class="d">every setting, one line each</td></tr>
+  <tr><td class="n">5</td><td>Reading the outputs</td><td class="d">graph, findings, report</td></tr>
+  <tr><td class="n">6</td><td>Where the data comes from</td><td class="d">two separate pipelines</td></tr>
+  <tr><td class="n">7</td><td>What it cannot do</td><td class="d">the naming ceiling, measured</td></tr>
+  <tr><td class="n">8</td><td>Architecture</td><td class="d">the eleven packages and how they connect</td></tr>
+  <tr><td class="n">9</td><td>Chain adapters</td><td class="d">one ledger's dialect per adapter</td></tr>
+  <tr><td class="n">10</td><td>The provider pool</td><td class="d">failover, quotas, and the scraping floor</td></tr>
+  <tr><td class="n">11</td><td>The traversal engine</td><td class="d">frontier, budgets, terminators, answers</td></tr>
+  <tr><td class="n">12</td><td>Analysis</td><td class="d">mixers, sweeps, clustering, sanctions</td></tr>
+  <tr><td class="n">13</td><td>Intelligence and the label lifecycle</td><td class="d">what may name an operator</td></tr>
+  <tr><td class="n">14</td><td>Harvesting</td><td class="d">the daily cycle and the drop path</td></tr>
+  <tr><td class="n">15</td><td>Storage</td><td class="d">fifteen tables, and why the run is resumable</td></tr>
+  <tr><td class="n">16</td><td>The API</td><td class="d">every endpoint, and the two scopes</td></tr>
+  <tr><td class="n">17</td><td>Reporting</td><td class="d">HTML and PDF from the same record</td></tr>
+  <tr><td class="n">18</td><td>Testing and quality</td><td class="d">what {{test_files}} test files hold</td></tr>
+  <tr><td class="n">19</td><td>Running it</td><td class="d">from a fresh clone to a working stack</td></tr>
+</table>
+
+<h2 class="newpage">Part one — In plain words</h2>
+
+<h3>1. What this is</h3>
+
+<div class="plain">
+<p>Every cryptocurrency transaction is public and permanent. Anyone can look up
+any payment ever made. That sounds like it should make investigation easy.</p>
+
+<p>It does not, for one reason: <b>a blockchain records addresses, never names.</b>
+An address is a string like <code>TWtuyr5pSTUDXaLvZYbrt7WXry8fkNiT5A</code>. It
+belongs to somebody, and nothing on the public record says who.</p>
+
+<p>So the money can be followed perfectly, and the person cannot be identified —
+with one exception. When funds reach an <b>exchange</b>, a company where people
+buy and sell cryptocurrency, that company holds identity documents for the
+account holder. Exchanges are the point where an anonymous chain of addresses
+meets a real name.</p>
+
+<p>The whole purpose of this system is to get from an address to an exchange, as
+quickly and as honestly as possible.</p>
+</div>
+
+<div class="q">
+<p><b>In one sentence.</b> You give it one address; it follows the money through
+thousands of others until it reaches an exchange, then tells you which exchange,
+which address, how much passed through, and how confident it is.</p>
+</div>
+
+<h3>2. How an investigation runs</h3>
+
+<p>Five steps, in order:</p>
+
+<table>
+  <tr><th style="width:22%">Step</th><th>What happens</th></tr>
+  <tr><td><b>1. Enter the address</b></td><td>Paste it. The system works out which blockchain it belongs to on its own — you do not have to know.</td></tr>
+  <tr><td><b>2. Choose the direction</b></td><td>Where the money <i>came from</i>, where it <i>went</i>, or both. Both is the default.</td></tr>
+  <tr><td><b>3. Set the budget</b></td><td>How hard to look. Four numbers, explained in section 4. The defaults are safe.</td></tr>
+  <tr><td><b>4. Watch it run</b></td><td>It opens one address, reads its transactions, finds everyone that address dealt with, and repeats — outward, hop by hop. The graph fills in as it goes.</td></tr>
+  <tr><td><b>5. Read the report</b></td><td>The nearest exchange in each direction, the evidence for it, and a plain statement of what was <i>not</i> read.</td></tr>
+</table>
+
+<p>Nothing about this requires a technical background. The address is typed in,
+the report comes out, and every claim in the report says where it came from.</p>
+
+<figure>
+  <img src="figures/useage.png" alt="The investigation workflow, end to end">
+  <figcaption><b>The same five steps, drawn.</b> Steps 1–4 and 6 are what the
+  platform does today; the branch controls in step 5 (pause, exclude, pin) and the
+  JSON/CSV exports are planned — the shipped report formats are HTML and PDF.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/form.png" alt="Starting a new investigation">
+  <figcaption><b>Starting an investigation.</b> One address, two direction
+  checkboxes, four budget numbers. The line underneath is a live estimate — it
+  says how much work the chosen depth implies and which budget will stop the run
+  first, before it is started rather than after it has ended.</figcaption>
+</figure>
+
+<h3>3. The four kinds of evidence — the most important page here</h3>
+
+<p>The single most dangerous thing an investigation tool can do is present a guess
+in the same voice as a fact. This system is built so that cannot happen. Every
+statement it makes carries one of exactly <b>four labels</b>, and they are never
+mixed.</p>
+
+<table>
+  <tr><th style="width:26%">Kind</th><th>Means</th><th style="width:24%">Can it name a company?</th></tr>
+  <tr><td><b>On-chain fact</b></td><td>This transaction happened. Verifiable by anyone against the public ledger, using the reference given.</td><td><span class="tag no">no</span> the chain has no names</td></tr>
+  <tr><td><b>Engine observation</b></td><td>A statement about this run itself — what was examined, where it stopped, what it never looked at.</td><td><span class="tag no">no</span></td></tr>
+  <tr><td><b>Heuristic inference</b></td><td>This address <i>behaves like</i> an exchange — it collects from hundreds and pays out to hundreds. A lead worth pursuing.</td><td><span class="tag no">no</span> behaviour is not identity</td></tr>
+  <tr><td><b>Third-party claim</b></td><td>Somebody outside this system published that this address belongs to a named company.</td><td><span class="tag done">yes</span> and only this</td></tr>
+</table>
+
+<div class="ok">
+<p><b>Only a third-party claim may put a company's name in a report.</b> The
+system cannot invent a name, cannot infer one from behaviour, and cannot be
+persuaded to. If a report says "Binance", it is because Binance published that
+address themselves, or a licensed data provider did — and the report names the
+source and its publication date.</p>
+</div>
+
+<p>The practical consequence matters more than the principle. An address can be
+plainly custodial — collecting from 308 senders and paying out to 383 — and the
+report will still decline to name it, because behaving like an exchange is not
+evidence of <i>being a particular</i> exchange. It appears as a lead. The
+difference between a lead and a respondent is the difference between an enquiry
+and an accusation.</p>
+
+<h2 class="newpage">Part two — Operating guide</h2>
+
+<h3>4. Depth, budgets, and what they cost</h3>
+
+<p>Six numbers control a run. Every figure below is measured from real traces in
+this system's own database.</p>
+
+<h4>One line each</h4>
+
+<table>
+  <tr><th style="width:22%">Setting</th><th class="num" style="width:8%">Min</th><th class="num" style="width:8%">Max</th><th class="num" style="width:9%">Default</th><th>What it means</th></tr>
+  <tr><td><code>max_depth</code></td><td class="num">1</td><td class="num">none</td><td class="num">6</td><td><b>How many hops away from your address to follow.</b> The one that matters most.</td></tr>
+  <tr><td><code>api_calls</code></td><td class="num">1</td><td class="num">none</td><td class="num">100</td><td><b>How many addresses to open.</b> One unit = one address, not one network request.</td></tr>
+  <tr><td><code>max_nodes</code></td><td class="num">1</td><td class="num">none</td><td class="num">500</td><td><b>How many addresses to hold</b> in the trace.</td></tr>
+  <tr><td><code>seconds</code></td><td class="num">&gt;0</td><td class="num">none</td><td class="num">300</td><td><b>How long to run</b> before stopping.</td></tr>
+  <tr><td><code>max_extensions</code></td><td class="num">0</td><td class="num">none</td><td class="num">8</td><td><b>How many times the system may raise its own budget</b> when the question is still unanswered. Zero means never.</td></tr>
+  <tr><td><code>pursue_until_answered</code></td><td class="num">—</td><td class="num">—</td><td class="num">on</td><td><b>Keep going when the money runs out but the answer has not arrived.</b> Turn off for a fixed, predictable spend.</td></tr>
+</table>
+
+<p><b>There is no upper limit on any of them.</b> The system checks only that they
+are positive. <code>max_depth: 40</code> is accepted — it simply never finishes.
+The limits that matter are arithmetic, not policy, and they are below.</p>
+
+<h4>What depth actually means</h4>
+
+<pre>depth 0    the address you typed
+depth 1    everyone who paid it, and everyone it paid
+depth 2    everyone who paid them
+depth 3    …and so on outward</pre>
+
+<p>Depth is the setting people get wrong, because it does not behave like a dial.
+This is the real shape of a Tron trace from this system's database, counted per
+hop:</p>
+
+<table style="width:70%">
+  <tr><th class="num">Hop</th><th class="num">Addresses found</th><th>Growth</th></tr>
+  <tr><td class="num">0</td><td class="num">1</td><td>—</td></tr>
+  <tr><td class="num">1</td><td class="num">20</td><td>×20</td></tr>
+  <tr><td class="num">2</td><td class="num">153</td><td>×7.7</td></tr>
+  <tr><td class="num">3</td><td class="num">1,732</td><td>×11.3</td></tr>
+  <tr><td class="num">4</td><td class="num"><b>12,737</b></td><td>×7.4</td></tr>
+</table>
+
+<p><b>Every hop multiplies the work by roughly eight to eleven times.</b> That one
+fact governs everything else on this page.</p>
+
+<h4>How deep it is realistic to go</h4>
+
+<p>Reaching depth <i>N</i> means opening every address found at every hop before
+it. The same trace measured <b>1,462 addresses opened in 2,872 seconds — about
+1,800 per hour</b>, on a free provider key with the fallback tiers behind it.
+From those two measurements:</p>
+
+<table>
+  <tr><th class="num">Reach depth</th><th class="num">Addresses to open</th><th>At ~1,800/hour</th><th>Verdict</th></tr>
+  <tr><td class="num">4</td><td class="num">1,906</td><td>~1 hour</td><td>measured — this is the trace above</td></tr>
+  <tr><td class="num">5</td><td class="num">~14,600</td><td><b>~8 hours</b></td><td>the practical ceiling on one machine</td></tr>
+  <tr><td class="num">6</td><td class="num">~129,000</td><td>~3 days</td><td>possible, rarely worth it</td></tr>
+  <tr><td class="num">7</td><td class="num">~1,200,000</td><td>~4 weeks</td><td>not realistic without a cluster</td></tr>
+</table>
+
+<div class="warn">
+<p><b>Depth buys reach, not names.</b> The depth-4 trace above covered 14,643
+addresses across 176,294 transactions and identified <b>zero</b> new companies.
+On that network the limit is the identification data, not the search — see
+section 7. Raise depth when a trace stops too early; do not raise it hoping a
+name appears.</p>
+</div>
+
+<h4>What "raised automatically" does</h4>
+
+<p>When a budget runs out and the question is still unanswered, the system grants
+itself more and continues — up to <code>max_extensions</code> times. This is on
+by default, which means <b>the number entered is a starting point, not a
+ceiling</b>. A real run from this database asked for very little and spent six
+times as much:</p>
+
+<pre>asked for   api_calls 25    max_nodes 500     max_depth 3   seconds 300
+spent       api_calls 150   nodes 1,901       hop 3         seconds 260
+
+extensions  api_calls  25 → 50 → 75 → 100 → 125 → 150
+            max_nodes  500 → 1000 → 1500 → 2000
+            8 of 8 used, objective still unanswered</pre>
+
+<p>Read the last line. It spent every extension it was allowed and <b>still did
+not answer</b>, because <code>max_depth: 3</code> was the real constraint — and
+depth is the one budget that never raises itself. All eight extensions went on
+searching more thoroughly at the same shallow depth.</p>
+
+<div class="ok">
+<p><b>The most common mistake, in one sentence:</b> leaving <code>max_depth</code>
+low. If a direction is not answering, raise depth first. Raising anything else
+buys a more thorough search of ground already covered.</p>
+</div>
+
+<h4>Suggested starting points</h4>
+
+<table>
+  <tr><th>Intent</th><th class="num">max_depth</th><th class="num">api_calls</th><th class="num">max_nodes</th><th class="num">seconds</th></tr>
+  <tr><td>A quick look</td><td class="num">3</td><td class="num">50</td><td class="num">500</td><td class="num">300</td></tr>
+  <tr><td>A normal case</td><td class="num">5</td><td class="num">500</td><td class="num">5,000</td><td class="num">1,800</td></tr>
+  <tr><td>Exhaust the question</td><td class="num">8</td><td class="num">5,000</td><td class="num">100,000</td><td class="num">7,200</td></tr>
+</table>
+
+<p>Nothing is lost by stopping early. A run that hits a budget finishes as
+<b>partial</b>, records exactly which branches it did not read, and can be
+resumed later with a larger budget — it does not start over.</p>
+
+<h3>5. Reading the outputs</h3>
+
+<figure>
+  <img src="figures/graph.png" alt="The investigation graph">
+  <figcaption><b>The graph.</b> Money flowed left to right: what came in is on the
+  left, what went out on the right, with the subject in the middle. Colour carries
+  the evidence kind — a confirmed company, a suspected one worth checking, an
+  obfuscation pattern, or an unattributed address. Nothing is placed by guesswork;
+  every node sits at its true hop distance.</figcaption>
+</figure>
+
+<figure>
+  <img src="figures/report.png" alt="A generated report">
+  <figcaption><b>The report.</b> Findings first, then the evidence behind each one
+  grouped by kind — on-chain facts with transaction references anyone can check,
+  then inferences with the rule that produced them. The note visible here is the
+  system declining to name a plainly custodial address: "this address is a lead,
+  not a respondent."</figcaption>
+</figure>
+
+<p>Three outputs, from the same underlying record:</p>
+
+<ul>
+  <li><b>The graph</b> — the shape of the money movement, live as it builds.</li>
+  <li><b>The findings list</b> — every conclusion, grouped by address, each expandable to its evidence.</li>
+  <li><b>The report</b> — HTML or PDF, the whole case in one document, including a coverage section stating what was not read.</li>
+</ul>
+
+<div class="q">
+<p><b>The line to read first in any report is the coverage statement.</b> "Coverage
+is INCOMPLETE" does not mean the run failed. It means some branch was cut short
+by a budget, and the report says which — so a gap is never mistaken for an
+absence of evidence.</p>
+</div>
+
+<h3>6. Where the data comes from</h3>
+
+<p>Two entirely separate pipelines. Confusing them is the source of most
+misunderstanding about what the system can and cannot do.</p>
+
+<table>
+  <tr><th style="width:26%"></th><th>Movement data</th><th>Identity data</th></tr>
+  <tr><td><b>Answers</b></td><td>who paid whom, how much, when</td><td>who owns this address</td></tr>
+  <tr><td><b>Source</b></td><td>blockchain APIs, live, per investigation</td><td>published lists, batch, out of band</td></tr>
+  <tr><td><b>Limit</b></td><td>time and provider quota — never the data</td><td><b>whether anybody published it at all</b></td></tr>
+  <tr><td><b>Held in</b></td><td>the case record for that investigation</td><td>a shared label store, {{labels_total}} entries</td></tr>
+</table>
+
+<p>The first pipeline can follow money indefinitely. The second is the ceiling.</p>
+
+<h3>7. What it cannot do</h3>
+
+<p>Stated here rather than discovered later. A tool that hides its limits is more
+dangerous than one that has them.</p>
+
+<h4>The naming ceiling</h4>
+
+<p>The system can only name a company it has a published, sourced label for.
+Measured coverage today:</p>
+
+<table>
+  <tr><th>Network</th><th class="num">Labels</th><th class="num">Company labels</th><th class="num">Companies it can name</th></tr>
+  <tr><td>Ethereum</td>{{row_ethereum}}</tr>
+  <tr><td><b>Tron</b></td>{{row_tron}}</tr>
+  <tr><td>Bitcoin</td>{{row_bitcoin}}</tr>
+  <tr><td>Polygon</td>{{row_polygon}}</tr>
+  <tr><td>Solana</td>{{row_solana}}</tr>
+</table>
+
+<div class="warn">
+<p><b>On Tron, exactly one exchange can be identified.</b> Not because the search
+is weak, but because only one exchange has published a Tron address list that can
+be verified. This is the single most important limitation in this document.</p>
+</div>
+
+<p><b>Why so few.</b> Naming an address requires the operator's own address list.
+One exchange publishes a cryptographically signed one. Several others publish a
+different kind of disclosure — a mathematical proof that they hold the funds,
+containing <i>no addresses at all</i>, so there is nothing to label. Two publish
+address lists but block automated download, which is why the system has a
+supported path for a person to supply the file by hand.</p>
+
+<p><b>Why community lists are refused.</b> Large public lists of exchange
+addresses exist, are free, and are deliberately not used. An entry reading
+<code>Binance (successor wallet 0xATTACKER)</code> would reduce to "binance",
+match against genuine Binance data, and become a citable label attributing an
+attacker's wallet to a real company. A review of this system demonstrated exactly
+that happening. Untrusted sources are stored but arrive inactive, and can never
+name anything on their own.</p>
+
+<h4>What "no named endpoint" means</h4>
+
+<div class="ok">
+<p>It means the trace <b>succeeded</b> and reached an address nobody has published
+identification for. It does not mean the money went nowhere. The report always
+distinguishes the two, and a run that ended on a budget says so separately again.</p>
+</div>
+
+<h4>Other honest limits</h4>
+
+<ul>
+  <li><b>An address is not a person.</b> The system identifies the company holding the account. Getting from there to a named individual requires a legal request to that company — which is outside this system by design.</li>
+  <li><b>Reserve addresses are not deposit addresses.</b> A published proof-of-reserves list names wallets holding company funds. It answers "these funds reached this company" well, and "this is the wallet a customer deposits into" less well.</li>
+  <li><b>One page per address, per pass.</b> A very busy address is read in part on the first pass; the report records the gap rather than hiding it.</li>
+  <li><b>Mixers break the chain.</b> Where a service deliberately severs the link between input and output, the system says so and reports how much confidence survives, rather than pretending to follow through.</li>
+</ul>
+
+<h2 class="newpage">Part three — Technical reference</h2>
+
+<h3>8. Architecture</h3>
+
+<figure>
+  <img src="figures/architecture.png" alt="System architecture">
+  <figcaption><b>The layers.</b> A request enters at the API, the engine drives
+  traversal, chain adapters normalise each ledger's dialect, and the provider pool
+  handles the outside world. Attribution arrives from a separate store that the
+  harvester keeps current.</figcaption>
+</figure>
+
+<p>{{files}} Python modules, {{loc}} lines, in eleven packages. Each has one job
+and a stated boundary:</p>
+
+<table>
+  <tr><th style="width:15%">Package</th><th class="num" style="width:8%">Files</th><th class="num" style="width:9%">Lines</th><th>Responsibility</th></tr>
+  <tr><td><code>core</code></td><td class="num">{{pkg_core_files}}</td><td class="num">{{pkg_core_loc}}</td><td>Domain models and the frozen evidence taxonomy. Everything else depends on this; it depends on nothing.</td></tr>
+  <tr><td><code>chains</code></td><td class="num">{{pkg_chains_files}}</td><td class="num">{{pkg_chains_loc}}</td><td>One adapter per ledger family. Turns each chain's dialect into one canonical movement model.</td></tr>
+  <tr><td><code>providers</code></td><td class="num">{{pkg_providers_files}}</td><td class="num">{{pkg_providers_loc}}</td><td>The outside world: eight clients, priority failover, rate limits, circuit breaker, cache.</td></tr>
+  <tr><td><code>investigation</code></td><td class="num">{{pkg_investigation_files}}</td><td class="num">{{pkg_investigation_loc}}</td><td>The traversal engine, budgets, terminators and answer selection.</td></tr>
+  <tr><td><code>analysis</code></td><td class="num">{{pkg_analysis_files}}</td><td class="num">{{pkg_analysis_loc}}</td><td>Mixers, sweep and obfuscation heuristics, clustering, sanctions, asset verification.</td></tr>
+  <tr><td><code>intel</code></td><td class="num">{{pkg_intel_files}}</td><td class="num">{{pkg_intel_loc}}</td><td>The label lifecycle and the policy deciding what may ever name an operator.</td></tr>
+  <tr><td><code>harvest</code></td><td class="num">{{pkg_harvest_files}}</td><td class="num">{{pkg_harvest_loc}}</td><td>The daily refresh: sources, parsers, the drop path, the run record.</td></tr>
+  <tr><td><code>graph</code></td><td class="num">{{pkg_graph_files}}</td><td class="num">{{pkg_graph_loc}}</td><td>Graph shaping for the UI — node selection under a display cap.</td></tr>
+  <tr><td><code>reporting</code></td><td class="num">{{pkg_reporting_files}}</td><td class="num">{{pkg_reporting_loc}}</td><td>The report model, HTML rendering and PDF printing.</td></tr>
+  <tr><td><code>storage</code></td><td class="num">{{pkg_storage_files}}</td><td class="num">{{pkg_storage_loc}}</td><td>Fifteen tables, repositories, and the checkpointing that makes a run resumable.</td></tr>
+  <tr><td><code>api</code></td><td class="num">{{pkg_api_files}}</td><td class="num">{{pkg_api_loc}}</td><td>HTTP surface, API-key authentication with two scopes, and the bundled interface.</td></tr>
+</table>
+
+<p><b>Dependencies point one way.</b> <code>core</code> knows nothing about
+storage or HTTP; the engine knows nothing about which explorer answered. A chain
+adapter can be added without touching the engine, and a provider without touching
+the adapter.</p>
+
+<h3>9. Chain adapters</h3>
+
+<p>Four adapters cover five networks. Each answers the same two questions —
+<i>does this address belong to my chain</i>, and <i>what is its transaction
+history</i> — and each hides a different dialect behind that.</p>
+
+<table>
+  <tr><th style="width:16%">Adapter</th><th style="width:20%">Networks</th><th>What it has to reconcile</th></tr>
+  <tr><td><code>evm</code></td><td>Ethereum, Polygon</td><td>Three separate acquisition feeds — native transfers, token transfers, contract-delivered internal value. Losing one is recorded per address, because "the token feed was unavailable here" reads very differently from "this address was read in part".</td></tr>
+  <tr><td><code>tron</code></td><td>Tron</td><td>Base58 addresses with no <code>0x</code> prefix, a different transaction-id format, and four separate record types in one feed.</td></tr>
+  <tr><td><code>bitcoin</code></td><td>Bitcoin</td><td>A UTXO ledger with no accounts: inputs and outputs rather than senders and receivers, and both legacy and bech32 address forms.</td></tr>
+  <tr><td><code>solana</code></td><td>Solana</td><td>Bare base58 with no distinguishing prefix or length, which is why it is recognised only through its own adapter and never by pattern-matching elsewhere.</td></tr>
+</table>
+
+<p>Every adapter returns the same <code>HistoryPage</code>: normalised movements,
+a cursor, a truncation flag, and an explicit list of any feed that failed. That
+last field is what lets the report say <i>which</i> feed was lost rather than
+just that something was.</p>
+
+<h3>10. The provider pool</h3>
+
+<p>Eight clients behind one interface, ordered by priority. Lower number wins;
+the pool falls through only when the one above fails or has spent its quota.</p>
+
+<table>
+  <tr><th class="num" style="width:12%">Priority</th><th style="width:26%">Tier</th><th>Providers</th></tr>
+  <tr><td class="num">1–20</td><td>Keyed APIs</td><td>Etherscan, then an RPC pool — dRPC, Ankr, Infura, Alchemy, QuickNode, Chainstack — plus mempool.space for Bitcoin and Solana RPC.</td></tr>
+  <tr><td class="num">10</td><td>Keyed, keyless-capable</td><td>TronGrid. Works without a key; a free key only raises the rate limit.</td></tr>
+  <tr><td class="num">90</td><td>Keyless API</td><td>Blockscout. EVM only, no key, always registered.</td></tr>
+  <tr><td class="num">95</td><td><b>Public explorer pages</b></td><td>Read at crawl speed, half a request per second, Ethereum and Tron. The floor under the pool.</td></tr>
+</table>
+
+<p><b>The last tier exists so that running out of quota slows a trace down instead
+of ending it.</b> It reads only a site whose <code>robots.txt</code> permits it
+and whose pages are served complete rather than assembled by script. Sites that
+answer a challenge, require a bot check, or serve an empty shell are recorded as
+dead ends and not tried again — working around any of them would mean
+impersonating a browser, which is the boundary this project holds throughout.</p>
+
+<p>In front of every provider: a token-bucket rate limiter, jittered exponential
+backoff, a circuit breaker that fails over immediately rather than retrying a
+provider already known to be down, and a response cache.</p>
+
+<h3>11. The traversal engine</h3>
+
+<p>The engine holds a <b>frontier</b> — every address discovered but not yet
+opened — in the database rather than in memory. That single decision is what makes
+a run resumable: a process killed mid-trace loses nothing, and resuming re-enters
+the loop in the same claim order rather than starting again.</p>
+
+<h4>The loop</h4>
+
+<pre>claim the next address from the frontier
+  → read one page of its history        (charges 1 api_call)
+  → normalise into movements            (charges the transaction count)
+  → derive counterparties
+  → each counterparty becomes a node    (charges 1 max_node)
+  → record any finding this address produced
+  → repeat until a budget or a terminator stops it</pre>
+
+<h4>Terminators — the four ways a branch ends</h4>
+
+<table>
+  <tr><th style="width:24%">Terminator</th><th>Meaning</th></tr>
+  <tr><td><b>Named endpoint</b></td><td>The branch reached an address with a sourced label. The question is answered for that direction.</td></tr>
+  <tr><td><b>Mixer</b></td><td>A service that deliberately severs the link between input and output. The engine says so and reports how much confidence survives a crossing rather than pretending to follow through.</td></tr>
+  <tr><td><b>Depth horizon</b></td><td>The branch hit <code>max_depth</code>. Recorded as a coverage gap, never as an ending.</td></tr>
+  <tr><td><b>Supernode</b></td><td>An address with more counterparties than a threshold — following all of them would flood the frontier with a crowd. A capped subset is followed and the number skipped is recorded.</td></tr>
+</table>
+
+<h4>Budgets and pursuit</h4>
+
+<p>Three budgets extend themselves when an objective is unanswered:
+<code>api_calls</code>, <code>seconds</code>, <code>max_nodes</code>.
+<b><code>max_depth</code> never does</b>, because each hop is an order-of-magnitude
+commitment and granting one silently could turn a five-minute run into a
+three-day one. Prior spending is carried across a resume, so a crash-and-resume
+cycle cannot be used to obtain a fresh allowance.</p>
+
+<h4>Answer selection</h4>
+
+<p>Two questions are answered separately and never quietly merged: the
+<b>nearest</b> endpoint reached, and the <b>nearest named</b> endpoint. A run
+routinely answers those differently — the closest thing found may be an
+unattributed address that behaves custodially, while the closest thing that can
+be <i>named</i> is three hops further out. Reporting only one of them would hide
+the more useful half.</p>
+
+<h3>12. Analysis</h3>
+
+<p>Everything in this package produces <i>inferences</i>, and every one of them is
+stamped as such. None may name an operator.</p>
+
+<table>
+  <tr><th style="width:20%">Component</th><th>What it detects, and the honest caveat</th></tr>
+  <tr><td><b>Mixers</b></td><td>Interaction with a verified mixing service, plus an exit ladder that proposes where funds may have re-emerged. Candidates are marked <i>speculative</i> on the graph and carry their basis; they are leads, never conclusions.</td></tr>
+  <tr><td><b>Sweeps</b></td><td>The collect-and-forward pattern typical of exchange deposit handling. Behavioural — it says an address <i>acts</i> custodial, never whose it is.</td></tr>
+  <tr><td><b>Obfuscation</b></td><td>Peel chains, rapid fan-out and layering. Recorded as a pattern with the rule that produced it, so a reader can disagree with the rule rather than with an unexplained flag.</td></tr>
+  <tr><td><b>Clustering</b></td><td>Common-spend heuristics grouping addresses under one likely controller. <b>UTXO-only</b> — it applies to Bitcoin and is meaningless on account-based chains, which the module states rather than silently returning nothing.</td></tr>
+  <tr><td><b>Sanctions</b></td><td>Matches against the published designation list. A sanctioned address is recorded and the trace <i>continues through it</i>, because sanctions are a fact about the party, not the end of the money's journey.</td></tr>
+  <tr><td><b>Assets</b></td><td>Verifies that a token movement involves a known asset contract. Movements of unverified assets are excluded from evidence and the exclusion is logged — an unverified token can be minted by anyone and would otherwise inflate an apparent flow.</td></tr>
+  <tr><td><b>Bridges</b></td><td>Detects a crossing between chains against an operator-supplied contract pack. Without a pack the registry is empty and no bridge findings are emitted, rather than guessed.</td></tr>
+</table>
+
+<h3>13. Intelligence and the label lifecycle</h3>
+
+<p>A label is a claim that an address belongs to a named party. This package
+decides which claims may ever become citable.</p>
+
+<h4>Three methods arrive active</h4>
+
+<table>
+  <tr><th style="width:24%">Method</th><th>Meaning</th><th class="num" style="width:14%">In store</th></tr>
+  <tr><td><code>signature</code></td><td>The operator signed a message with the key. The strongest tier, because it survives the operator disappearing — anyone can re-verify it.</td><td class="num">{{m_signature}}</td></tr>
+  <tr><td><code>first_party_published</code></td><td>The operator published the list themselves, and the claim points at where.</td><td class="num">{{m_published}}</td></tr>
+  <tr><td><code>licensed_dataset</code></td><td>A vendor under licence published it.</td><td class="num">{{m_licensed}}</td></tr>
+</table>
+
+<p>Anything else arrives <b>pending</b>: stored, auditable, and unable to name
+anything until an independent trusted source agrees. Promotion requires a
+<i>different</i> active source of a trusted method — pending agreeing with pending
+is not verification.</p>
+
+<h4>Claim identity, and why it is three fields</h4>
+
+<p>A claim is keyed on <code>(chain, address, source)</code>. That is load-bearing:
+if a source could file under another source's name, one publisher could record the
+same address twice under two names and satisfy its own corroboration requirement.
+A source must never be able to manufacture its own corroborator, and the
+identity key is what enforces it.</p>
+
+<h4>Demotion</h4>
+
+<p>Activation is not permanent. A label whose basis stops holding — its document
+changed, its method was downgraded, or the source that corroborated it retired —
+is demoted back to pending. Without that edge, a promotion would be a stamp that
+could never be withdrawn.</p>
+
+<h3>14. Harvesting</h3>
+
+<p>One cycle per day, as a process that starts, refreshes every source, re-settles
+the lifecycle, and exits. Deliberately <b>not</b> a resident loop and not a thread
+inside the API — either arrangement would make "restart the service" and "skip a
+refresh" the same action, and running inside a multi-worker API would run the
+cycle once per worker.</p>
+
+<table>
+  <tr><th style="width:26%">Source</th><th style="width:20%">Transport</th><th>Measured reason</th></tr>
+  <tr><td>Sanctions list</td><td><span class="tag done">automatic</span></td><td>~28 MB, a few minutes. The long pole of the cycle, and the one where a missed run is a false negative rather than thinner coverage.</td></tr>
+  <tr><td>Coinbase reserves</td><td><span class="tag done">automatic</span></td><td>Crawl rules permit it and the page is served complete.</td></tr>
+  <tr><td>Binance reserves</td><td><span class="tag part">manual drop</span></td><td>The page answers with an empty body behind a bot check.</td></tr>
+  <tr><td>OKX reserves</td><td><span class="tag part">manual drop</span></td><td>The page is assembled by script; the download link returns markup, not data.</td></tr>
+</table>
+
+<p><b>The drop path is not a degraded mode.</b> The file is still the operator's
+own publication, it still declares its own date, and its claims pass through the
+same policy and the same lifecycle. What a person supplies is the transport, not
+the trust.</p>
+
+<figure>
+  <img src="figures/sync.png" alt="The label sync panel">
+  <figcaption><b>The sync panel.</b> Four states — running, idle, stalled, never
+  run — with each source's publication date and age. A source nobody has ever
+  supplied reads <i>awaiting first drop</i> in grey rather than red: two of them
+  can never supply themselves, and a panel that is red every morning is one nobody
+  reads on the morning something genuinely breaks. A drop that was working and then
+  vanished <i>does</i> turn red.</figcaption>
+</figure>
+
+<p>Each cycle records itself, which is how a process that exits can still answer
+"is the data being kept current?". Success is deliberately not inferred from the
+label table: a cycle in which every source failed touches no label, so the newest
+timestamp would still read as yesterday's healthy run and silence would render as
+success.</p>
+
+<h3>15. Storage</h3>
+
+<p>PostgreSQL, fifteen tables, eight migrations. Three groups:</p>
+
+<table>
+  <tr><th style="width:22%">Group</th><th style="width:32%">Tables</th><th>Purpose</th></tr>
+  <tr><td><b>Chain data</b></td><td><code>addresses</code> <code>transactions</code> <code>movements</code> <code>assets</code> <code>provider_cache</code></td><td>Normalised ledger data, shared across investigations so a second case over the same addresses costs nothing to re-read.</td></tr>
+  <tr><td><b>Case record</b></td><td><code>investigations</code> <code>nodes</code> <code>edges</code> <code>findings</code> <code>evidence</code></td><td>One case. <code>nodes</code> carries the frontier state, which is what makes a run resumable rather than restartable.</td></tr>
+  <tr><td><b>Intelligence</b></td><td><code>labels</code> <code>label_events</code> <code>vasp_metadata</code> <code>harvest_runs</code> <code>api_keys</code></td><td>Attribution, its append-only audit trail, operator filing details, the refresh log, and authentication.</td></tr>
+</table>
+
+<p><code>label_events</code> is append-only and never cascades on delete. Labels
+retire; they are not deleted — and a cascade would let removing a label silently
+remove its history, which is the one thing an audit table exists to prevent.</p>
+
+<h3>16. The API</h3>
+
+<table>
+  <tr><th style="width:8%">Method</th><th style="width:34%">Path</th><th style="width:14%">Scope</th><th>Purpose</th></tr>
+  <tr><td>GET</td><td><code>/healthz</code></td><td>open</td><td>Liveness only. Reveals nothing about any case.</td></tr>
+  <tr><td>POST</td><td><code>/investigations</code></td><td>investigate</td><td>Start a trace. Detects the chain from the address.</td></tr>
+  <tr><td>GET</td><td><code>/investigations/{id}</code></td><td>read</td><td>Status, budgets, and what has been spent.</td></tr>
+  <tr><td>GET</td><td><code>/investigations/{id}/findings</code></td><td>read</td><td>Findings, answers, and the coverage statement.</td></tr>
+  <tr><td>GET</td><td><code>/investigations/{id}/graph</code></td><td>read</td><td>Nodes and edges for display, under a node cap.</td></tr>
+  <tr><td>GET</td><td><code>/investigations/{id}/report</code></td><td>read</td><td>The full report as HTML or PDF.</td></tr>
+  <tr><td>POST</td><td><code>/investigations/{id}/resume</code></td><td>investigate</td><td>Re-enter the loop on a run that stopped on a budget.</td></tr>
+  <tr><td>GET</td><td><code>/harvest/status</code></td><td>read</td><td>Whether the label store is being kept current.</td></tr>
+  <tr><td>POST</td><td><code>/harvest/run</code></td><td>investigate</td><td>Start a refresh now, as a separate process.</td></tr>
+</table>
+
+<p><b>Two scopes, deliberately not hierarchical.</b> <code>read</code> does not
+imply <code>investigate</code> and <code>investigate</code> does not imply
+<code>read</code>. Starting a trace is the expensive operation — provider quota,
+minutes of work, rows written — so a read-only key held by a reviewing analyst
+cannot start one. Authentication is <b>on by default</b>; a caller wanting the
+routes open has to say so explicitly, and there is no way to end up unauthenticated
+by omission.</p>
+
+<h3>17. Reporting</h3>
+
+<p>One report model, two renderings. The HTML is the record; the PDF is the same
+document printed through headless Chromium at A4, which the page rules pin
+explicitly — a report that reflows between the machine that made it and the one
+that received it is a document nobody can cite a page of.</p>
+
+<p>The printer refuses to leave a truncated or zero-byte file behind. A failed
+render produces no file at all, so a broken print can never be mistaken for a
+finished report.</p>
+
+<h3>18. Testing and quality</h3>
+
+<table>
+  <tr><th style="width:34%">Measure</th><th>Value</th></tr>
+  <tr><td>Tests passing</td><td><b>1,189</b>, zero skipped</td></tr>
+  <tr><td>Test files / lines</td><td>{{test_files}} files, {{test_loc}} lines</td></tr>
+  <tr><td>Test-to-source ratio</td><td>{{test_ratio}} lines of test per line of source</td></tr>
+  <tr><td>Static analysis</td><td>ruff and mypy clean across all {{files}} modules</td></tr>
+  <tr><td>Database tests</td><td>run against a real PostgreSQL container, not a mock</td></tr>
+</table>
+
+<p>The tests are written against <i>behaviour that would be wrong</i> rather than
+against implementation. Their names state the rule: a source nobody ever supplied
+is not a failure; a drop that worked and then vanished is; a fetchable source is
+never merely awaiting a drop. A test suite that only confirms the code does what
+it does is a suite that cannot fail usefully.</p>
+
+<h3>19. Running it</h3>
+
+<pre>./start.sh                    # checks tools, installs dependencies, starts everything
+
+# or the backend alone
+cd backend &amp;&amp; ./scripts/demo.sh
+
+# refresh the label store
+DATABASE_URL=... ./scripts/harvest.sh
+
+# daily, on a server
+sudo systemctl enable --now cipherchain-harvest.timer</pre>
+
+<p>Requirements: Python 3.12 or newer, Node for the dashboard, and Docker for
+PostgreSQL. Chain access works with no keys at all through the keyless tiers; a
+free provider key raises the rate limits.</p>
+
+<div class="warn">
+<p><b>One deployment note.</b> The demo launcher mints a key and embeds it in the
+served page so the bundled interface works without a login. That is correct for
+local use and the code says so at startup — but it means anything able to load
+that page holds a working key. A deployment reachable from a network must mint
+keys properly and must not use the demo launcher.</p>
+</div>
+
+<p class="foot">
+Built {{built}} from commit {{commit}} · {{loc}} lines across {{files}} modules ·
+{{labels_total}} attribution labels · every figure measured at build time.
+</p>
