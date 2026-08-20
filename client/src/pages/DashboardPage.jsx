@@ -20,7 +20,6 @@ const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [showSearch, setShowSearch] = useState(false);
 
   const fetchEndpoint = async (chain, type, query) => {
     const url = `${API_BASE}/${chain}/${type}/${encodeURIComponent(query)}`;
@@ -122,15 +121,23 @@ const DashboardPage = () => {
 
           {!result && !isLoading && (
             <div className="w-full">
-              {showSearch && (
-                <div className="mx-auto mb-4 w-full max-w-3xl">
-                  <SearchBar onSearch={handleSearch} isLoading={isLoading} selectedChain={selectedChain} compact />
-                </div>
-              )}
-              <FundFlowHero onWalletIntelligence={() => setShowSearch((s) => !s)} />
+              <div className="mx-auto mb-4 w-full max-w-3xl">
+                <SearchBar onSearch={handleSearch} isLoading={isLoading} selectedChain={selectedChain} compact />
+              </div>
+              {/* The CTA hands off to the investigation backend rather than
+                  toggling the bar above it. Two different jobs: this page does
+                  a serverless point lookup, the backend runs a trace for
+                  minutes against a database. */}
+              <FundFlowHero
+                onWalletIntelligence={() =>
+                  window.open(INVESTIGATE_URL, '_blank', 'noopener,noreferrer')
+                }
+              />
               <p className="mt-4 text-center text-sm text-vaultrix-textMuted">
-                Open Wallet Intelligence to trace an address — the graph and full technical details
-                appear here.
+                Search above for a single address, transaction or block — the graph and full
+                technical details appear here. <span className="text-vaultrix-cyan">Wallet
+                Intelligence</span> opens the investigation engine, which traces an address to the
+                nearest exchange with evidence.
               </p>
             </div>
           )}
