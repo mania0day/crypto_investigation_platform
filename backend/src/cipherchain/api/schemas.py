@@ -339,6 +339,23 @@ class FindingsResponse(BaseModel):
     coverage: CoverageOut
 
 
+class UnverifiedTagOut(BaseModel):
+    """A name an explorer puts on an address — a LEAD, never evidence.
+
+    Carried on the node rather than in ``findings``/``evidence`` deliberately.
+    The evidence taxonomy is frozen at four kinds and every one of them is
+    citable; a name that nothing verified must not be able to enter that
+    channel at all, so it travels on a field the report's citation machinery
+    does not read. ``source`` and ``confidence`` ship with it so the UI can
+    show *who* says this and how little weight it carries, rather than
+    presenting a bare name that looks like an attribution.
+    """
+
+    entity: str
+    source: str
+    confidence: float
+
+
 class GraphNodeOut(BaseModel):
     """One traversal node, as the graph view needs it.
 
@@ -372,9 +389,15 @@ class GraphNodeOut(BaseModel):
     # with twenty and no mark on it — the same overclaim as omitting
     # ``history_truncated``.
     counterparties_dropped: int | None = None
+    # Names nothing verified. Populated only for addresses whose operator our
+    # own heuristic could not name, and never consulted when deciding the
+    # answer — see intel.leads for why that separation is the whole design.
+    unverified_tags: list[UnverifiedTagOut] = []
 
     @classmethod
-    def of(cls, node: GraphNode) -> GraphNodeOut:
+    def of(
+        cls, node: GraphNode, unverified_tags: list[UnverifiedTagOut] | None = None
+    ) -> GraphNodeOut:
         return cls(
             id=node.id,
             chain=node.chain,
@@ -389,6 +412,7 @@ class GraphNodeOut(BaseModel):
             speculative=node.speculative,
             speculative_basis=node.speculative_basis,
             counterparties_dropped=node.counterparties_dropped,
+            unverified_tags=unverified_tags or [],
         )
 
 

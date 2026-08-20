@@ -60,6 +60,7 @@ from cipherchain.api.schemas import (
     StartInvestigationRequest,
     StartInvestigationResponse,
     SyncStatusResponse,
+    UnverifiedTagOut,
 )
 from cipherchain.chains.base import ChainRegistry
 from cipherchain.core.config import Settings, get_settings
@@ -69,6 +70,7 @@ from cipherchain.core.models import Address
 from cipherchain.harvest.runs import CycleAlreadyRunning, start_cycle, sync_status
 from cipherchain.harvest.scheduler import DEFAULT_DROP_DIR
 from cipherchain.intel.attributor_source import build_store_attributor
+from cipherchain.intel.leads import SUPPORTED_CHAINS, enrich_investigation
 from cipherchain.investigation.answers import RankedFinding, select_answers
 from cipherchain.investigation.budgets import Budgets
 from cipherchain.investigation.engine import InvestigationEngine
@@ -86,9 +88,25 @@ from cipherchain.reporting import (
 from cipherchain.runtime import build_chain_registry, build_engine, build_provider_pool
 from cipherchain.storage.db import create_engine, create_session_factory
 from cipherchain.storage.provider_cache import PostgresProviderCache
-from cipherchain.storage.repositories import FactRepository, InvestigationRepository
+from cipherchain.storage.repositories import (
+    FactRepository,
+    InvestigationRepository,
+    LabelRepository,
+)
 
 logger = logging.getLogger(__name__)
+
+# Investigations with a lead lookup in flight, mapped to the task running it.
+# In-process and deliberately so: this guards politeness toward a third-party
+# API, not the correctness of any record, and a second worker doing one extra
+# pass costs 22 requests rather than a wrong answer. A durable lock would be a
+# lifecycle to maintain for no invariant it protects.
+#
+# Holding the Task — not just the id — is load-bearing: the event loop keeps
+# only a weak reference to a bare create_task, so a fire-and-forget lookup can
+# be garbage-collected mid-flight and simply stop, leaving no names and no
+# error (ruff RUF006).
+_leads_in_flight: dict[uuid.UUID, asyncio.Task[None]] = {}
 
 RunLauncher = Callable[[uuid.UUID], Awaitable[None]]
 
@@ -507,13 +525,33 @@ def create_app(
             edges = await investigations.graph_edges(
                 investigation_id, node_ids=[n.id for n in nodes]
             )
+            # One extra indexed read, scoped to the nodes actually being
+            # drawn — not the whole label table, and not per node. Pending
+            # rows only: this is the lead channel, and the query that feeds
+            # the attributor is a different one that cannot see these.
+            leads = await LabelRepository(session).pending_labels_for(
+                root.chain if root else "", [n.address for n in nodes]
+            )
         policy = _asset_policy()
         return GraphResponse(
             investigation_id=investigation_id,
             status=row.status,
             chain=root.chain if root else "",
             root_address=root.value if root else "",
-            nodes=[GraphNodeOut.of(n) for n in nodes],
+            nodes=[
+                GraphNodeOut.of(
+                    n,
+                    [
+                        UnverifiedTagOut(
+                            entity=lead.entity,
+                            source=lead.source,
+                            confidence=lead.confidence,
+                        )
+                        for lead in leads.get(n.address, ())
+                    ],
+                )
+                for n in nodes
+            ],
             edges=[
                 GraphEdgeOut.of(
                     e,
@@ -536,6 +574,73 @@ def create_app(
             # pins were the only thing that fit.
             truncated=total > len(nodes),
         )
+
+    @app.post(
+        "/investigations/{investigation_id}/leads",
+        status_code=202,
+        dependencies=[investigator],
+    )
+    async def fetch_leads(investigation_id: uuid.UUID) -> dict[str, object]:
+        """Ask a public explorer to NAME the endpoints behaviour identified.
+
+        What this buys: on a Tron trace the walk can prove an address is
+        exchange infrastructure and still name nobody, because one exchange
+        publishes a signed Tron address list. This fills in names an explorer
+        already shows — and files every one of them ``pending``, so they appear
+        as leads on the graph and can never become the report's answer.
+
+        INVESTIGATE, not READ, for the same reason as ``/harvest/run``: it
+        spends outbound requests against a third party and writes label rows.
+
+        202 because the lookups are deliberately serialised and spaced — a free
+        public API asked politely takes about a second per address. The names
+        land on the graph, which the dashboard already polls.
+
+        409 while a pass is already in flight for this investigation. Two
+        concurrent passes would double the request rate against the explorer
+        for no extra names.
+        """
+        async with session_factory() as session:
+            investigations = InvestigationRepository(session)
+            if await investigations.get(investigation_id) is None:
+                raise HTTPException(status_code=404, detail="investigation not found")
+            candidates = await investigations.unnamed_service_endpoints(investigation_id)
+        if investigation_id in _leads_in_flight:
+            raise HTTPException(
+                status_code=409, detail="a lead lookup is already running for this investigation"
+            )
+        supported = [a for chain, a in candidates if chain in SUPPORTED_CHAINS]
+        skipped = sorted({chain for chain, _ in candidates if chain not in SUPPORTED_CHAINS})
+        if not supported:
+            # Not an error, and stated rather than returned as a silent zero:
+            # "no explorer reader for this chain" and "the explorer knew
+            # nobody" are different answers and must not look alike.
+            return {
+                "started": False,
+                "candidates": 0,
+                "unsupported_chains": skipped,
+                "detail": "no endpoint on a chain with an explorer reader",
+            }
+
+        async def _run_leads() -> None:
+            try:
+                async with httpx.AsyncClient(timeout=25) as http:
+                    await enrich_investigation(
+                        investigation_id, session_factory=session_factory, http=http
+                    )
+            except Exception:  # pragma: no cover - defensive
+                # A lead lookup that fails leaves the investigation exactly as
+                # it was. It must never mark the run failed.
+                logger.exception("lead lookup for %s failed", investigation_id)
+            finally:
+                _leads_in_flight.pop(investigation_id, None)
+
+        _leads_in_flight[investigation_id] = asyncio.create_task(_run_leads())
+        return {
+            "started": True,
+            "candidates": len(supported),
+            "unsupported_chains": skipped,
+        }
 
     @app.get(
         "/investigations/{investigation_id}/report",

@@ -978,6 +978,41 @@ class InvestigationRepository:
             for f, addr in finding_rows
         ]
 
+    async def unnamed_service_endpoints(self, investigation_id: uuid.UUID) -> list[tuple[str, str]]:
+        """(chain, address) for every VASP endpoint this run could not NAME.
+
+        Structural, not prose-based: an endpoint is "unnamed" when no ACTIVE
+        label exists for its (chain, address), which is exactly the condition
+        under which the engine filed a behavioural finding instead of a sourced
+        one. Matching the heuristic's summary text would work today and break
+        the day someone rewords it — ``engine.is_speculative_finding`` is
+        already flagged in this file as that kind of stopgap.
+
+        This is the worklist for explorer-tag enrichment, and its size is the
+        reason enrichment is affordable: on a 1,849-node trace it returned 22.
+        """
+        active_label = (
+            select(literal(1))
+            .where(
+                LabelRow.chain == AddressRow.chain,
+                LabelRow.address == AddressRow.address,
+                LabelRow.status == "active",
+            )
+            .correlate(AddressRow)
+            .exists()
+        )
+        rows = await self._session.execute(
+            select(AddressRow.chain, AddressRow.address)
+            .join(FindingRow, FindingRow.subject_address_id == AddressRow.id)
+            .where(
+                FindingRow.investigation_id == investigation_id,
+                FindingRow.kind == str(FindingKind.VASP_ENDPOINT),
+                ~active_label,
+            )
+            .distinct()
+        )
+        return [(chain, address) for chain, address in rows.all()]
+
     async def vasp_findings_with_hops(self, investigation_id: uuid.UUID) -> list[VaspFindingOnNode]:
         """VASP findings paired with the traversal facts of the node they were filed against.
 
@@ -1580,6 +1615,43 @@ class LabelRepository:
         """
         result = await self._session.execute(select(func.max(LabelEventRow.id)))
         return int(result.scalar() or 0)
+
+    async def pending_labels_for(
+        self, chain: str, addresses: Sequence[str]
+    ) -> dict[str, list[StoredLabel]]:
+        """Pending claims about these addresses, keyed by address.
+
+        The read side of the unverified-lead channel. Kept separate from
+        :meth:`active_labels` on purpose and used by nothing that attributes:
+        the attributor loads active rows and only active rows, so a name that
+        arrives here can be SHOWN to an investigator without ever becoming a
+        thing the engine can cite, rank, or answer an objective with.
+
+        Empty input returns an empty mapping rather than scanning the table —
+        a graph page with no suspected endpoints must not read 75,000 rows.
+        """
+        wanted = list(dict.fromkeys(addresses))
+        if not wanted:
+            return {}
+        rows = (
+            (
+                await self._session.execute(
+                    select(LabelRow)
+                    .where(
+                        LabelRow.chain == chain,
+                        LabelRow.address.in_(wanted),
+                        LabelRow.status == "pending",
+                    )
+                    .order_by(LabelRow.confidence.desc(), LabelRow.source.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        grouped: dict[str, list[StoredLabel]] = {}
+        for row in rows:
+            grouped.setdefault(row.address, []).append(_stored_label(row))
+        return grouped
 
     async def pending_labels(self) -> list[StoredLabel]:
         """The corroboration bot's worklist, oldest claim first."""

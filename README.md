@@ -32,6 +32,7 @@ Every conclusion carries the evidence it rests on. Every gap in coverage is stat
 | [Architecture](#architecture) · [Repository layout](#repository-layout) | how it is built |
 | [How data is gathered](#how-data-is-gathered) | providers, and how the label database updates |
 | [**Adding a VASP**](#3-adding-a-vasp-yourself) | **found one? here is how to file it** |
+| [Explorer leads](#4--naming-what-behaviour-found-explorer-leads) | naming what behaviour found, without calling it evidence |
 | [**Limitations**](#limitations-read-this) | **the data ceiling — read this** |
 | [**Complete report (PDF)**](docs/CipherChain-complete-report.pdf) | **17 pages — plain introduction, operating guide, technical reference** |
 | [Testing](#testing) · [Licence](#licence) | the rest |
@@ -457,6 +458,7 @@ All routes except `/healthz` require `Authorization: Bearer <key>`.
 | `GET` | `/investigations/{id}/findings` | `read` | Every finding with its evidence, plus the selected answers. |
 | `GET` | `/investigations/{id}/graph` | `read` | The traversal graph. Takes `?limit=` and `?per_level=`. Readable **while the run is going**. |
 | `GET` | `/investigations/{id}/report` | `read` | The report. `?format=html\|pdf`. |
+| `POST` | `/investigations/{id}/leads` | `investigate` | Ask a public explorer to **name** the endpoints this run could not. Returns 202; names arrive as unverified leads on the graph. |
 | `POST` | `/investigations/{id}/resume` | `investigate` | Continue a `partial` run on fresh budgets. |
 | `GET` | `/` | — | The bundled single-file UI. |
 
@@ -684,6 +686,52 @@ row in `add_vasp.py`'s `DROP_SOURCES`, and its drops are read by the same cycle 
 lifecycle. Bitget is the obvious next one — it is this store's largest Ethereum operator at 19,027
 labels and has **zero** on Tron.
 
+### 4 · Naming what behaviour found: explorer leads
+
+A drop is the only way to gain a *citable* name. But there is a cheaper thing worth having, and it
+is not the same thing.
+
+On a real Tron trace (1,849 nodes) the engine correctly identified **22 addresses as exchange
+infrastructure** and could name **none** of them — including one a single hop from the root. The
+report's nearest *named* endpoint sat two hops beyond its nearest *reached* one. A public block
+explorer knew three of those names.
+
+**Find names** on the graph toolbar (`POST /investigations/{id}/leads`) asks for them:
+
+```
+22 candidate(s), 22 examined, 3 named
+  TEPSrSYPDS… -> MXC        TU4vEruvZw… -> Bybit        TWBPGLwQw2… -> WhiteBIT
+```
+
+What arrives is the weakest thing the store accepts, and the weakness is structural rather than
+promised:
+
+| | |
+|---|---|
+| Method | `community` — so it arrives **`pending`**, by the same rule as any other untrusted claim |
+| Reaches the attributor | **No.** `active_labels()` is its only load, and pending rows are not in it |
+| Can answer an objective | **No** |
+| Can be cited as evidence | **No** — it is not a `Finding` and not an `Evidence` |
+| Where it appears | on the graph node, as a dashed amber `⚑` chip, counted in the caption line |
+
+The report's answer does not move. On that trace it still reads *nearest previous VASP: OKX, 2 hops*
+— while the card one hop away now also says `⚑ Bybit`, marked unverified. An investigator gains
+somewhere to send a subpoena; the document gains nothing it cannot support.
+
+Three constraints keep it honest:
+
+- **The explorer never decides *what* something is.** Only addresses the engine's own
+  service-endpoint heuristic already called custodial are looked up, which is what justifies filing
+  them as `vasp` — the category is ours, from behaviour; the explorer supplies the name alone.
+- **A name that is not a plain name is refused.** `Binance (successor wallet 0xATTACKER)` is
+  rejected at claim construction, before it can stem to "binance" — the same rule that keeps
+  community lists out.
+- **Failure is soft.** Lookups are serialised, spaced and capped; an explorer that is down costs
+  leads, never the investigation.
+
+Supported today: Tron. A second chain needs a reader in `intel/explorer_tags.py` — `SUPPORTED_CHAINS`
+is derived from that registry, so a chain cannot be declared supported without one.
+
 ---
 
 ## Limitations (read this)
@@ -716,6 +764,12 @@ carried a label.
 Tripling the node count and adding a whole hop of depth bought **zero** new named operators. More
 compute does not fix this. Only more label data does — see
 [Adding a VASP yourself](#3-adding-a-vasp-yourself).
+
+**Explorer leads narrow the gap; they do not close it.** `Find names` can put *Bybit* on a card the
+report still calls "operator unnamed", and that is deliberate: an explorer tag is nobody's
+signature. It tells an investigator where to send a subpoena. It is not a fact the report will
+assert, and it never will be without a trusted source agreeing — see
+[explorer leads](#4--naming-what-behaviour-found-explorer-leads).
 
 <details>
 <summary><b>Why Tron coverage is hard, specifically</b></summary>

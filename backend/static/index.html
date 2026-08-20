@@ -411,6 +411,20 @@
     font-family: ui-monospace, Menlo, monospace; font-size: 8.5px; letter-spacing: .12em;
     padding: 1px 5px; border-radius: 3px; border: 1px solid currentColor; opacity: .85;
   }
+  /* An explorer's name for an address, carrying no verification. DASHED, never
+     solid: solid borders in this view mean a sourced claim, and the one thing
+     this chip must never do is read like the green "labeled 'vasp'" caption it
+     sits next to. Amber, not green, for the same reason. */
+  .gnode .gmeta .glead {
+    color: #fcd34d; font-weight: 700; font-size: 8.5px; letter-spacing: .08em;
+    padding: 1px 5px; border-radius: 3px; border: 1px dashed currentColor;
+    /* flex:none because the NAME is what this chip exists to show. Left
+       shrinkable it lost exactly that — the flag survived and "WhiteBIT" was
+       squeezed to nothing inside a 210px card, which is a chip that says an
+       explorer knows something and refuses to say what. */
+    flex: none; max-width: 96px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   /* Edge labels are placed by collision search, never by the midpoint alone —
      see placeEdgeLabels(). Nothing here may overlap a card or another label. */
@@ -546,6 +560,7 @@
       <button id="gIn" class="ghost">+</button>
       <span class="stat mono" id="gZoom">100%</span>
       <button id="gExpand" class="ghost">Expand frontier</button>
+      <button id="gLeads" class="ghost" title="Ask a public block explorer what it calls the endpoints this trace could not name. Results are unverified leads, never evidence.">Find names</button>
       <button id="gFull" class="ghost">Full screen</button>
       <button id="gMin" class="ghost" aria-expanded="true" aria-controls="stageWrap">Minimize</button>
       <span class="graphnote" id="gNote"></span>
@@ -1509,6 +1524,7 @@ function renderGraph(graph, findings) {
   // node cards
   let truncatedCount = 0;
   let speculativeCount = 0;
+  let leadCount = 0;
   for (const p of placed.values()) {
     const n = p.node;
     const group = n.bundle ? [] : (byAddress.get(n.address) || []);
@@ -1544,7 +1560,15 @@ function renderGraph(graph, findings) {
     body.appendChild(el("div", "gcap", meta.caption));
 
     const metaRow = el("div", "gmeta");
-    metaRow.appendChild(el("span", null, n.hop === 0 ? "root" : "hop " + n.hop));
+    // Measured, not guessed: the body is 210px minus padding, gap, dot and
+    // borders = ~163px, and "hop 2" + "CHECK · 75%" + "⚑ WhiteBIT" wants ~185.
+    // Something has to go, and "hop N" is the only item on the card that the
+    // column header directly above it already states in full — so it is what
+    // yields, rather than the name or the confidence.
+    const leadsHere = n.bundle ? [] : (n.unverified_tags || []);
+    if (!leadsHere.length) {
+      metaRow.appendChild(el("span", null, n.hop === 0 ? "root" : "hop " + n.hop));
+    }
     if (meta.role) {
       const chip = el("span", "grole", meta.role);
       chip.style.color = tone.color;
@@ -1555,8 +1579,27 @@ function renderGraph(graph, findings) {
     // width — that is how "SEEMS VASP — UNCONFI…" happened. This row does not
     // truncate, and "speculative" already implies "inferred", so it replaces it
     // rather than crowding the row with both.
+    // A name nothing verified. Shown because "operator unnamed" when a public
+    // explorer says "Bybit" is a lead withheld, not caution — but shown in the
+    // meta row with a dashed amber chip and never in the caption, because the
+    // caption is what the report's answer echoes.
+    const leads = leadsHere;
+    if (leads.length) {
+      leadCount++;
+      const lead = leads[0];
+      const chip = el("span", "glead", "\u2691 " + lead.entity);
+      chip.title = "hop " + n.hop + "\n"
+        + leads.map(l => l.entity + " — " + l.source).join("\n")
+        + "\n\nUnverified: no signature and no first-party publication behind"
+        + " this name. It is a lead to check, not evidence, and it is not used"
+        + " to answer the investigation.";
+      metaRow.appendChild(chip);
+    }
     if (speculative) { speculativeCount++; metaRow.appendChild(el("span", "gspec", "speculative")); }
-    else if (meta.inferred) metaRow.appendChild(el("span", null, "inferred"));
+    // Same reasoning as "speculative" above: at 210px the row cannot hold a
+    // hop, a confidence, a name and a qualifier, and "inferred" is the one
+    // already said twice — by the dashed border and by the legend.
+    else if (meta.inferred && !leads.length) metaRow.appendChild(el("span", null, "inferred"));
     // Ranked zero means every movement that reached this node was in an asset
     // whose provenance is unverified, so it could not influence exploration
     // order. Saying so beats printing a "0" that reads like no money moved.
@@ -1648,6 +1691,14 @@ function renderGraph(graph, findings) {
     notes.push(speculativeCount + " address(es) were reached by following a speculative "
       + "branch and are drawn dashed — leads, not traced hops");
   }
+  // Counted and named, because a chip somebody has to hover is not a
+  // disclosure. The wording states the limit twice — unverified, and not used
+  // to answer — since this is the one thing on the canvas that looks like an
+  // attribution and is not one.
+  if (leadCount) {
+    notes.push(leadCount + " address(es) carry an explorer name (⚑) that nothing "
+      + "verified — leads to check, not used to answer the investigation");
+  }
   const note = $("gNote");
   clear(note);
   if (notes.length) {
@@ -1655,10 +1706,10 @@ function renderGraph(graph, findings) {
     note.appendChild(el("span", null, notes.join(" · ")));
   }
 
-  renderLegend(placed, byAddress, drawable);
+  renderLegend(placed, byAddress, drawable, leadCount);
 }
 
-function renderLegend(placed, byAddress, drawable) {
+function renderLegend(placed, byAddress, drawable, leadCount) {
   const host = $("gLegend");
   clear(host);
   const seen = new Set();
@@ -1680,6 +1731,9 @@ function renderLegend(placed, byAddress, drawable) {
     ["dashed border", "claim rests on inference only (no sourced label)"],
     ["⋯", "history truncated — read in part"],
   ];
+  if (leadCount) {
+    styleNotes.push(["⚑", "name from a public explorer — unverified, never cited as evidence"]);
+  }
   if (drawable.some(d => !d.row.asset_verified && !d.bridge)) {
     styleNotes.push(["⚠", "amount in an unverified asset"]);
   }
@@ -2136,6 +2190,50 @@ $("gFit").addEventListener("click", fitGraph);
 $("dlPdf").addEventListener("click", downloadReportPdf);
 $("gIn").addEventListener("click", () => { userZoomed = true; setZoom(graphZoom * 1.25); });
 $("gOut").addEventListener("click", () => { userZoomed = true; setZoom(graphZoom / 1.25); });
+// Deliberately a button and not something the trace does on its own. It sends
+// this investigation's unnamed endpoints to a third party, which is a
+// disclosure decision an investigator makes, not a default. It is also why the
+// hint says what will be fetched before anything is.
+$("gLeads").addEventListener("click", async () => {
+  if (!currentInvestigationId) return;
+  const btn = $("gLeads"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "looking\u2026";
+  try {
+    const res = await api("/investigations/" + currentInvestigationId + "/leads",
+      { method: "POST" });
+    if (!res.started) {
+      setGraphNote("No endpoint on a chain this build can look up"
+        + (res.unsupported_chains && res.unsupported_chains.length
+           ? " (" + res.unsupported_chains.join(", ") + ")" : "") + ".");
+      return;
+    }
+    setGraphNote("Looking up " + res.candidates + " address(es) — about a second "
+      + "each, so the names appear as they land.");
+    // Poll the graph rather than the job: the names ARE the result, and the
+    // graph read is the one that shows them. Bounded, because a lookup that
+    // finds nothing must stop the spinner instead of polling forever.
+    for (let i = 0; i < 12; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      await refresh(currentInvestigationId, runToken).catch(() => {});
+    }
+  } catch (e) {
+    setGraphNote(e.message.includes("already running")
+      ? "A lookup is already running for this investigation."
+      : "Could not look up names: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+});
+
+// One place that writes the graph's note line, so a transient message and the
+// renderer's own notes cannot fight over the same element.
+function setGraphNote(text) {
+  const note = $("gNote");
+  clear(note);
+  note.appendChild(el("b", null, "\u2691 "));
+  note.appendChild(el("span", null, text));
+}
+
 $("gExpand").addEventListener("click", () => {
   expandFrontier = !expandFrontier;
   $("gExpand").textContent = expandFrontier ? "Fold frontier" : "Expand frontier";
