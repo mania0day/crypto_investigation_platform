@@ -597,6 +597,20 @@
   .mbalance .bsrc { font-size: 10px; color: var(--muted); margin-top: 2px; }
   .mbalance .bstale { color: var(--warn); }
   .mbalance .bnone { font-size: 11px; color: var(--muted); }
+  .vaspform {
+    margin: 0 0 12px; padding: 10px 12px; border: 1px dashed var(--line-strong);
+    border-radius: 6px; background: rgba(0,0,0,.18);
+  }
+  .vasprow { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .vasprow input {
+    flex: 1; min-width: 190px; background: rgba(0,0,0,.28); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px;
+    font: 12px ui-monospace, Menlo, monospace;
+  }
+  .vasprow .ghost { margin-top: 0; width: auto; padding: 6px 14px; }
+  #vaspStatus.pending { color: var(--warn); }
+  #vaspStatus.err { color: var(--bad); }
+  #vaspStatus.ok { color: var(--ok); }
   .mtabs { display: flex; gap: 4px; margin: 12px 0 8px; border-bottom: 1px solid var(--line); }
   .mtab {
     font: inherit; font-size: 12px; letter-spacing: .04em; padding: 6px 12px; cursor: pointer;
@@ -729,8 +743,25 @@
     <h2>Label sync
       <button id="syncToggle" class="ghost" style="float:right;font-size:12px;padding:3px 10px">hide</button>
       <button id="syncNow" class="ghost" style="float:right;font-size:12px;padding:3px 10px;margin-right:8px">Sync now</button>
+      <button id="vaspToggle" class="ghost" style="float:right;font-size:12px;padding:3px 10px;margin-right:8px">Submit a VASP</button>
     </h2>
     <div id="syncBody">
+      <div class="vaspform hidden" id="vaspForm">
+        <div class="hint">
+          Know an address an exchange controls? File it here. It is stored as a
+          <b>pending</b> claim — visible and corroborable, but it cannot name an endpoint in any
+          investigation until a trusted source agrees with it.
+        </div>
+        <div class="vasprow">
+          <input id="vaspAddress" placeholder="Address — chain detected automatically"
+                 spellcheck="false" autocomplete="off">
+          <input id="vaspEntity" placeholder="Who runs it, e.g. Binance" maxlength="64"
+                 spellcheck="false" autocomplete="off">
+          <button class="ghost" id="vaspSubmit">Submit</button>
+        </div>
+        <div id="vaspChainPick" class="examples hidden"></div>
+        <div class="hint" id="vaspStatus"></div>
+      </div>
       <div class="syncwrap">
         <span class="syncdot sd-never_run" id="syncDot"></span>
         <span class="badge" id="syncBadge">&hellip;</span>
@@ -2810,6 +2841,71 @@ function renderCostHint() {
 ["depth", "calls", "nodes", "seconds"].forEach(id =>
   $(id).addEventListener("input", renderCostHint));
 renderCostHint();
+
+// ── Submit a VASP, from the sync panel ──────────────────────────────────────
+// The same lifecycle the manual explorer's tag form and the explorer-lead
+// lookup use: method "community", so it arrives PENDING. This form exists
+// because the sync panel is where an operator is already looking at label
+// coverage — noticing a gap and filing against it should not require finding
+// the address on a graph first.
+$("vaspToggle").addEventListener("click", () => {
+  const form = $("vaspForm");
+  const hidden = form.classList.toggle("hidden");
+  $("vaspToggle").textContent = hidden ? "Submit a VASP" : "Close";
+  if (!hidden) $("vaspAddress").focus();
+});
+
+function vaspSay(cls, text) {
+  const el = $("vaspStatus");
+  el.className = "hint" + (cls ? " " + cls : "");
+  el.textContent = text;
+}
+
+async function submitVaspFromPanel(chain) {
+  const address = $("vaspAddress").value.trim();
+  const entity = $("vaspEntity").value.trim();
+  if (!address) { vaspSay("err", "Enter the address."); return; }
+  if (!entity) { vaspSay("err", "Enter who runs it."); return; }
+  const btn = $("vaspSubmit");
+  btn.disabled = true;
+  $("vaspChainPick").classList.add("hidden");
+  vaspSay("", "Filing…");
+  try {
+    const body = { entity: entity };
+    if (chain) body.chain = chain;   // omitted: the route detects it
+    const res = await api("/addresses/" + encodeURIComponent(address) + "/label", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    vaspSay("pending",
+      "Filed “" + res.entity + "” on " + res.chain + " — " + res.status + ". It is visible now, "
+      + "and becomes citable only once a trusted source corroborates it.");
+    $("vaspAddress").value = ""; $("vaspEntity").value = "";
+    pollSync();   // the label count moves
+  } catch (e) {
+    // The chain detector reports ambiguity as an answer, not a failure: an
+    // 0x… address is valid on several EVM chains and only the caller knows
+    // which one they meant.
+    const d = e.detail;
+    if (d && d.reason === "ambiguous" && d.candidates && d.candidates.length) {
+      vaspSay("", d.message || "Which chain is this address on?");
+      const host = $("vaspChainPick"); clear(host);
+      for (const c of d.candidates) {
+        const b = el("button", null, c);
+        b.addEventListener("click", () => submitVaspFromPanel(c));
+        host.appendChild(b);
+      }
+      host.classList.remove("hidden");
+      return;
+    }
+    vaspSay("err", "Could not file it: " + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+$("vaspSubmit").addEventListener("click", () => submitVaspFromPanel());
+$("vaspEntity").addEventListener("keydown", (e) => { if (e.key === "Enter") submitVaspFromPanel(); });
 
 // ── Label sync panel ────────────────────────────────────────────────────────
 // Polls /harvest/status on a slow timer. Slow on purpose: the thing it watches

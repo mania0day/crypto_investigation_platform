@@ -185,7 +185,10 @@ class ManualLabelRequest(BaseModel):
     cannot make an address read as a confirmed VASP by itself, on purpose.
     """
 
-    chain: str
+    #: Optional: omit it and the route detects the chain from the address
+    #: format, exactly as /expand does. Supply it only to disambiguate a
+    #: format several chains share (any two EVM chains).
+    chain: str | None = None
     entity: str = Field(min_length=1, max_length=64)
     # Matches storage/tables.py's ``category_values`` CHECK constraint —
     # kept as a real, separate list here (not imported) because this is the

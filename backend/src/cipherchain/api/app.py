@@ -733,8 +733,13 @@ def create_app(
         (LabelRepository.upsert_claim keys on (chain, address, source)).
         """
         _check_expand_rate_limit(key.key_id)  # same budget: both hit chain/DB per call
+        # `chain` is optional so a caller with only an address in hand (the
+        # Label sync panel's submit form) does not have to know the answer.
+        # Same resolver, and therefore the same 422 {reason: "ambiguous",
+        # candidates: [...]} the manual explorer already knows how to offer.
+        resolved_chain = body.chain or await _resolve_chain(resolve().registry, address)
         claim = IntelClaim(
-            chain=body.chain,
+            chain=resolved_chain,
             address=address,
             entity=body.entity,
             category=body.category,
@@ -749,7 +754,7 @@ def create_app(
             outcome = await IntelService(session).ingest(claim)
             await session.commit()
         return ManualLabelResponse(
-            chain=body.chain,
+            chain=resolved_chain,
             address=address,
             entity=body.entity,
             status=arrival_status(MANUAL_TAG_METHOD),

@@ -79,6 +79,28 @@ read.
 the claim's date and age printed beside it. The other direction says **"No operator can be named"**
 rather than offering the nearest guess, and the behavioural leads are boxed off as inferences.</sub>
 
+### The same question, two ways
+
+Both start from one wallet and end at the same distinction — an address the platform can **name**,
+and one it can only **describe**. The difference is who decides where to go.
+
+<table>
+<tr>
+<td width="50%" valign="top"><b>The engine decides</b><br>
+<img src="images/story-automated.gif" alt="Automated: search, trace, then read the endpoints" width="100%"></td>
+<td width="50%" valign="top"><b>You decide</b><br>
+<img src="images/story-manual.gif" alt="Manual: search, expand, then read the endpoints" width="100%"></td>
+</tr>
+<tr>
+<td valign="top"><sub>Search a wallet, the trace builds itself out of the root, then zoom in: a
+<b>DEPTH HORIZON</b> card carrying only <code>⚑ Binance-Hot</code>, an unverified explorer lead —
+beside <code>✓ OKX labeled 'vasp'</code>, which is sourced and citable.</sub></td>
+<td valign="top"><sub>Same wallet, opened by hand. Zoom to an address nothing has named, then to
+<code>⚑ Bybit — unverified</code> and <code>⚑ MXC — unverified</code>, and open the panel to see
+which tier each name came from and why.</sub></td>
+</tr>
+</table>
+
 ### Everything it does, in one table
 
 | | Feature | Where |
