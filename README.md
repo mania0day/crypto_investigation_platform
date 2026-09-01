@@ -2,7 +2,9 @@
 
 # Crypto Investigation Platform
 
-**Autonomous blockchain investigation — traces funds to the nearest exchange, and shows its working.**
+**Blockchain investigation that traces funds to the nearest exchange, and shows its working.**
+
+Two ways to work: let the engine run the trace on its own, or drive it yourself one address at a time.
 
 You give it one address. It walks the money backward to where the funds came from and forward to where
 they went, across hops, through mixers and obfuscation patterns, until it reaches a **VASP** — a
@@ -14,7 +16,7 @@ Every conclusion carries the evidence it rests on. Every gap in coverage is stat
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688.svg)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-1167%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-1228%20passing-brightgreen.svg)](#testing)
 [![mypy](https://img.shields.io/badge/mypy-strict-2a6db2.svg)](https://mypy-lang.org/)
 
 </div>
@@ -28,10 +30,11 @@ Every conclusion carries the evidence it rests on. Every gap in coverage is stat
 | [What it does](#what-it-does) · [Why it is different](#why-it-is-different) | the idea |
 | [Quick start](#quick-start) · [Configuration](#configuration) | getting it running |
 | [Usage manual](#usage-manual-a-to-z) | A to Z, every screen and every flag |
+| [Manual exploration](#manual-exploration) | drive the trace yourself, one node at a time |
 | [API reference](#api-reference) | every endpoint |
 | [Architecture](#architecture) · [Repository layout](#repository-layout) | how it is built |
 | [How data is gathered](#how-data-is-gathered) | providers, and how the label database updates |
-| [**Adding a VASP**](#3-adding-a-vasp-yourself) | **found one? here is how to file it** |
+| [**Adding a VASP**](#3--adding-a-vasp-yourself) | **found one? here is how to file it** |
 | [Explorer leads](#4--naming-what-behaviour-found-explorer-leads) | naming what behaviour found, without calling it evidence |
 | [**Limitations**](#limitations-read-this) | **the data ceiling — read this** |
 | [**Complete report (PDF)**](docs/CipherChain-complete-report.pdf) | **17 pages — plain introduction, operating guide, technical reference** |
@@ -343,7 +346,7 @@ itself. All eight extensions were spent exploring *wider at the same shallow dep
 
 Nothing is lost by stopping early. A run that hits a budget finishes as `partial`, records exactly
 which branches it did not read, and can be resumed later with a larger budget — it does not start
-over. See [F · Resuming a run](#f-resuming-a-run).
+over. See [F · Resuming a run](#f--resuming-a-run).
 
 ### C · Reading the graph
 
@@ -445,6 +448,68 @@ are reported.
 
 ---
 
+## Manual exploration
+
+The engine decides for itself where to go. Sometimes you want to decide instead — follow one
+counterparty because you recognise it, ignore the other twenty, and stop when you have what you came
+for. The **Manual** tab is that: the same chain data, opened one address at a time by hand.
+
+<div align="center"><img src="images/manual-graph.png" alt="The manual explorer" width="960"></div>
+
+Flow reads left to right: money **in** on the left, the address you started from in the centre, money
+**out** on the right. Positions are fixed — a node never drifts, and expanding something on one side
+does not shuffle what you were already reading. Pan by dragging the plane, zoom with `−` / `+` / `Fit`.
+
+### The panel
+
+Click any node to open it.
+
+<div align="center"><img src="images/manual-panel.png" alt="The address panel" width="960"></div>
+
+Top to bottom, and in that order because it is an order of confidence:
+
+| Block | What it is |
+|---|---|
+| **What this address is** | Green = an active, sourced label. Amber = either the system's own read (`SEEMS VASP · N%`) or a public explorer's name (`⚑ Bybit — unverified`). The two ambers are never mixed with the green. |
+| **Balance** | Live, never cached, with the USD conversion showing its price source and age — `@ $0.3256/TRX · coingecko-simple-price · just now`. Staked TRX is listed separately from spendable. |
+| **Tag as a VASP** | Your own name for the address. Files as `pending`, exactly like an explorer tag — see [Adding a VASP](#3--adding-a-vasp-yourself). |
+| **Related Address / Transfer** | The data behind the picture. |
+
+### Related Address, and Transfer
+
+**Related Address** is who this address dealt with, folded to one row each. Tick the rows worth
+following and **Add selected** puts only those on the canvas — on an address with 200 counterparties,
+that is the difference between a readable graph and a wall.
+
+**Transfer** is the same history unfolded — every movement, with its date, amount and a transaction
+hash that links out to a block explorer so any row can be checked.
+
+<div align="center"><img src="images/manual-transfers.png" alt="The transfer list" width="960"></div>
+
+Both tabs read one page of history at a time and say so. **Load data** reads further back and appends;
+the count line moves with it (`25 of 65 read so far — bounded for legibility, not coverage`).
+
+### Marking, and pruning to what you marked
+
+Four marks — Watching, Suspicious, On the trail, Cleared — plus free-text notes. **Marked only** then
+hides everything else, so a trace of two hundred nodes collapses to the six you cared about. Nothing
+is deleted; one more click brings it all back.
+
+> **Marks and notes live in your browser** (`localStorage`), not on the server. They are yours, they
+> do not reach a report, and they do not survive clearing site data.
+
+### What it deliberately does not do
+
+Manual exploration is **unpersisted**: no investigation record, no findings, no evidence, no report.
+It spends no engine budget and runs no heuristics on your behalf — except one. The `SEEMS VASP · N%`
+mark applies the *same* thresholds and confidence curve the autonomous engine uses
+(`analysis/heuristics/service.py`), so the two can never drift apart. It is computed from the history
+read **so far**, which is why it can say "not a service endpoint on what has been read" and change
+its mind after `Load data`. It identifies a **role**, never an identity — naming an operator still
+needs a sourced label.
+
+---
+
 ## API reference
 
 All routes except `/healthz` require `Authorization: Bearer <key>`.
@@ -460,7 +525,24 @@ All routes except `/healthz` require `Authorization: Bearer <key>`.
 | `GET` | `/investigations/{id}/report` | `read` | The report. `?format=html\|pdf`. |
 | `POST` | `/investigations/{id}/leads` | `investigate` | Ask a public explorer to **name** the endpoints this run could not. Returns 202; names arrive as unverified leads on the graph. |
 | `POST` | `/investigations/{id}/resume` | `investigate` | Continue a `partial` run on fresh budgets. |
-| `GET` | `/` | — | The bundled single-file UI. |
+| `POST` | `/harvest/run` | `investigate` | Start one label-harvest cycle. 202 immediately; 409 if one is already running. |
+| `GET` | `/harvest/status` | `read` | What the Label sync panel reads — per-source outcomes and label counts. |
+| `GET` | `/` | — | The bundled UI. |
+
+**Manual exploration** — the routes behind the [Manual tab](#manual-exploration). None of them creates
+an investigation, spends engine budget, or writes a finding.
+
+| Method | Route | Scope | Purpose |
+|---|---|---|---|
+| `GET` | `/addresses/{address}/expand` | `investigate` | One hop of counterparties from a single history page. `?chain=` `?limit=` (default 25, clamped 1–100) `?cursor=`. Also returns `service_endpoint` — the degree measured, and whether it cleared the VASP thresholds. |
+| `GET` | `/addresses/{address}/transfers` | `investigate` | The individual movements behind those counterparties. `?limit=` (default 50, clamped 1–200) `?cursor=`. |
+| `GET` | `/addresses/{address}/balance` | `investigate` | Live holdings plus USD. Keeps `unavailable` (could not read) and `price_unavailable` (read it, could not price it) strictly apart — a balance is **never** reported as `"0"` because nobody could read it. |
+| `POST` | `/addresses/leads` | `investigate` | Ask a public explorer to name 1–12 addresses at once. Tron only today; other chains answer `unsupported_chain`. |
+| `POST` | `/addresses/{address}/label` | `investigate` | File your own name for an address. Arrives `pending`, never `active`. |
+
+> These five share **one budget of 30 calls per key per rolling minute** (HTTP 429 past it). They each
+> make a live chain-API call, and they sit outside `Budgets`, which only governs a started
+> investigation — so this limit is the only ceiling on them.
 
 Interactive docs at `/docs`.
 
@@ -499,8 +581,10 @@ crypto_investigation_platform/
 │   │   │   └── clients/           etherscan, evmrpc, blockscout, trongrid,
 │   │   │                          mempoolspace, solanarpc, explorer_fetch
 │   │   ├── investigation/       the engine: frontier, budgets, objectives, answers
+│   │   │                        + manual_expand.py — one-hop lookup, outside the engine loop
 │   │   ├── analysis/            heuristics, mixers, clustering, sanctions, attribution
 │   │   ├── intel/               attribution policy — what may become a citable label
+│   │   │                        + prices.py — USD quotes (a market claim, not attribution)
 │   │   ├── harvest/             daily label harvest: OFAC SDN, proof-of-reserves
 │   │   ├── reporting/           the report model, HTML and PDF rendering
 │   │   ├── storage/             SQLAlchemy tables and repositories
@@ -508,8 +592,8 @@ crypto_investigation_platform/
 │   │   └── core/                canonical model, config, evidence taxonomy
 │   ├── migrations/              Alembic
 │   ├── scripts/                 demo.sh, harvest.sh, label import, key management
-│   ├── static/index.html        the bundled single-file UI
-│   └── tests/                   1167 tests
+│   ├── static/index.html        the bundled UI (Manual mode loads force-graph from a CDN)
+│   └── tests/                   1228 tests
 ├── labels/                      address attribution packs (~75,000 rows)
 ├── assets/                      verified asset registry
 ├── bridges/                     cross-chain bridge reference data
@@ -601,6 +685,8 @@ working and then vanished **does** turn red: from that moment coverage is ageing
 > misconfigured, nothing ran · `3` nothing failed and a publisher has gone quiet.
 
 ### 3 · Adding a VASP yourself
+
+> There is also a **Tag as a VASP** box in the [Manual tab](#manual-exploration) (`POST /addresses/{address}/label`). It files the claim exactly as this section describes — method `community`, status `pending` — so it can be seen and corroborated, but cannot name an endpoint until something trusted agrees with it.
 
 Short answer to the common question — *I found a VASP during an investigation, can I just enter the
 address?* **You can add it, but you must say where you learned it.** The engine will not let you
@@ -696,7 +782,7 @@ infrastructure** and could name **none** of them — including one a single hop 
 report's nearest *named* endpoint sat two hops beyond its nearest *reached* one. A public block
 explorer knew three of those names.
 
-**Find names** on the graph toolbar (`POST /investigations/{id}/leads`) asks for them:
+**Find names** on the graph toolbar (`POST /investigations/{id}/leads`) asks for them, and the [Manual tab](#manual-exploration) asks the same question per address as you explore (`POST /addresses/leads`):
 
 ```
 22 candidate(s), 22 examined, 3 named
@@ -763,7 +849,7 @@ carried a label.
 
 Tripling the node count and adding a whole hop of depth bought **zero** new named operators. More
 compute does not fix this. Only more label data does — see
-[Adding a VASP yourself](#3-adding-a-vasp-yourself).
+[Adding a VASP yourself](#3--adding-a-vasp-yourself).
 
 **Explorer leads narrow the gap; they do not close it.** `Find names` can put *Bybit* on a card the
 report still calls "operator unnamed", and that is deliberate: an explorer tag is nobody's
@@ -799,6 +885,11 @@ Clustering does not rescue this either: the implemented co-spend heuristic is a 
 | **High-degree addresses are sampled** | An address with 100+ counterparties follows the 20 largest by value. The rest are counted and reported as not followed. |
 | **Mixer crossings are speculative** | The engine can continue past a mixer on a heuristic, but the link is marked speculative, drawn dashed, and barred from the headline answer. |
 | **Label freshness** | Packs are point-in-time. The report prints the age of the claim each name rests on, so a stale attribution is visible rather than silent. |
+| **Balances only where a chain can serve them** | Tron and Solana declare `Capability.BALANCE`; EVM and Bitcoin do not. Asking anyway returns an explicit `unavailable` — never a `0` that would read as an empty wallet. |
+| **Manual exploration is rate-limited** | 30 lookups per key per rolling minute across all five `/addresses/*` routes. Each one is a live chain call and sits outside the engine's budgets. |
+| **Manual marks and notes are browser-local** | Stored in `localStorage`, per browser. They never reach the server, a report, or anyone you hand the case to. |
+| **Manual exploration leaves no record** | No investigation row, no findings, no evidence, no report. It is a way of looking, not a way of concluding — and its `SEEMS VASP` mark is computed only from the history read so far. |
+| **USD values are a market claim** | Prices come from a public feed with a 60-second cache, and always carry their source and age. If the feed is down the balance still shows; only the dollar figure goes missing. |
 
 ### Closing the gap
 
@@ -814,9 +905,9 @@ Clustering does not rescue this either: the implemented co-spend heuristic is a 
 
 ```bash
 cd backend
-.venv/bin/python -m pytest -q          # 1167 tests
+.venv/bin/python -m pytest -q          # 1228 tests
 .venv/bin/ruff check src tests         # lint
-.venv/bin/mypy                         # strict typing, 89 source files
+.venv/bin/mypy                         # strict typing, 93 source files
 ```
 
 Storage tests run against a **real Postgres 16 container** rather than a mock, because the queries

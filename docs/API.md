@@ -89,6 +89,40 @@ report what a bounded read left out; `per_level` caps each (hop, direction)
 group separately so a wide first hop cannot consume the whole budget and
 delete the far hops from the picture.
 
+## Manual exploration
+
+Human-driven, one address at a time — the Manual tab of the bundled UI. None of
+these creates an investigation record, spends `Budgets`, runs heuristics on your
+behalf, or writes a finding. All require scope `investigate`, and all five share
+**one budget of 30 calls per key per rolling minute** (HTTP 429 past it), because
+each makes a live chain-API call and none is governed by the engine's budgets.
+
+- `GET /addresses/{address}/expand` — one hop of counterparties from a single
+  history page. `?chain=` `?limit=` (default 25, clamped 1–100) `?cursor=`.
+  A counterparty is named only from an **active, sourced** claim. Also returns
+  `service_endpoint`: the counterparty degree measured on this page and whether
+  it cleared the same VASP thresholds the autonomous engine uses
+  (`meets_threshold`, `page_bounded`).
+- `GET /addresses/{address}/transfers` — the individual movements behind those
+  counterparties, newest first. `?limit=` (default 50, clamped 1–200) `?cursor=`.
+- `GET /addresses/{address}/balance` — live holdings plus a USD conversion.
+  Never cached (`Capability.BALANCE` is `CachePolicy.NEVER`). `unavailable`
+  (the balance could not be read) and `price_unavailable` (it was read but not
+  priced) are kept strictly apart, and an unreadable balance is returned as
+  `native: null` — **never** `"0"`, which would read as an empty wallet.
+- `POST /addresses/leads` — ask a public explorer to name 1–12 addresses.
+  Tron only today; other chains answer `unsupported_chain: true`. Results land
+  as `pending` community claims, exactly as `/investigations/{id}/leads` does.
+- `POST /addresses/{address}/label` — file your own name for an address.
+  Arrives `pending` (method `community`), never `active`.
+
+## Harvest
+
+- `POST /harvest/run` — start one label-harvest cycle. Scope `investigate`.
+  202 as soon as the child process exists; 409 if a cycle is already running.
+- `GET /harvest/status` — what the Label sync panel reads: per-source outcomes,
+  publication dates and label counts. Scope `read`.
+
 ## Service
 
 - `GET /healthz` — liveness.
