@@ -3449,31 +3449,32 @@ function paintManualPointerArea(node, color, ctx) {
 // says nothing about how many flows it represents. The library's own
 // linkCurvature does not apply here — a custom linkCanvasObject owns its
 // drawing entirely — so the curve is computed rather than configured.
-const MLINK_CURVE = 0.12;
+// How far the control points sit along the horizontal run. 0.5 gives the
+// symmetric S every left-to-right flow diagram uses: the edge leaves its
+// source going sideways and arrives at its target going sideways, so the
+// direction of travel is legible even where dozens of edges converge.
+const MLINK_CURVE = 0.5;
 
 function manualLinkGeometry(s, t) {
-  const mx = (s.x + t.x) / 2, my = (s.y + t.y) / 2;
-  const dx = t.x - s.x, dy = t.y - s.y;
-  // Control point pushed along the edge's own normal, so the bow is
-  // perpendicular to the line and scales with its length.
-  return { cx: mx + dy * MLINK_CURVE, cy: my - dx * MLINK_CURVE };
+  const dx = (t.x - s.x) * MLINK_CURVE;
+  return { c1x: s.x + dx, c1y: s.y, c2x: t.x - dx, c2y: t.y };
 }
 
 function paintManualLink(link, ctx, scale) {
   const s = link.source, t = link.target;
   if (typeof s !== "object" || typeof t !== "object") return;
-  const { cx, cy } = manualLinkGeometry(s, t);
+  const g = manualLinkGeometry(s, t);
   ctx.beginPath();
   ctx.moveTo(s.x, s.y);
-  ctx.quadraticCurveTo(cx, cy, t.x, t.y);
+  ctx.bezierCurveTo(g.c1x, g.c1y, g.c2x, g.c2y, t.x, t.y);
   ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.65)" : "rgba(56,189,248,.65)";
   ctx.lineWidth = Math.max(1, 1.6 / scale);
   ctx.stroke();
   if (scale > 0.5 && link.amountLabel) {
-    // The label rides ON the curve (its t=0.5 point), not on the straight
-    // midpoint the curve has now left behind.
-    const mx = 0.25 * s.x + 0.5 * cx + 0.25 * t.x;
-    const my = 0.25 * s.y + 0.5 * cy + 0.25 * t.y;
+    // The label rides ON the curve at t=0.5, not on the straight midpoint
+    // the curve has left behind.
+    const mx = 0.125 * s.x + 0.375 * g.c1x + 0.375 * g.c2x + 0.125 * t.x;
+    const my = 0.125 * s.y + 0.375 * g.c1y + 0.375 * g.c2y + 0.125 * t.y;
     const fs = Math.max(9 / scale, 3);
     ctx.font = fs + "px ui-monospace, Menlo, monospace";
     const w = ctx.measureText(link.amountLabel).width + 6;
@@ -3504,7 +3505,7 @@ function handleManualNodeClick(node, event) {
 // to clear both the widest card AND the amount chip drawn at each edge's
 // midpoint — at less than this the labels sit on top of the cards they belong
 // between.
-const MCOLUMN_GAP = 300;
+const MCOLUMN_GAP = 460;
 
 //: The smallest scale the auto-fit is allowed to settle at. At 0.7 a 118px
 //: card is ~83px on screen — its address still reads. Below that the fit is
@@ -3557,24 +3558,14 @@ window.addEventListener("resize", sizeManualStage);
 // its first column: re-assigning would let a node with two inbound routes
 // oscillate between columns every repaint, and the first path that found it is
 // the one the picture is explaining.
-function addManualNode(chain, address, isRoot, parentColumn, direction) {
+function addManualNode(chain, address, isRoot, parent, direction) {
   const data = manualData();
   const key = manualKey(chain, address);
   let node = data.nodes.find(n => n.id === key);
   if (node) return node;
   const saved = manualAnnotations[key];
   const column = isRoot ? 0
-    : (parentColumn || 0) + (direction === "in" ? -1 : 1);
-  // Seed Y spread down the column rather than letting every new node start at
-  // the same point and relying on repulsion to untangle it. A column of 15
-  // counterparties seeded together settles as a PILE: charge falls off with
-  // distance, so nodes starting coincident push each other apart only weakly
-  // and the simulation freezes before separating them. Seeding a card-height
-  // apart leaves the physics refining a good layout instead of rescuing a bad
-  // one. Alternates out from the centre — 0, +1, -1, +2, -2 … — so a column
-  // grows symmetrically around its parent's row instead of trailing downward.
-  const rank = data.nodes.filter(n => n.column === column).length;
-  const seedY = Math.ceil(rank / 2) * (MCARD_H + 34) * (rank % 2 === 1 ? 1 : -1);
+    : (parent ? parent.column : 0) + (direction === "in" ? -1 : 1);
   node = {
     id: key, address, chain, isRoot: !!isRoot, expanded: false,
     label: null, tag: saved ? saved.color : null, note: saved ? saved.note : "",
@@ -3584,21 +3575,73 @@ function addManualNode(chain, address, isRoot, parentColumn, direction) {
     // this before", not a re-check of whether it got corroborated since.
     communityTag: saved ? saved.communityTag || null : null,
     column: column,
-    // BOTH axes pinned, so the layout is decided here rather than negotiated
-    // by the simulation. Leaving Y to the physics looked reasonable and
-    // wasn't: charge pulled a 15-card column back to ~55px spacing for 58px
-    // cards, i.e. touching, which is what read as "so tangled". A ladder of
-    // exact rows is also deterministic — the same trace draws the same way
-    // twice, and nothing shifts under the reader when a later expansion
-    // adds a column somewhere else.
-    fx: column * MCOLUMN_GAP,
-    fy: seedY,
-    x: column * MCOLUMN_GAP,
-    y: seedY,
+    // WHICH node discovered this one. The layout places children beside
+    // their own parent rather than in a shared per-column stack — without
+    // this, expanding a node on the left put its outgoing counterparties
+    // into the root's column, on top of everything already there.
+    parentId: parent ? parent.id : null,
   };
   manualNodes.push(node);
-  applyManualFilter();
+  relayoutManual();
   return node;
+}
+
+//: Vertical pitch between two cards in the same column, and the minimum gap
+//: a whole sub-tree is given so one parent's children never sit on another's.
+const MROW_GAP = MCARD_H + 34;
+
+// Lay the whole graph out, every time it changes.
+//
+// The first version assigned Y once, at insert, from a per-column counter.
+// That is wrong as soon as the graph is more than one hop deep: a node in the
+// left column expanding OUTWARD lands its children in column 0 — the root's
+// column — where they were stacked against a counter that knew nothing about
+// which parent they belonged to. The result was two crowded bands and edges
+// crossing the whole picture.
+//
+// So Y is computed here instead, for everyone, from the tree the expansions
+// actually made:
+//
+//   1. Children want to sit at their parent's row (the barycentre).
+//   2. Within a column, nodes are ordered by that wanted row.
+//   3. They are then spread apart just enough not to touch, keeping the
+//      order — so a parent's children stay together and near it.
+//
+// Deterministic: the same expansions always produce the same picture.
+function relayoutManual() {
+  if (!manualNodes.length) { applyManualFilter(); return; }
+  const byId = new Map(manualNodes.map(n => [n.id, n]));
+  const columns = new Map();
+  for (const n of manualNodes) {
+    if (!columns.has(n.column)) columns.set(n.column, []);
+    columns.get(n.column).push(n);
+  }
+  // Nearest the root first, outward in both directions, so a parent always
+  // has its own row settled before its children ask for it.
+  const order = [...columns.keys()].sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
+
+  for (const col of order) {
+    const nodes = columns.get(col);
+    if (col === 0 && nodes.length === 1 && nodes[0].isRoot) { nodes[0].__y = 0; continue; }
+    for (const n of nodes) {
+      const p = n.parentId ? byId.get(n.parentId) : null;
+      n.__want = (p && p.__y != null) ? p.__y : 0;
+    }
+    // Stable within a parent: siblings keep the order the API returned them
+    // in, which is by value, so the biggest flow sits nearest its parent.
+    nodes.sort((a, b) => (a.__want - b.__want)
+      || manualNodes.indexOf(a) - manualNodes.indexOf(b));
+    // Centre the run on what it wanted, then push apart to the pitch.
+    const wantMid = nodes.reduce((acc, n) => acc + n.__want, 0) / nodes.length;
+    const start = wantMid - ((nodes.length - 1) * MROW_GAP) / 2;
+    nodes.forEach((n, i) => { n.__y = start + i * MROW_GAP; });
+  }
+
+  for (const n of manualNodes) {
+    n.fx = n.column * MCOLUMN_GAP; n.x = n.fx;
+    n.fy = n.__y || 0;             n.y = n.fy;
+  }
+  applyManualFilter();
 }
 
 function addManualLink(srcKey, cp) {
@@ -3622,7 +3665,7 @@ async function expandManualNode(node) {
       + "/expand?limit=25&chain=" + encodeURIComponent(node.chain));
     for (const cp of res.counterparties) {
       cp.chain = node.chain;
-      const cnode = addManualNode(node.chain, cp.address, false, node.column, cp.direction);
+      const cnode = addManualNode(node.chain, cp.address, false, node, cp.direction);
       if (cp.label) { cnode.label = cp.label.entity; }
       addManualLink(node.id, cp);
     }
@@ -3995,7 +4038,7 @@ $("mAddSelected").addEventListener("click", () => {
   for (const cp of source) {
     if (!mSelected.has(cp.address)) continue;
     cp.chain = node.chain;
-    const cnode = addManualNode(node.chain, cp.address, false, node.column, cp.direction);
+    const cnode = addManualNode(node.chain, cp.address, false, node, cp.direction);
     if (cp.label) cnode.label = cp.label.entity;
     addManualLink(node.id, cp);
     added++;
@@ -4222,7 +4265,7 @@ async function manualExplore(forcedChain) {
     root.service = res.service_endpoint || null;
     for (const cp of res.counterparties) {
       cp.chain = res.chain;
-      const cnode = addManualNode(res.chain, cp.address, false, root.column, cp.direction);
+      const cnode = addManualNode(res.chain, cp.address, false, root, cp.direction);
       if (cp.label) cnode.label = cp.label.entity;
       addManualLink(root.id, cp);
     }
