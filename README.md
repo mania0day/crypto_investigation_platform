@@ -58,9 +58,9 @@ consolidation patterns are detected as they are reached.
 
 <div align="center"><img src="images/graph.gif" alt="A trace building live" width="820"></div>
 
-<sub>One real run, unedited: **56 → 133 → 186 → 189 addresses** as the engine works, the answer
-resolving from "Tracing…" to a named endpoint, and the status line counting API calls and
-transactions as it spends them.</sub>
+<sub>One real run, unedited. Search a wallet, then scroll to the graph and put it **full screen**:
+the picture is written while the engine works — **104 → 188 → 189 addresses**, edges and returning
+counts climbing with it — then zoom in far enough to read the cards.</sub>
 
 Every card says what it is and on what basis. A **sourced** VASP carries its entity mark and a solid
 border; a behavioural guess carries `CHECK · N%` and a dashed one. The two are never drawn alike.
@@ -71,13 +71,12 @@ An investigation report as HTML or PDF: the money-in and money-out endpoints, th
 the confidence, the source each name rests on — and a full statement of everything the run did **not**
 read.
 
-<div align="center"><img src="images/report.gif" alt="The investigation report" width="820"></div>
+<div align="center"><img src="images/report.gif" alt="The investigation report, end to end" width="820"></div>
 
-<div align="center"><img src="images/report-top.png" alt="The report's summary block" width="900"></div>
-
-<sub>The summary names an operator only where a sourced claim supports it — here **OKX at 90%**, with
-the claim's date and age printed beside it. The other direction says **"No operator can be named"**
-rather than offering the nearest guess, and the behavioural leads are boxed off as inferences.</sub>
+<sub>The whole document scrolled through. It names an operator only where a sourced claim supports it
+— **OKX at 90%**, with the claim's date and age beside it — and where nothing does, it says
+**"No operator can be named"** rather than offering the nearest guess. Behavioural leads are boxed
+off as inferences, and the coverage section lists every gap.</sub>
 
 ### The same question, two ways
 
@@ -544,13 +543,11 @@ Flow reads left to right: money **in** on the left, the address you started from
 **out** on the right. Positions are fixed — a node never drifts, and expanding something on one side
 does not shuffle what you were already reading. Pan by dragging the plane, zoom with `−` / `+` / `Fit`.
 
-<div align="center"><img src="images/manual-graph.png" alt="The manual explorer" width="960"></div>
+
 
 ### The panel
 
 Click any node to open it.
-
-<div align="center"><img src="images/manual-panel.png" alt="The address panel" width="960"></div>
 
 Top to bottom, and in that order because it is an order of confidence:
 
@@ -569,8 +566,6 @@ that is the difference between a readable graph and a wall.
 
 **Transfer** is the same history unfolded — every movement, with its date, amount and a transaction
 hash that links out to a block explorer so any row can be checked.
-
-<div align="center"><img src="images/manual-transfers.png" alt="The transfer list" width="960"></div>
 
 Both tabs read one page of history at a time and say so. **Load data** reads further back and appends;
 the count line moves with it (`25 of 65 read so far — bounded for legibility, not coverage`).
