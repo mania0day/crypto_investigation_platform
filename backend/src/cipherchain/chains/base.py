@@ -17,6 +17,18 @@ endings: kill the whole call, or return the survivors and say nothing. The
 second is a false empty wearing the costume of an answer, so the page now
 states its own gaps.
 
+Amended 2026-09-01 (additively, no existing field or signature changed):
+adapters may answer what an address HOLDS, not only what moved through it —
+see :class:`BalanceSnapshot` and ``ChainAdapter.address_balance``.
+``Capability.BALANCE`` already existed and was already served by two provider
+clients, but nothing above the pool could reach it, so the manual explorer
+could show an investigator every transfer of an account and not its balance.
+The method is deliberately NOT abstract: four adapters predate it, and the
+default distinguishes a declared absence (``CapabilityNotSupported`` — an
+answer) from an unimplemented declaration (``NotImplementedError`` — our bug),
+because serving the second as the first is how a wiring error comes to read
+as a limitation of the chain.
+
 Changing anything in this module requires the same approval as a vision
 change.
 """
@@ -30,7 +42,14 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from cipherchain.core.errors import CapabilityNotSupported, UnknownChain
-from cipherchain.core.models import Address, Capability, Movement, Provenance, TxRef
+from cipherchain.core.models import (
+    Address,
+    AssetBalance,
+    Capability,
+    Movement,
+    Provenance,
+    TxRef,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +165,43 @@ class FeedGap:
             "— no provider could serve that feed, so any value that moved "
             "only that way is missing from this page"
         )
+
+
+@dataclass(frozen=True, slots=True)
+class BalanceSnapshot:
+    """One address's holdings at one instant, and what it could not read.
+
+    Mirrors :class:`HistoryPage` deliberately, including ``gaps``: a snapshot
+    has to be honest about itself, and the rule is the same one — a holding
+    missing because a feed died must never be indistinguishable from a
+    holding of zero.
+
+    ``staked`` is separate from ``native`` because on Tron they are separate
+    numbers in the same payload: ``balance`` is liquid TRX only, while
+    ``frozenV2`` holds what is staked. Folding them would misstate liquidity;
+    omitting the second silently understates large holders, which was
+    measured on a live account holding both.
+    """
+
+    address: Address
+    native: AssetBalance
+    staked: AssetBalance | None = None
+    tokens: tuple[AssetBalance, ...] = ()
+    gaps: tuple[FeedGap, ...] = ()
+
+    @property
+    def retrieved_at(self) -> datetime:
+        """The OLDEST reading behind this snapshot — how stale it is at worst.
+
+        A snapshot assembled from several calls is only as fresh as its
+        laggiest part, and reporting the newest would overstate it.
+        """
+        readings = [self.native, *( [self.staked] if self.staked else [] ), *self.tokens]
+        return min(r.provenance.retrieved_at for r in readings)
+
+    @property
+    def complete(self) -> bool:
+        return not self.gaps
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +344,30 @@ class ChainAdapter(ABC):
         limit: int = 100,
     ) -> HistoryPage:
         """Transactions touching the address, newest first, paginated."""
+
+    async def address_balance(self, address: Address) -> BalanceSnapshot:
+        """What ``address`` holds right now, with provenance.
+
+        Deliberately NOT abstract. Four adapters predate this method, and a
+        cheap balance surface is genuinely absent on some provider tiers — an
+        abstract method would make every existing adapter (and the test stubs
+        that implement exactly the four abstract ones) un-instantiable.
+
+        The default separates two absences that must never collapse into one,
+        because collapsing them is how a wiring bug comes to read as a chain
+        limitation:
+
+        - a chain that never declared ``Capability.BALANCE`` raises
+          ``CapabilityNotSupported`` — a DECLARED absence, which is an answer;
+        - a chain that declared it and never implemented this raises
+          ``NotImplementedError``, loudly, because that is our bug and must
+          never be served to an investigator as "this chain cannot tell you".
+        """
+        self.require(Capability.BALANCE)
+        raise NotImplementedError(
+            f"{type(self).__name__} declares {Capability.BALANCE} "
+            "but implements no address_balance()"
+        )
 
     @abstractmethod
     async def transaction(self, tx_hash: str) -> ChainTransaction:

@@ -62,6 +62,32 @@ def is_sentinel_address(value: str) -> bool:
     return bool(body) and set(body) <= {"0", "x"}
 
 
+def meets_service_thresholds(senders: int, recipients: int) -> bool:
+    """Does this counterparty degree look like custodial infrastructure?
+
+    Extracted so the manual explorer can apply the SAME rule to the
+    counterparties it reads live, instead of growing a second opinion about
+    what a service endpoint is that would drift from this one.
+    """
+    return (
+        senders >= MIN_SENDERS
+        and recipients >= MIN_RECIPIENTS
+        and senders + recipients >= MIN_TOTAL_COUNTERPARTIES
+    )
+
+
+def service_confidence(senders: int, recipients: int) -> float:
+    """Confidence for a service-endpoint inference of this degree.
+
+    Grows with scale but is capped well below certainty: this is a
+    behavioural inference about an UNNAMED operator, not an attribution.
+    Shared with the manual explorer for the same anti-drift reason as
+    :func:`meets_service_thresholds`.
+    """
+    total = senders + recipients
+    return round(min(0.55 + 0.20 * min(total / 400, 1.0), 0.75), 3)
+
+
 def assess_service_endpoint(
     incoming: Sequence[StoredMovement],
     outgoing: Sequence[StoredMovement],
@@ -69,12 +95,7 @@ def assess_service_endpoint(
     """Return (looks_like_a_service, senders, recipients)."""
     senders = len(_distinct(incoming, "from_address_id"))
     recipients = len(_distinct(outgoing, "to_address_id"))
-    looks_like = (
-        senders >= MIN_SENDERS
-        and recipients >= MIN_RECIPIENTS
-        and senders + recipients >= MIN_TOTAL_COUNTERPARTIES
-    )
-    return looks_like, senders, recipients
+    return meets_service_thresholds(senders, recipients), senders, recipients
 
 
 def detect_service_endpoint(
@@ -90,9 +111,7 @@ def detect_service_endpoint(
         return []
 
     total = senders + recipients
-    # Confidence grows with scale but is capped well below certainty: this is
-    # a behavioural inference about an UNNAMED operator, not an attribution.
-    confidence = round(min(0.55 + 0.20 * min(total / 400, 1.0), 0.75), 3)
+    confidence = service_confidence(senders, recipients)
     refs = tuple(sorted({m.tx_hash for m in list(incoming) + list(outgoing)}))[:8]
 
     return [

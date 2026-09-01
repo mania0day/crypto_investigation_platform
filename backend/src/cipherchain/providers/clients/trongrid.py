@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -26,8 +27,22 @@ _CAPABILITIES = frozenset(
         Capability.ADDRESS_HISTORY,
         Capability.TOKEN_TRANSFERS,
         Capability.TX_LOOKUP,
+        Capability.BALANCE,
     }
 )
+
+
+def _seg(value: object) -> str:
+    """Percent-encode a single URL path segment (no unescaped '/', '?', '#').
+
+    Same helper, same reason as ``MempoolSpaceProvider``: an unencoded
+    address could carry ``../`` or ``?``/``#`` and forge the request to an
+    unintended path (REVIEW_FINDINGS.md #13). Reachable here — the API's
+    ``chain=`` parameter lets a caller pin an arbitrary string to Tron, and
+    ``TronAdapter.canonical_address`` passes a non-base58 value through
+    unchanged.
+    """
+    return quote(str(value), safe="")
 
 
 class TronGridProvider(Provider):
@@ -60,9 +75,26 @@ class TronGridProvider(Provider):
         limit = int(params.get("limit", 100))
 
         if capability is Capability.ADDRESS_HISTORY:
-            path = f"/v1/accounts/{params['address']}/transactions"
+            path = f"/v1/accounts/{_seg(params['address'])}/transactions"
         elif capability is Capability.TOKEN_TRANSFERS:
-            path = f"/v1/accounts/{params['address']}/transactions/trc20"
+            path = f"/v1/accounts/{_seg(params['address'])}/transactions/trc20"
+        elif capability is Capability.BALANCE:
+            # One account row, not a page: no `limit`, no `fingerprint`. It
+            # comes back in the same {data: [...], success: true} envelope the
+            # history feeds use, so _respond validates it unchanged. An
+            # unactivated account answers {"data": []}, which is a legitimate
+            # "holds nothing" and is read as zero by the adapter — never a
+            # ResourceNotFound, which the pool would propagate without
+            # failover and surface as an error for an address a human may
+            # perfectly well want to inspect.
+            response = await perform(
+                self._http,
+                self.name,
+                "GET",
+                f"{self._base_url}/v1/accounts/{_seg(params['address'])}",
+                headers=self._headers(),
+            )
+            return self._respond(response, expect_list=True)
         elif capability is Capability.TX_LOOKUP:
             # Single-transaction lookup is a POST on the wallet API.
             response = await perform(

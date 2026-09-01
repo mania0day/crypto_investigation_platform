@@ -189,6 +189,24 @@ async def latest_run(session: AsyncSession) -> HarvestRunRow | None:
     return result.scalars().first()
 
 
+async def latest_finished_run(session: AsyncSession) -> HarvestRunRow | None:
+    """The newest run that actually completed.
+
+    A cycle opens its row with ``sources=[]`` and fills them in as each source
+    finishes, so for the several minutes a run is in flight the newest row
+    knows nothing about any source. Read alone it made the panel report "not
+    yet run" for sources that had demonstrably succeeded the day before —
+    pressing "Sync now" appeared to erase the state it was refreshing.
+    """
+    result = await session.execute(
+        select(HarvestRunRow)
+        .where(HarvestRunRow.finished_at.is_not(None))
+        .order_by(HarvestRunRow.started_at.desc())
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
 async def sync_status(session: AsyncSession, *, drop_dir: Path) -> SyncStatus:
     """Everything the dashboard's sync panel shows, in one call.
 
@@ -235,9 +253,23 @@ async def sync_status(session: AsyncSession, *, drop_dir: Path) -> SyncStatus:
     # last cycle; showing it as unknown is more useful than omitting it, which
     # would read as "not configured".
     reported = {str(row.get("source")): dict(row) for row in (run.sources or [])}
+    # A cycle in flight has reported nothing yet, so falling straight through
+    # to _planned_only would blank every source for the minutes it runs —
+    # "not yet run" beside a source that succeeded yesterday is simply false.
+    # The last COMPLETED cycle's result stands in until this one supersedes
+    # it, flagged so the panel can say which cycle it is describing.
+    previous: dict[str, dict[str, Any]] = {}
+    if run.finished_at is None:
+        prior = await latest_finished_run(session)
+        if prior is not None:
+            previous = {
+                str(row.get("source")): {**dict(row), "from_previous_cycle": True}
+                for row in (prior.sources or [])
+            }
+
     sources = []
     for name, entry in plan.items():
-        row = reported.get(name) or _planned_only(entry)
+        row = reported.get(name) or previous.get(name) or _planned_only(entry)
         row["transport"] = entry.transport
         row["entity"] = entry.entity
         row["document_url"] = entry.document_url

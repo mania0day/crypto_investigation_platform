@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -101,6 +101,244 @@ class StartInvestigationResponse(BaseModel):
     investigation_id: uuid.UUID
     status: str
     chain: str  # echoes the chain used, so the caller sees what was detected
+
+
+class ManualLabelOut(BaseModel):
+    """An ACTIVE, sourced claim only — the same rule the automated engine
+    holds. A manual explorer that let itself print an unverified guess as a
+    name would be strictly worse than the engine it sits beside."""
+
+    entity: str
+    confidence: float
+    source: str
+
+
+class CounterpartyOut(BaseModel):
+    """One counterparty from a single, unpersisted history page — the manual
+    explorer's building block. Deliberately thinner than GraphEdgeOut: no
+    asset_verified flag (that provenance check belongs to the automated
+    engine's stored-movement pipeline, not this one-shot lookup), and no
+    Finding/Evidence — a human is deciding what this means, not the engine.
+
+    ``amount`` is a decimal STRING, matching GraphEdgeOut: smallest-unit sums
+    routinely exceed 2^53 and a JSON number would silently round them.
+    """
+
+    address: str
+    direction: str
+    amount: str
+    asset_symbol: str
+    asset_decimals: int
+    tx_hash: str
+    timestamp: datetime
+    label: ManualLabelOut | None = None
+
+
+class ServiceEndpointOut(BaseModel):
+    """"Behaves like custodial infrastructure" — a ROLE, never an identity.
+
+    The same thresholds and confidence curve the autonomous engine's
+    service-endpoint heuristic uses (analysis/heuristics/service.py), applied
+    to the counterparties the manual explorer just read. It says an address
+    looks like an exchange; it does not and cannot say WHICH — that needs a
+    sourced label, which is why this carries no entity name.
+
+    ``page_bounded`` is always true and must be shown: the degree comes from
+    one page of history, so a busy address can fail the thresholds and go
+    unmarked. The error only runs toward under-detection, never toward
+    calling something a service on counterparties it does not have.
+    """
+
+    senders: int
+    recipients: int
+    #: None when the degree does NOT clear the thresholds — there is no
+    #: confidence to report for an inference that was not drawn.
+    confidence: float | None = None
+    #: False means "measured, did not qualify". Returned anyway because the
+    #: degree itself is the evidence an investigator wants to see, and a
+    #: silent absence cannot be told apart from "never looked".
+    meets_threshold: bool = True
+    page_bounded: bool = True
+
+
+class AddressExpandResponse(BaseModel):
+    address: str
+    chain: str
+    counterparties: list[CounterpartyOut]
+    truncated: bool
+    total_count: int
+    #: Set only when the degree on this page clears the service thresholds.
+    service_endpoint: ServiceEndpointOut | None = None
+    #: Opaque resume point for the NEXT page of history, or None when the
+    #: provider says there is nothing after this one. Ranking is per-page, so
+    #: paging widens the set of counterparties rather than continuing a single
+    #: global ordering — the caller merges.
+    next_cursor: str | None = None
+
+
+class ManualLabelRequest(BaseModel):
+    """An investigator's own claim about an address, entered by hand in the
+    manual explorer. This is deliberately the SAME shape of claim a public
+    explorer tag is (intel/explorer_tags.py): a name with no first-party
+    publication behind it. It arrives ``pending`` and stays that way until a
+    trusted-method source corroborates it (intel/policy.py) — this endpoint
+    cannot make an address read as a confirmed VASP by itself, on purpose.
+    """
+
+    chain: str
+    entity: str = Field(min_length=1, max_length=64)
+    # Matches storage/tables.py's ``category_values`` CHECK constraint —
+    # kept as a real, separate list here (not imported) because this is the
+    # untrusted-input boundary and a typo in a shared constant would silently
+    # widen it on both ends at once.
+    category: Literal["vasp", "sanctioned", "mixer", "infrastructure"] = "vasp"
+
+    @field_validator("entity")
+    @classmethod
+    def _no_smuggled_annotation(cls, v: str) -> str:
+        # Mirrors IntelClaim's own check (intel/policy.py) so a bad entity is
+        # rejected here, as a normal 422, rather than surfacing as the
+        # ValueError IntelClaim raises deeper in the call.
+        v = v.strip()
+        if not v:
+            raise ValueError("entity must not be empty")
+        if any(c in v for c in "\r\n"):
+            raise ValueError("entity must be a single line")
+        if "(" in v or ")" in v:
+            raise ValueError("entity must not contain parentheses")
+        if "://" in v:
+            raise ValueError("entity must not contain a URL")
+        return v
+
+
+class TransferOut(BaseModel):
+    """One movement as the manual explorer's Transfer tab needs it.
+
+    ``amount`` is a decimal STRING for the same reason CounterpartyOut's is:
+    smallest-unit values routinely exceed 2^53 and a JSON number would round
+    them silently.
+    """
+
+    counterparty: str
+    direction: str
+    amount: str
+    asset_symbol: str
+    asset_decimals: int
+    tx_hash: str
+    timestamp: datetime
+    label: ManualLabelOut | None = None
+
+
+class AddressTransfersResponse(BaseModel):
+    address: str
+    chain: str
+    transfers: list[TransferOut]
+    truncated: bool
+    total_count: int
+    next_cursor: str | None = None
+
+
+class UsdValueOut(BaseModel):
+    """A market conversion — NOT a chain fact.
+
+    Never serialised without ``source`` and ``as_of``. A price is the one
+    number in this API that is only true at an instant, and a dollar figure
+    with no timestamp is a claim nobody can check.
+    """
+
+    usd: float
+    unit_price_usd: float
+    source: str
+    source_url: str
+    #: The MARKET's own quote time where the feed gives one, else when we
+    #: asked. Distinct from retrieved_at: a frozen feed still answers fast.
+    as_of: datetime
+    retrieved_at: datetime
+    stale: bool = False
+
+
+class HoldingOut(BaseModel):
+    """One asset an address holds. ``amount`` is a decimal STRING, matching
+    CounterpartyOut — smallest-unit values exceed 2^53 routinely."""
+
+    symbol: str
+    decimals: int
+    amount: str
+    contract: str | None = None
+    value: UsdValueOut | None = None
+
+
+class AddressBalanceResponse(BaseModel):
+    """What an address holds, or an explicit statement of why we cannot say.
+
+    ``native`` is null ONLY together with ``unavailable``, never alongside an
+    ``amount`` of "0": a balance of zero and a balance nobody could read are
+    different facts, and a fraud investigation must not confuse them (the
+    same argument ``Movement.gas_price`` makes in core/models.py).
+
+    ``price_unavailable`` is the softer failure — the balance is still true,
+    only the conversion is missing.
+    """
+
+    address: str
+    chain: str
+    native: HoldingOut | None
+    staked: HoldingOut | None = None
+    tokens: list[HoldingOut] = []
+    retrieved_at: datetime | None = None
+    #: Set ONLY when every returned holding carries a value. A partial
+    #: cross-asset total is a wrong number, and this codebase already refuses
+    #: cross-asset sums as displayed values (investigation/manual_expand.py).
+    total_usd: float | None = None
+    unavailable: str | None = None
+    price_unavailable: str | None = None
+
+
+class LeadLookupRequest(BaseModel):
+    """Addresses to ask a public explorer about, for the manual explorer.
+
+    Bounded small on purpose: the reader behind this spaces its requests to
+    stay welcome at a free public API (intel/explorer_tags.py), so a large
+    batch is a long wall-clock wait, not a bigger answer.
+    """
+
+    chain: str
+    addresses: list[str] = Field(min_length=1, max_length=12)
+
+
+class LeadOut(BaseModel):
+    """A name a public explorer puts on an address. NOT evidence.
+
+    Deliberately a different shape from ManualLabelOut: that one carries a
+    confidence and a source because an ACTIVE claim earned them. This one
+    carries the explorer's name and nothing that would let a caller rank it
+    against a sourced label — it is a lead to check, and the UI must not be
+    able to render it as anything else.
+    """
+
+    address: str
+    entity: str
+    source: str
+
+
+class LeadLookupResponse(BaseModel):
+    chain: str
+    leads: list[LeadOut]
+    examined: int
+    unsupported_chain: bool = False
+
+
+class ManualLabelResponse(BaseModel):
+    """What actually happened to the claim — never a bare "saved", because
+    the one fact this response exists to state is that ``status`` is
+    ``pending``, not ``active``: the UI must not let a submitted tag look
+    like a confirmed label."""
+
+    chain: str
+    address: str
+    entity: str
+    status: str
+    outcome: str
 
 
 class CoverageOut(BaseModel):

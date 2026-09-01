@@ -27,6 +27,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from cipherchain.chains.base import (
+    BalanceSnapshot,
     ChainAdapter,
     ChainTransaction,
     FeedGap,
@@ -38,6 +39,7 @@ from cipherchain.chains.feeds import optional_feed
 from cipherchain.core.models import (
     Address,
     Asset,
+    AssetBalance,
     AssetKind,
     Capability,
     Movement,
@@ -153,8 +155,51 @@ class TronAdapter(ChainAdapter):
                 Capability.ADDRESS_HISTORY,
                 Capability.TOKEN_TRANSFERS,
                 Capability.TX_LOOKUP,
+                Capability.BALANCE,
             }
         )
+
+    async def address_balance(self, address: Address) -> BalanceSnapshot:
+        """Liquid and staked TRX held by ``address``.
+
+        One call: TronGrid returns the account row whole. ``balance`` is
+        liquid TRX in SUN; ``frozenV2`` is what is staked for bandwidth and
+        energy, which is the account's TRX just as much but cannot be spent
+        today — so it is reported separately rather than summed into one
+        misleading figure or dropped (dropping it understates a staking
+        account by however much it has frozen).
+
+        An unactivated account comes back as ``{"data": []}``. That is an
+        authoritative "holds nothing", not a failure, so it reads as zero —
+        the provider client deliberately does not raise ResourceNotFound for
+        it, which the pool would propagate without failover.
+        """
+        response = await self._pool.fetch(
+            ProviderRequest(self.chain, Capability.BALANCE, {"address": address.value})
+        )
+        payload = cast(dict[str, Any], response.payload)
+        rows = payload.get("data") or []
+        row: dict[str, Any] = rows[0] if rows else {}
+        provenance = response.provenance()
+
+        native = AssetBalance(
+            asset=TRX_ASSET, amount=int(row.get("balance") or 0), provenance=provenance
+        )
+
+        # frozenV2 is a list of {type?, amount?} — the entry for bandwidth
+        # carries no `type` key at all, so the sum is over whatever amounts
+        # are present rather than over an expected set of types.
+        frozen_total = 0
+        for entry in row.get("frozenV2") or []:
+            if isinstance(entry, dict):
+                frozen_total += int(entry.get("amount") or 0)
+        staked = (
+            AssetBalance(asset=TRX_ASSET, amount=frozen_total, provenance=provenance)
+            if frozen_total
+            else None
+        )
+
+        return BalanceSnapshot(address=address, native=native, staked=staked)
 
     def recognizes(self, address: str) -> bool:
         return bool(_TRON_ADDRESS.match(address.strip()))

@@ -122,6 +122,32 @@ class Provenance:
 
 
 @dataclass(frozen=True, slots=True)
+class AssetBalance:
+    """How much of one asset an address holds, with the reading's provenance.
+
+    ``amount`` is in the asset's smallest unit as an int, exactly as
+    :class:`Movement` — a balance and a movement are the same kind of
+    quantity and must not become two kinds of number. A float here would be
+    the same silent-rounding bug value accounting refuses everywhere else.
+
+    Carries :class:`Provenance` because a balance is a reading taken at an
+    instant, not a standing fact: which provider answered, and when, is the
+    difference between a number an investigator can cite and one they cannot.
+    """
+
+    asset: Asset
+    amount: int
+    provenance: Provenance
+
+    def __post_init__(self) -> None:
+        # bool is an int subclass; excluded so True cannot pass as 1.
+        if not isinstance(self.amount, int) or isinstance(self.amount, bool):
+            raise ValueError("amount must be an int in the asset's smallest unit")
+        if self.amount < 0:
+            raise ValueError(f"amount must be >= 0, got {self.amount}")
+
+
+@dataclass(frozen=True, slots=True)
 class Movement:
     """One canonical value movement — the atomic fact the engine traces.
 

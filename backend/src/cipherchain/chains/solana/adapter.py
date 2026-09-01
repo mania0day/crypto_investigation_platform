@@ -33,6 +33,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from cipherchain.chains.base import (
+    BalanceSnapshot,
     ChainAdapter,
     ChainTransaction,
     HistoryPage,
@@ -42,6 +43,7 @@ from cipherchain.chains.base import (
 from cipherchain.core.models import (
     Address,
     Asset,
+    AssetBalance,
     AssetKind,
     Capability,
     Movement,
@@ -79,6 +81,31 @@ class SolanaAdapter(ChainAdapter):
                 Capability.BALANCE,
                 Capability.BLOCK_LOOKUP,
             }
+        )
+
+    async def address_balance(self, address: Address) -> BalanceSnapshot:
+        """Lamports held by ``address``.
+
+        This capability was DECLARED above long before anything could call
+        it, and ``SolanaRpcProvider`` has served ``getBalance`` all along —
+        so the only thing missing was this method. Left unwritten it would
+        now raise NotImplementedError (see ChainAdapter.address_balance),
+        which is precisely the "declares what it cannot do" state the
+        capability contract exists to prevent.
+
+        The provider already unwraps the RPC's ``{context, value}`` envelope
+        to the lamport count, so there is no second shape to handle here.
+        """
+        response = await self._pool.fetch(
+            ProviderRequest(self.chain, Capability.BALANCE, {"address": address.value})
+        )
+        return BalanceSnapshot(
+            address=address,
+            native=AssetBalance(
+                asset=SOL_ASSET,
+                amount=int(cast(int, response.payload) or 0),
+                provenance=response.provenance(),
+            ),
         )
 
     def recognizes(self, address: str) -> bool:

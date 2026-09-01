@@ -20,6 +20,12 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
+    /* #manualStageWrap's full-bleed breakout (100vw + a negative margin)
+       can run a few px past the visible edge on a platform where the
+       scrollbar eats into the viewport instead of overlaying it — hidden,
+       not visible, since the intended layout never actually needs the
+       scroll it would offer. */
+    overflow-x: hidden;
     font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
     background-image:
       radial-gradient(60% 45% at 50% 0%, rgba(56, 189, 248, .09), transparent 70%),
@@ -366,9 +372,10 @@
 
   .gnode {
     position: absolute; box-sizing: border-box; display: flex; gap: 10px; align-items: center;
-    padding: 0 12px; border-radius: 6px; background: linear-gradient(180deg, rgba(12,22,38,.97), rgba(6,12,22,.97));
+    padding: 0 12px; border-radius: 10px; background: linear-gradient(180deg, rgba(14,25,42,.97), rgba(6,12,22,.97));
     border: 1px solid var(--line); border-left-width: 3px;
-    box-shadow: 0 8px 22px rgba(0,0,0,.55); cursor: default;
+    box-shadow: 0 8px 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    cursor: default;
   }
   /* Border STYLE carries evidence kind, border COLOR carries role — two
      independent channels. A VASP named by a sourced label and one guessed
@@ -385,11 +392,41 @@
   .gnode .gspec { color: #fb923c; font-weight: 700; }
   /* A folded pile of frontier addresses reads as a stack, never as one wallet. */
   .gnode.gbundle {
-    box-shadow: 0 8px 22px rgba(0,0,0,.55), 5px 5px 0 -1px rgba(56,189,248,.10),
-                10px 10px 0 -2px rgba(56,189,248,.06);
+    box-shadow: 0 8px 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06),
+                5px 5px 0 -1px rgba(56,189,248,.10), 10px 10px 0 -2px rgba(56,189,248,.06);
   }
   .gnode.gbundle .gaddr { color: var(--accent-2); }
+  /* The one card this view lets look confident: a VASP named by a sourced
+     claim (tone "vasp" only — never "suspected", which must stay visibly
+     uncertain). A soft glow in the role colour marks it as a resolved
+     endpoint, the thing an investigation was actually looking for. */
+  .gnode.endpoint {
+    box-shadow: 0 8px 22px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06),
+                0 0 0 1px rgba(52,211,153,.18), 0 0 18px rgba(52,211,153,.20);
+  }
   .gnode .gdot { width: 9px; height: 9px; flex: none; border-radius: 50%; }
+  /* Same slot the plain dot occupies, sized up to actually hold a mark: a
+     confirmed VASP is the one card this view lets show a real brand/entity
+     icon (see entityIconSvg) rather than a colour alone — the same reason
+     MetaSleuth's own boxes carry one. SOLID fill + glow, matching the plain
+     dot's own weight, not a faint tinted outline — a first pass here used a
+     16%-tint background and it read as barely-there next to the plain
+     dot's full-strength fill, at exactly the size and distance this view is
+     normally read at. The icon itself is drawn in a fixed dark tone (set in
+     JS, not currentColor) so it reads AGAINST the solid brand/role colour
+     rather than blending into it. */
+  .gnode .gdot.gicon {
+    width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+  }
+  /* .stage svg (below) makes EVERY svg in the graph position:absolute;inset:0
+     — correct for the one big edge-lines overlay it was written for, wrong
+     for this small icon nested inside a card: inset:0 plus an explicit
+     width/height pins it to the card's own top-left corner instead of
+     centring it in the badge, which is what "the icon renders in the wrong
+     corner of the card, not in the dot" actually was. More specific than
+     `.stage svg` (3 classes vs 1), so overriding position/inset here wins. */
+  .gnode .gdot.gicon svg { width: 13px; height: 13px; position: static; inset: auto; }
   .gnode .gbody { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
   .gnode .gaddr {
     font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; font-weight: 700;
@@ -409,15 +446,19 @@
   .gnode .gcut { color: var(--warn); font-weight: 700; flex: none; }
   .grole {
     font-family: ui-monospace, Menlo, monospace; font-size: 8.5px; letter-spacing: .12em;
-    padding: 1px 5px; border-radius: 3px; border: 1px solid currentColor; opacity: .85;
+    padding: 1px 6px; border-radius: 999px; border: 1px solid currentColor; opacity: .95;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    display: inline-flex; align-items: center; gap: 4px;
   }
+  .grole .gring { flex: none; }
   /* An explorer's name for an address, carrying no verification. DASHED, never
      solid: solid borders in this view mean a sourced claim, and the one thing
      this chip must never do is read like the green "labeled 'vasp'" caption it
      sits next to. Amber, not green, for the same reason. */
   .gnode .gmeta .glead {
     color: #fcd34d; font-weight: 700; font-size: 8.5px; letter-spacing: .08em;
-    padding: 1px 5px; border-radius: 3px; border: 1px dashed currentColor;
+    padding: 1px 6px; border-radius: 999px; border: 1px dashed currentColor;
+    background: color-mix(in srgb, currentColor 12%, transparent);
     /* flex:none because the NAME is what this chip exists to show. Left
        shrinkable it lost exactly that — the flag survived and "WhiteBIT" was
        squeezed to nothing inside a 210px card, which is a chip that says an
@@ -451,7 +492,181 @@
   .glegend .swatch { width: 16px; height: 10px; border-radius: 2px; border: 1px solid var(--muted); }
   .spin { display: inline-block; width: 11px; height: 11px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: sp .8s linear infinite; }
   @keyframes sp { to { transform: rotate(360deg); } }
+  .livewrap { display: inline-flex; align-items: center; gap: 6px; }
+  .livedot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 6px var(--ok); animation: livepulse 1.4s ease-in-out infinite;
+  }
+  .livelabel { font-family: ui-monospace, Menlo, monospace; font-size: 10px; letter-spacing: .14em; color: var(--ok); }
+  @keyframes livepulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.7); } }
+
+  /* ==================== manual investigation ==================== */
+  .modetabs { display: flex; gap: 6px; margin-top: 14px; }
+  .modetab {
+    font: inherit; letter-spacing: .08em; text-transform: uppercase; font-size: 12px;
+    color: var(--muted); background: rgba(10,21,36,.7); border: 1px solid var(--line);
+    border-radius: 6px 6px 0 0; padding: 8px 16px; cursor: pointer;
+  }
+  .modetab.active { color: var(--text); background: var(--panel-2); border-color: var(--line-strong); border-bottom-color: var(--panel-2); }
+  #manualView.hidden, #autoView.hidden { display: none; }
+  .mtoolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .mtoolbar input { flex: 1; min-width: 240px; }
+  /* A one-line toolbar, not a full .panel with a title and a paragraph
+     above it — every pixel spent here is a pixel #manualStageWrap below
+     doesn't get, and "manual should take full page for the graph" means
+     that trade goes to the graph. */
+  .mtoolbarpanel { padding: 10px 20px; margin-bottom: 10px; }
+
+  /* ── full-plane manual mode ──────────────────────────────────────────────
+     The graph IS the page here, the way MetaSleuth's canvas is. Boxed under
+     the hero (title + tagline + chain chips + address panel) it had ~400px of
+     window left, which is what forced zoomToFit down to an unreadable scale —
+     the cards were fine, there was simply nowhere to put them. Manual mode
+     therefore drops the hero and pins the stage to the viewport; the
+     automated view is untouched and keeps its full page furniture. */
+  body.manualfull header,
+  body.manualfull .tagline,
+  body.manualfull .chains { display: none; }
+  body.manualfull .wrap { max-width: none; padding: 0; }
+  body.manualfull .modetabs { margin: 0; padding: 6px 12px 0; }
+  body.manualfull .mtoolbarpanel {
+    margin: 0; border-radius: 0; border-left: none; border-right: none;
+  }
+  body.manualfull .mtoolbarpanel::before,
+  body.manualfull .mtoolbarpanel::after { display: none; }   /* HUD corner brackets */
+  body.manualfull #manualStageWrap {
+    /* Fixed, not just tall: nothing above it can push it down again, and the
+       page itself stops scrolling — you pan the plane instead. */
+    position: fixed; left: 0; right: 0; bottom: 0; width: 100vw;
+    margin: 0; border-bottom: none;
+  }
+  body.manualfull { overflow: hidden; }
+  #manualStageWrap {
+    /* Break out of .wrap's 1020px max-width to span the full viewport —
+       the graph is the one thing on this page that benefits from every
+       pixel of screen width, the way MetaSleuth's own canvas does. */
+    width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+    /* Height is set from the element's real top offset in sizeManualStage();
+       this calc is only the pre-JS fallback. A fixed header assumption is
+       wrong the moment the toolbar wraps or the hint line appears, and being
+       wrong here means the graph runs off the bottom of the window. */
+    position: relative; height: calc(100vh - 230px); min-height: 480px;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+  #manualStage { width: 100%; height: 100%; }
+  .minspector {
+    /* Anchored LEFT, matching the reference tool, and wide enough to read a
+       table in. On the right it covered the out-flow column, which is where
+       the destinations now sit under the column layout. */
+    /* Stops short of the legend strip along the bottom, which is an overlay
+       on the same stage — at calc(100% - 24px) the panel's action buttons
+       ended up underneath it. */
+    position: absolute; top: 12px; left: 12px; width: 560px; max-height: calc(100% - 64px);
+    overflow-y: auto; padding: 14px; z-index: 5;
+    background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.5);
+  }
+  .minspector h3 { margin: 0 0 8px; font-size: 13px; }
+  .minspector .maddr {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all;
+    color: #fff; background: rgba(0,0,0,.25); padding: 6px 8px; border-radius: 4px;
+  }
+  .mcolors { display: flex; gap: 8px; margin: 8px 0; }
+  .mswatch {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent;
+    cursor: pointer; padding: 0;
+  }
+  .mswatch.active { border-color: #fff; }
+  .minspector textarea {
+    width: 100%; box-sizing: border-box; margin-top: 6px; resize: vertical;
+    background: rgba(0,0,0,.25); color: var(--text); border: 1px solid var(--line);
+    border-radius: 4px; font: 12px ui-sans-serif, sans-serif; padding: 6px;
+  }
+  .minspector .ghost { margin-top: 8px; width: 100%; }
+  /* The close button is an icon, not an action bar — exempt it from the
+     full-width rule above, which was written for the stacked buttons. */
+  .minspector .ghost#mInspClose { width: auto; margin-top: 0; }
+  /* The balance is a CHAIN fact and reads like one. The USD conversion below
+     it is a market claim with a shelf life, so it gets the muted, derived
+     treatment and always states its source and age — never a bare figure. */
+  .mbalance { margin: 8px 0; padding: 8px 10px; background: rgba(0,0,0,.22); border-radius: 5px; }
+  .mbalance .bamount { font-family: ui-monospace, Menlo, monospace; font-size: 15px; color: #fff; }
+  .mbalance .bstaked { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .mbalance .busd { font-size: 12px; color: #cbe6ff; margin-top: 3px; }
+  .mbalance .bsrc { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .mbalance .bstale { color: var(--warn); }
+  .mbalance .bnone { font-size: 11px; color: var(--muted); }
+  .mtabs { display: flex; gap: 4px; margin: 12px 0 8px; border-bottom: 1px solid var(--line); }
+  .mtab {
+    font: inherit; font-size: 12px; letter-spacing: .04em; padding: 6px 12px; cursor: pointer;
+    color: var(--muted); background: transparent; border: none; border-bottom: 2px solid transparent;
+  }
+  .mtab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .mtable { max-height: 320px; overflow-y: auto; font-size: 12px; }
+  .mtable table { width: 100%; border-collapse: collapse; }
+  .mtable th {
+    position: sticky; top: 0; z-index: 1; text-align: left; font-weight: 600;
+    color: var(--muted); background: var(--panel-2); padding: 5px 6px;
+    border-bottom: 1px solid var(--line); font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .mtable td { padding: 5px 6px; border-bottom: 1px solid rgba(56,189,248,.08); vertical-align: top; }
+  .mtable tr.onchart td { opacity: .5; }   /* already on the canvas */
+  .mtable .cpaddr { font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+  .mtable .dir-in { color: var(--ok); }
+  .mtable .dir-out { color: #fb7185; }
+  /* Same three-tier honesty the cards use: green = sourced ACTIVE claim,
+     amber = an explorer's unverified lead. Never the same colour. */
+  .mtable .cplabel { color: #7ee8bf; font-weight: 600; }
+  .mtable .cplead { color: #fcd34d; }
+  /* Sticky to the panel's own scroll: ticking a row is useless if the button
+     that acts on the ticks has scrolled out of reach. */
+  .mtableactions {
+    display: flex; gap: 6px; margin-top: 8px; position: sticky; bottom: 0; z-index: 2;
+    /* OPAQUE, not var(--panel-2): that is 90% alpha, so the table rows
+       scrolling underneath showed through the buttons and read as overlap. */
+    background: #0b1524; padding: 8px 0 4px;
+    box-shadow: 0 -6px 10px -6px rgba(0,0,0,.8);
+  }
+  .mtableactions .ghost { margin-top: 0; width: auto; flex: 1; padding: 6px 8px; font-size: 11px; }
+  .mlabelform { margin: 10px 0; padding: 8px; border: 1px dashed var(--line); border-radius: 5px; }
+  .mlabelrow { display: flex; gap: 6px; margin-top: 4px; }
+  .mlabelrow input {
+    flex: 1; min-width: 0; background: rgba(0,0,0,.25); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; font: 12px ui-sans-serif, sans-serif;
+  }
+  .mlabelrow .ghost { margin-top: 0; width: auto; padding: 5px 10px; }
+  #mLabelStatus { margin-top: 6px; }
+  #mLabelStatus.pending { color: var(--warn, #fbbf24); }
+  #mLabelStatus.err { color: var(--bad, #fb7185); }
+  .mzoom {
+    position: absolute; bottom: 44px; right: 14px; z-index: 6; display: flex; gap: 4px;
+    align-items: center; background: rgba(4,10,18,.85); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 6px;
+  }
+  .mzoom .ghost { margin-top: 0; width: auto; padding: 3px 9px; }
+  .mzoomlevel { font-size: 11px; color: var(--muted); min-width: 40px; text-align: center; }
+  .prevcycle { color: var(--muted); font-style: italic; }
+  /* What the SYSTEM concluded, at the top of the panel where it is read
+     first — the same claim the card's amber chip makes, spelled out. */
+  .mvasp {
+    margin: 8px 0; padding: 8px 10px; border-radius: 5px;
+    border: 1px solid #fb923c; background: rgba(251,146,60,.10);
+  }
+  .mvasp.sourced { border-color: #34d399; background: rgba(52,211,153,.10); }
+  .mvasp .vtitle { font-weight: 700; font-size: 12px; color: #fb923c; letter-spacing: .04em; }
+  .mvasp.sourced .vtitle { color: #7ee8bf; }
+  .mvasp .vwhy { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .mlegend {
+    position: absolute; bottom: 10px; left: 10px; z-index: 4; display: flex; gap: 14px;
+    font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace;
+    background: rgba(4,10,18,.75); padding: 6px 10px; border-radius: 5px;
+  }
+  .mlegend span { display: flex; align-items: center; gap: 5px; }
+  .mlegend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 </style>
+<script defer src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -468,6 +683,12 @@
     </div>
   </header>
 
+  <div class="modetabs">
+    <button class="modetab active" id="tabAuto">Automated</button>
+    <button class="modetab" id="tabManual">Manual</button>
+  </div>
+
+  <div id="autoView">
   <div class="panel">
     <h2>New investigation</h2>
     <div class="grid">
@@ -533,7 +754,7 @@
       <span class="stat">API calls <b id="sCalls">0</b></span>
       <span class="stat">Transactions <b id="sTxs">0</b></span>
       <span class="stat">Nodes <b id="sNodes">0</b></span>
-      <span class="stat" id="sSpin"><span class="spin"></span></span>
+      <span class="stat livewrap" id="sSpin"><span class="spin"></span><i class="livedot"></i><span class="livelabel">LIVE</span></span>
     </div>
     <div class="cov hidden" id="covLine"></div>
     <div class="hint mono" id="invId"></div>
@@ -577,6 +798,63 @@
       <div id="findings"></div>
     </div>
   </div>
+  </div><!-- /autoView -->
+
+  <div id="manualView" class="hidden">
+    <div class="panel mtoolbarpanel">
+      <div class="mtoolbar">
+        <input id="mAddress" placeholder="Paste any address — 0x…, bc1…, 1…, 3…, T… — click a node to inspect, mark, or expand it"
+               spellcheck="false" autocomplete="off">
+        <button id="mExplore">Explore</button>
+      </div>
+      <label id="mChainPickLabel" class="hidden">Which chain?</label>
+      <div id="mChainPick" class="examples hidden"></div>
+      <div class="hint" id="mHint"></div>
+    </div>
+    <div id="manualStageWrap">
+      <div id="manualStage"></div>
+      <div class="minspector hidden" id="manualInspector">
+        <button class="ghost" id="mInspClose" style="float:right;padding:2px 8px">&times;</button>
+        <h3>Address</h3>
+        <div class="maddr" id="mInspAddr"></div>
+        <div class="hint" id="mInspLabel"></div>
+        <div class="mvasp hidden" id="mInspVasp"></div>
+        <div class="mbalance hidden" id="mInspBalance"></div>
+        <div class="mlabelform" id="mLabelForm">
+          <div class="hint">Tag as a VASP — submitted for review, not applied automatically</div>
+          <div class="mlabelrow">
+            <input id="mLabelEntity" placeholder="Entity name, e.g. Binance" spellcheck="false"
+                   autocomplete="off" maxlength="64">
+            <button class="ghost" id="mLabelSubmit">Submit</button>
+          </div>
+          <div class="hint" id="mLabelStatus"></div>
+        </div>
+        <div class="mtabs">
+          <button class="mtab active" id="mTabRelated" data-tab="related">Related Address</button>
+          <button class="mtab" id="mTabTransfer" data-tab="transfer">Transfer</button>
+        </div>
+        <div class="hint" id="mDataCoverage"></div>
+        <div class="mtable" id="mDataTable"></div>
+        <div class="mtableactions">
+          <button class="ghost" id="mAddSelected" disabled>Add selected</button>
+          <button class="ghost" id="mLoadData">Load data</button>
+        </div>
+        <div class="hint">Mark this address</div>
+        <div class="mcolors" id="mColorRow"></div>
+        <textarea id="mInspNote" rows="3" placeholder="Notes on this address…"></textarea>
+        <a class="hint hidden" id="mInspExplorer" target="_blank" rel="noopener">Open in block explorer &#8599;</a>
+      </div>
+      <div class="mzoom" id="mZoom">
+        <button class="ghost" id="mZoomOut" title="Zoom out">&minus;</button>
+        <span class="mzoomlevel mono" id="mZoomLevel">100%</span>
+        <button class="ghost" id="mZoomIn" title="Zoom in">+</button>
+        <button class="ghost" id="mZoomFit" title="Fit everything on screen">Fit</button>
+        <button class="ghost" id="mMarkedOnly"
+                title="Show only addresses you have marked, and the links between them">Marked only</button>
+      </div>
+      <div class="mlegend" id="mLegend"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -604,6 +882,17 @@ const EXPLORERS = {
   bitcoin:  (a) => "https://mempool.space/address/" + encodeURIComponent(a),
   solana:   (a) => "https://solscan.io/account/" + encodeURIComponent(a),
   tron:     (a) => "https://tronscan.org/#/address/" + encodeURIComponent(a),
+};
+
+// The same explorers, addressed by TRANSACTION rather than account — the
+// manual explorer's Transfer tab lists tx hashes, and a hash nobody can open
+// is a citation you cannot check.
+const TX_EXPLORERS = {
+  ethereum: (h) => "https://etherscan.io/tx/" + encodeURIComponent(h),
+  polygon:  (h) => "https://polygonscan.com/tx/" + encodeURIComponent(h),
+  bitcoin:  (h) => "https://mempool.space/tx/" + encodeURIComponent(h),
+  solana:   (h) => "https://solscan.io/tx/" + encodeURIComponent(h),
+  tron:     (h) => "https://tronscan.org/#/transaction/" + encodeURIComponent(h),
 };
 
 function verifyLink(address, label) {
@@ -1000,6 +1289,83 @@ function levelOf(n) {
   return n.direction === "backward" ? -n.hop : n.hop;
 }
 
+// ==================== entity/chain icon marks ====================
+// Inlined, not fetched: this keeps the "no image assets to host" property
+// the chain-glyph badges below were built to have (see CHAIN_GLYPH), while
+// still shipping a real mark instead of a text glyph for the two brands this
+// view names by hand today. Source and licence, so a later change of mark
+// knows what it is replacing: Binance from simple-icons (CC0), Tron from
+// spothq/cryptocurrency-icons (CC0), the generic VASP mark ("landmark", a
+// building under a roofline — the universal shorthand for a regulated
+// institution) from lucide-static (ISC). None of the three carry a licence
+// that requires attribution in the UI itself.
+// xmlns is required on all three: DOM innerHTML (the automated graph's use)
+// parses SVG fine without it via HTML's foreign-content rules, but a data:
+// URI decoded as a standalone image resource (the manual canvas's use, via
+// iconImage()) does not get that help — Firefox and Chrome both silently
+// fail to rasterize a namespace-less SVG loaded that way, which read as "the
+// icon never showed up" with no error anywhere to catch it.
+const ICON_BINANCE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M16.624 13.9202l2.7175 2.7154-7.353 7.353-7.353-7.352 2.7175-2.7164 4.6355 4.6595 4.6356-4.6595zm4.6366-4.6366L24 12l-2.7154 2.7164L18.5682 12l2.6924-2.7164zm-9.272.001l2.7163 2.6914-2.7164 2.7174v-.001L9.2721 12l2.7164-2.7154zm-9.2722-.001L5.4088 12l-2.6914 2.6924L0 12l2.7164-2.7164zM11.9885.0115l7.353 7.329-2.7174 2.7154-4.6356-4.6356-4.6355 4.6595-2.7174-2.7154 7.353-7.353z"/></svg>';
+const ICON_TRON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle fill="#EF0027" cx="16" cy="16" r="16"/><path fill="#fff" d="M21.932 9.913L7.5 7.257l7.595 19.112 10.583-12.894-3.746-3.562zm-.232 1.17l2.208 2.099-6.038 1.093 3.83-3.192zm-5.142 2.973l-6.364-5.278 10.402 1.914-4.038 3.364zm-.453.934l-1.038 8.58L9.472 9.487l6.633 5.502zm.96.455l6.687-1.21-7.67 9.343.983-8.133z"/></svg>';
+const ICON_VASP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18v-7"/><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>';
+
+// Binance is the one brand this view can name on sight today (the rest of a
+// sourced claim's text is prose, not a company registry) — everything else
+// that names a VASP falls back to the generic mark rather than guessing a
+// brand from free text and risking the wrong logo on the wrong exchange.
+function entityIconSvg(nameText) {
+  return /\bbinance\b/i.test(nameText || "") ? ICON_BINANCE : ICON_VASP;
+}
+
+// Only Tron ships a real mark today; every other chain keeps the text glyph
+// (CHAIN_GLYPH, below) it already had rather than a mix of some chains with
+// logos and some without inside the same badge row.
+function chainIconSvg(chain) {
+  return chain === "tron" ? ICON_TRON : null;
+}
+
+// The automated view is one chain per run, so the mark belongs on the run's
+// own hint line once — not repeated on every node card, which is what the
+// manual explorer's per-node chain badge is for (a canvas that can mix
+// chains in one session).
+function setChainHint(prefix, chain) {
+  const hint = $("hint");
+  clear(hint);
+  const icon = chainIconSvg(chain);
+  if (icon) {
+    const badge = el("span");
+    badge.style.cssText = "display:inline-flex;width:14px;height:14px;border-radius:50%;"
+      + "overflow:hidden;vertical-align:-2px;margin-right:5px";
+    badge.innerHTML = icon;
+    hint.appendChild(badge);
+  }
+  hint.appendChild(document.createTextNode(prefix + chain));
+}
+
+// data: URIs so a canvas can drawImage() an inline mark without a network
+// round trip — encodeURIComponent, not btoa, because these strings contain
+// characters (the © in nobody's icon here, but non-Latin1 in general) btoa
+// chokes on. Cached per (svg, tint) pair: the manual canvas repaints on every
+// physics tick, and re-decoding the same image dozens of times a second was
+// visible on a trace with a few hundred nodes on screen.
+const _iconImageCache = new Map();
+function iconImage(svgString, tint) {
+  const key = tint ? tint + "|" + svgString : svgString;
+  let img = _iconImageCache.get(key);
+  if (img) return img;
+  const tinted = tint ? svgString.replace("<svg ", '<svg style="color:' + tint + '" ') : svgString;
+  img = new Image();
+  // force-graph does not re-run nodeCanvasObject on its own once physics
+  // settles, so the FIRST paint of any given icon — decoded async, arriving
+  // after that paint already ran — would sit undrawn until something else
+  // (a pan, a new node) happened to trigger the next frame. One repaint per
+  // newly-decoded image closes that gap without polling.
+  img.onload = () => { if (manualGraph) applyManualFilter(); };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(tinted);
+  _iconImageCache.set(key, img);
+  return img;
+}
+
 // What this node IS, read only from structured finding/evidence data.
 function classifyNode(node, group) {
   const find = (k) => group.find(f => f.kind === k);
@@ -1013,7 +1379,7 @@ function classifyNode(node, group) {
   const pattern = find("obfuscation_pattern") || find("sweep_pattern");
   const terminal = find("terminal");
 
-  let tone = "plain", caption = "unattributed", basis = null, role = null;
+  let tone = "plain", caption = "unattributed", basis = null, role = null, confPct = null;
   if (sanctioned) {
     tone = "sanctioned"; basis = sanctioned;
     caption = claimText(sanctioned) || "sanctioned address";
@@ -1034,6 +1400,7 @@ function classifyNode(node, group) {
       // first thing lost — which is the one thing this node exists to say.
       const pct = Math.round((vasp.confidence || 0) * 100);
       role = pct ? `CHECK · ${pct}%` : "CHECK";
+      confPct = pct || null;
     }
   } else if (mixer) {
     tone = "mixer"; basis = mixer; caption = "mixer interaction";
@@ -1069,7 +1436,44 @@ function classifyNode(node, group) {
   if (vasp && /customer deposit address/i.test(vasp.summary)) role = "DEPOSIT";
   else if (vasp && /operator-controlled wallet/i.test(vasp.summary)) role = "OPERATIONAL";
 
-  return { tone, caption, inferred, role };
+  return { tone, caption, inferred, role, confPct };
+}
+
+// TODO(you): a 0-100 confidence needs a colour, and that mapping is a real
+// investigative-philosophy call, not a styling one. Our own docs put an
+// unnamed-service inference (the ONLY case that reaches this ring today —
+// see `confPct` above) at a realistic ceiling of ~55-65%, with sourced
+// behavioural patterns elsewhere in the system running 75-95%. A plain
+// red/amber/green tertile split (0-33/34-66/67-100) would draw a well-
+// evidenced 60% guess in the same "amber, be careful" band as a threadbare
+// 40% one — decide what banding actually reflects "how far should an
+// investigator trust this number", and return a colour (a hex string or one
+// of the --ok/--warn/--bad CSS vars) for it. Keep it a small, explainable
+// rule: this ring sits right next to the exact percentage, so it only needs
+// to group numbers, never to replace reading them.
+function confidenceBand(pct) {
+  return "var(--accent-2)"; // placeholder — every ring renders identically until this is filled in
+}
+
+// A small ring beside the CHECK chip so a stronger and a weaker behavioural
+// guess are told apart before a reader parses the percentage in the text
+// beside it. The ring is never the only carrier of the number — the chip's
+// own text always states it in full — so a colour choice here can only ever
+// add emphasis, never withhold information.
+function confidenceRing(pct) {
+  const r = 4.5, c = 2 * Math.PI * r;
+  const color = confidenceBand(pct);
+  const svg = svgEl("svg", { class: "gring", width: 14, height: 14, viewBox: "0 0 14 14" });
+  svg.appendChild(svgEl("circle", {
+    cx: 7, cy: 7, r, fill: "none", stroke: "rgba(255,255,255,.14)", "stroke-width": 2,
+  }));
+  svg.appendChild(svgEl("circle", {
+    cx: 7, cy: 7, r, fill: "none", stroke: color, "stroke-width": 2,
+    "stroke-linecap": "round", "stroke-dasharray": c.toFixed(2),
+    "stroke-dashoffset": (c * (1 - pct / 100)).toFixed(2),
+    transform: "rotate(-90 7 7)",
+  }));
+  return svg;
 }
 
 // A frontier node that carries no finding states nothing except "seen, never
@@ -1470,6 +1874,22 @@ function renderGraph(graph, findings) {
   }
   svg.appendChild(defs);
 
+  // A soft glow under the strongest claim this picture can make about a
+  // fund's path — a verified-asset movement or a bridge crossing — so a
+  // confirmed route reads as brighter at a glance. Speculative and loop
+  // edges are excluded on purpose: a glow reads as emphasis, and putting it
+  // on an inferred link would say the opposite of what its dash already says.
+  for (const d of drawable) {
+    if (d.speculative || d.loop) continue;
+    if (!(d.bridge || d.row.asset_verified)) continue;
+    const g = d.geom;
+    svg.appendChild(svgEl("path", {
+      d: `M ${g.x1} ${g.y1} C ${g.cx1} ${g.cy1} ${g.cx2} ${g.cy2} ${g.x2} ${g.y2}`,
+      fill: "none", stroke: d.bridge ? "#a78bfa" : "#4fb6e0",
+      "stroke-width": 5, "stroke-linecap": "round", opacity: 0.14,
+    }));
+  }
+
   for (const d of drawable) {
     const g = d.geom;
     const path = svgEl("path", {
@@ -1536,7 +1956,8 @@ function renderGraph(graph, findings) {
     // field at all, and undefined must read as "traced", never as a guess.
     const speculative = !!n.speculative;
     const card = el("div", "gnode" + (meta.inferred ? " inferred" : "")
-      + (speculative ? " speculative" : "") + (n.bundle ? " gbundle" : ""));
+      + (speculative ? " speculative" : "") + (n.bundle ? " gbundle" : "")
+      + (meta.tone === "vasp" ? " endpoint" : ""));
     card.style.left = (p.cx - CARD_W / 2) + "px";
     card.style.top = (p.cy - CARD_H / 2) + "px";
     card.style.width = CARD_W + "px";
@@ -1549,15 +1970,27 @@ function renderGraph(graph, findings) {
       : (meta.inferred ? "rgba(127,149,174,.5)" : "rgba(56,189,248,.18)");
     card.style.borderLeftColor = tone.color;
 
-    const dot = el("div", "gdot");
+    // A confirmed, sourced VASP gets its entity mark in this slot instead of
+    // the plain colour dot every other tone keeps — the caption text is the
+    // citable claim either way, this is only ever emphasis (same rule
+    // confidenceRing's own comment states, above).
+    const dot = el("div", "gdot" + (meta.tone === "vasp" ? " gicon" : ""));
     dot.style.background = tone.color;
     dot.style.boxShadow = "0 0 9px " + tone.color;
+    if (meta.tone === "vasp") {
+      // Fixed dark tone, not currentColor: the icon has to read AGAINST the
+      // solid fill above, not disappear into it (Binance's own mark would
+      // render green-on-green here otherwise, losing the one thing a brand
+      // icon is for — being recognisable at a glance).
+      dot.style.color = "#0a1524";
+      dot.innerHTML = entityIconSvg(meta.caption);
+    }
     card.appendChild(dot);
 
     const body = el("div", "gbody");
     body.appendChild(el("div", "gaddr",
       n.bundle ? n.count + " addresses" : shortAddr(n.address)));
-    body.appendChild(el("div", "gcap", meta.caption));
+    body.appendChild(el("div", "gcap", (meta.tone === "vasp" ? "✓ " : "") + meta.caption));
 
     const metaRow = el("div", "gmeta");
     // Measured, not guessed: the body is 210px minus padding, gap, dot and
@@ -1570,8 +2003,10 @@ function renderGraph(graph, findings) {
       metaRow.appendChild(el("span", null, n.hop === 0 ? "root" : "hop " + n.hop));
     }
     if (meta.role) {
-      const chip = el("span", "grole", meta.role);
+      const chip = el("span", "grole");
       chip.style.color = tone.color;
+      if (meta.confPct != null) chip.appendChild(confidenceRing(meta.confPct));
+      chip.appendChild(el("span", null, meta.role));
       metaRow.appendChild(chip);
     }
     // In the meta row, never appended to the caption. The caption is one
@@ -2100,7 +2535,7 @@ async function start(forcedChain) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    $("hint").textContent = "Chain detected: " + started.chain;
+    setChainHint("Chain detected: ", started.chain);
     currentChain = started.chain;   // verify links need the ledger, not just the address
     const id = started.investigation_id;
     // Put the id in the URL the moment the run exists. The bootstrap below
@@ -2284,7 +2719,7 @@ async function openExisting(id) {
     const status = await api("/investigations/" + id);
     currentChain = status.chain;
     $("address").value = status.root_address;
-    $("hint").textContent = "Loaded investigation on " + status.chain;
+    setChainHint("Loaded investigation on ", status.chain);
     await refresh(id, token);
     if (!TERMINAL.includes(status.status)) {
       pollTicks = 0;
@@ -2460,11 +2895,18 @@ function renderSync(st) {
     // not_supplied is checked BEFORE ok, because a never-supplied source is
     // also ok === false. Grading it as "failed" is what made the panel red
     // every morning on any deployment that had not done the manual downloads.
-    tr.appendChild(cell(src.not_supplied ? "awaiting first drop"
+    // While a cycle is in flight the newest run has reported nothing yet, so
+    // these rows are the LAST COMPLETED cycle's result standing in. Saying so
+    // beats blanking them to "not yet run", which read as though pressing
+    // Sync now had erased the state it was refreshing.
+    const outcome = src.not_supplied ? "awaiting first drop"
       : src.ok == null ? "not yet run"
       : src.ok === false ? "failed"
       : src.stale ? "ok, publisher quiet"
-      : (src.added || 0) + " added, " + (src.updated || 0) + " updated"));
+      : (src.added || 0) + " added, " + (src.updated || 0) + " updated";
+    tr.appendChild(cell(
+      src.from_previous_cycle ? outcome + "  (last cycle — this one still running)" : outcome,
+      src.from_previous_cycle ? "prevcycle" : null));
     body.appendChild(tr);
   });
   table.classList.toggle("hidden", !(st.sources || []).length);
@@ -2521,6 +2963,1191 @@ $("syncToggle").addEventListener("click", () => {
   const body = $("syncBody"), hidden = body.classList.toggle("hidden");
   $("syncToggle").textContent = hidden ? "show" : "hide";
 });
+
+// ==================== manual investigation ====================
+// A second, deliberately different way to look at the same chains: the
+// automated engine above answers "where did this end up" on its own
+// judgement, expanding everything itself against a budget. This view hands
+// every step to the investigator instead — one node, opened by hand, on a
+// free pan/zoom canvas. It uses a real force-layout library (force-graph)
+// rather than the hand-rolled SVG the automated graph uses, because
+// determinism does not matter here: a human is driving, not a report that
+// has to render the same investigation the same way twice.
+//
+// GET /addresses/{address}/expand backs this — a one-hop, unpersisted
+// lookup that makes no investigation record and runs no heuristics. A
+// counterparty is still only ever labelled from an ACTIVE sourced claim
+// (never guessed), the one rule this view keeps from the automated engine.
+//
+// Colour tags and notes are stored in the BROWSER (localStorage), not the
+// server: there is no schema for a user annotation anywhere in this project
+// today, and a lightweight, keep-it-on-your-machine scratchpad is a smaller,
+// faster, more honest v1 than inventing server-side storage for it.
+
+function setMode(mode) {
+  const auto = mode !== "manual";
+  $("autoView").classList.toggle("hidden", !auto);
+  $("manualView").classList.toggle("hidden", auto);
+  $("tabAuto").classList.toggle("active", auto);
+  $("tabManual").classList.toggle("active", !auto);
+  // Manual mode hands the whole window to the canvas (see .manualfull CSS).
+  document.body.classList.toggle("manualfull", !auto);
+  // Sized only once visible — an element inside a `display:none` parent
+  // measures as zero, so this has to run after the class toggle above.
+  if (!auto) { sizeManualStage(); ensureManualGraph(); }
+}
+$("tabAuto").addEventListener("click", () => setMode("auto"));
+$("tabManual").addEventListener("click", () => setMode("manual"));
+
+const MANUAL_COLORS = [
+  { key: "watch",   label: "Watching",     color: "#fbbf24" },
+  { key: "suspect", label: "Suspicious",   color: "#fb7185" },
+  { key: "trail",   label: "On the trail", color: "#00f0ff" },
+  { key: "clear",   label: "Cleared",      color: "#34d399" },
+];
+const MANUAL_NOTES_KEY = "cc_manual_notes";
+let manualAnnotations = {};
+try { manualAnnotations = JSON.parse(localStorage.getItem(MANUAL_NOTES_KEY) || "{}"); } catch (_) {}
+function saveManualAnnotations() {
+  try { localStorage.setItem(MANUAL_NOTES_KEY, JSON.stringify(manualAnnotations)); } catch (_) {}
+}
+
+function manualKey(chain, address) { return chain + ":" + address; }
+function shortAddrManual(a) { return a && a.length > 20 ? a.slice(0, 8) + "…" + a.slice(-6) : a; }
+
+// Plain glyphs and brand colour, not fetched logo images: a badge this small
+// reads fine as a glyph, and it keeps this file dependency-free (no image
+// assets to host) and clear of any logo-licensing question.
+const CHAIN_GLYPH = {
+  bitcoin:  { glyph: "₿", color: "#f7931a", name: "Bitcoin" },
+  ethereum: { glyph: "Ξ", color: "#627eea", name: "Ethereum" },
+  polygon:  { glyph: "⬡", color: "#8247e5", name: "Polygon" },
+  solana:   { glyph: "◎", color: "#9945ff", name: "Solana" },
+  tron:     { glyph: "T",      color: "#eb0029", name: "Tron" },
+};
+function chainGlyph(chain) {
+  return CHAIN_GLYPH[chain] || { glyph: "?", color: "#7f95ae", name: chain };
+}
+
+let manualGraph = null;
+let manualInspecting = null;
+
+// The canonical graph. `manualGraph.graphData()` holds only what is currently
+// DRAWN, which stops being the whole graph the moment a filter is on — so
+// every lookup, dedup and mutation goes through these instead. Reading the
+// drawn set to decide "have I already added this node?" would duplicate
+// every node hidden by a filter.
+let manualNodes = [];
+let manualLinks = [];
+function manualData() { return { nodes: manualNodes, links: manualLinks }; }
+
+//: Show only nodes the investigator has marked (plus the links between them).
+//: A trace of a few hundred nodes is unreadable; the marks are the answer to
+//: "which of these did I actually care about", so they double as the filter.
+let manualMarkedOnly = false;
+
+function applyManualFilter() {
+  if (!manualGraph) return;
+  if (!manualMarkedOnly) { manualGraph.graphData(manualData()); return; }
+  const keep = new Set(manualNodes.filter(n => n.tag).map(n => n.id));
+  const nodes = manualNodes.filter(n => keep.has(n.id));
+  // Only links whose BOTH ends survive: half an edge would draw a line to
+  // somewhere the viewer cannot see and cannot ask about.
+  const links = manualLinks.filter(l => {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    return keep.has(s) && keep.has(t);
+  });
+  manualGraph.graphData({ nodes, links });
+}
+
+function ensureManualGraph() {
+  if (manualGraph) { manualGraph.width($("manualStage").clientWidth); return; }
+  if (typeof ForceGraph !== "function") {
+    $("mHint").textContent = "Manual mode's graph library did not load — check your connection and reload.";
+    return;
+  }
+  manualGraph = ForceGraph()($("manualStage"))
+    .backgroundColor("rgba(0,0,0,0)")
+    .nodeCanvasObject(paintManualNode)
+    .nodePointerAreaPaint(paintManualPointerArea)
+    .linkCanvasObject(paintManualLink)
+    .linkDirectionalArrowLength(5)
+    .linkDirectionalArrowRelPos(0.85)
+    // A node is a position in a layout, not a thing to rearrange by hand:
+    // dragging one tore the columns apart and re-heated the simulation, which
+    // is the "graph moves on click and drag" complaint. Pan and zoom still
+    // move the VIEW; the graph itself stays where it settled.
+    .enableNodeDrag(false)
+    .onNodeClick(handleManualNodeClick)
+    .onZoom(renderManualZoomLevel)
+    .onEngineStop(() => {
+      if (!manualFitPending) return;   // never re-frame a view the user panned
+      manualFitPending = false;
+      // Freeze every node where it settled. fx already pins the column; this
+      // pins the row, so nothing drifts afterwards and a later expansion
+      // cannot shuffle the nodes already on screen out from under the reader.
+      for (const n of manualNodes) { if (n.fy == null && n.y != null) n.fy = n.y; }
+      manualGraph.zoomToFit(400, 80);
+      // zoomToFit will shrink without limit to get EVERYTHING on screen, and
+      // on a wide fan-out that lands at a scale where the cards are specks —
+      // which is not a view of anything. Past this floor, stop zooming out and
+      // let the investigator pan the plane instead: seeing part of the graph
+      // legibly beats seeing all of it illegibly.
+      if (manualGraph.zoom() < MZOOM_FLOOR) {
+        const root = manualData().nodes.find(n => n.isRoot);
+        manualGraph.zoom(MZOOM_FLOOR, 400);
+        if (root) manualGraph.centerAt(root.x, root.y, 400);
+      }
+    })
+    .cooldownTicks(220)
+    // A gentle curve, so parallel edges between the same two columns stay
+    // individually followable instead of collapsing into one thick line.
+    .linkCurvature(0.12)
+    .d3AlphaDecay(0.018);
+  // X is pinned per column (see addManualNode), so charge can only act
+  // VERTICALLY here — its horizontal component is discarded by fx every tick.
+  // That makes a strong charge safe: it buys separation down the column and
+  // cannot spread the columns apart. A first attempt cut it to -300 on the
+  // assumption it would fight the pinning; it doesn't, and 15 cards in one
+  // column came out overlapping.
+  //
+  // The LINK force is what has to stay weak: it pulls each counterparty toward
+  // its parent's row, which is directly opposed to spreading a wide fan-out.
+  // Enough to keep a counterparty near the address it belongs to, not enough
+  // to stack fifteen of them on one line.
+  const charge = manualGraph.d3Force("charge");
+  if (charge) charge.strength(-800).distanceMax(1600);
+  const link = manualGraph.d3Force("link");
+  if (link) link.distance(90).strength(0.12);
+  renderManualLegend();
+}
+
+// World-space card size. Wider than the old 14-20px dot on purpose — this is
+// the "current graph is not good, I want it expandable with full plain [text]"
+// request: an address and its label sit ON the card, not beside a badge too
+// small to hold them.
+// Sized so an address and its caption are readable at the zoom a fanned-out
+// graph actually settles at, rather than only when zoomed right in. The
+// earlier 118x40 was legible at 1:1 and a smear at the ~0.7 the fit floor
+// allows, which is where this view is normally read.
+const MCARD_W = 190, MCARD_W_ROOT = 215, MCARD_H = 58;
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function manualNodeColor(node) {
+  const tag = MANUAL_COLORS.find(c => c.key === node.tag);
+  if (tag) return tag.color;
+  if (node.isRoot) return "#00f0ff";
+  if (node.label) return "#34d399";
+  return "#38bdf8";
+}
+
+// A MetaSleuth-style boxed card (was: a small dot with text floating below
+// it). Everything the dot version put in separate badges lives ON the card
+// now — full address, full label, no zooming in to read either — which is
+// the "expandable with full plain [text]" request this replaced the dot for.
+function paintManualNode(node, ctx, scale) {
+  const w = node.isRoot ? MCARD_W_ROOT : MCARD_W, h = MCARD_H;
+  const x = node.x - w / 2, y = node.y - h / 2;
+  const color = manualNodeColor(node);
+  node.__w = w; node.__h = h;   // read back by paintManualPointerArea, below
+
+  // A soft cast shadow — cheap depth cue at this size, and the one thing a
+  // flat canvas fill can't otherwise say that the automated graph's real
+  // box-shadow CSS (.gnode) already does. Reset immediately: shadowBlur
+  // bleeds into every draw call after it (the badges, the text) until
+  // something clears it, which is not a mistake to make once and repaint
+  // every physics tick.
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+  roundRectPath(ctx, x, y, w, h, 8);
+  ctx.fillStyle = "#0e1929f0";
+  ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = node.isRoot ? 2.2 : 1.4;
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  // Left accent stripe — the same "role colour on the left edge" language
+  // the automated graph's own .gnode card uses (index.html, .gnode CSS).
+  roundRectPath(ctx, x, y, 4, h, 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Chain badge, inside the card at top-left: a real mark for Tron, the
+  // existing letter/symbol glyph for every other chain (chainIconSvg only
+  // covers the one brand this view can draw on sight — see its own comment).
+  const chainInfo = chainGlyph(node.chain);
+  const badgeR = 10;
+  const cbx = x + 18, cby = y + 17;
+  ctx.beginPath(); ctx.arc(cbx, cby, badgeR, 0, 2 * Math.PI);
+  ctx.fillStyle = chainInfo.color; ctx.fill();
+  const chainIcon = chainIconSvg(node.chain);
+  if (chainIcon) {
+    const img = iconImage(chainIcon);
+    if (img.complete && img.naturalWidth) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cbx, cby, badgeR - 1, 0, 2 * Math.PI); ctx.clip();
+      ctx.drawImage(img, cbx - badgeR, cby - badgeR, badgeR * 2, badgeR * 2);
+      ctx.restore();
+    }
+  } else {
+    ctx.font = "700 " + Math.max(badgeR * 1.1, 5) + "px ui-sans-serif, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#0a1524";
+    ctx.fillText(chainInfo.glyph, cbx, cby + 0.5);
+  }
+
+  // Entity mark, top-right: an ACTIVE, sourced claim (node.label, filled
+  // only from api/app.py's expand_address — same rule the automated view's
+  // classifyNode holds) gets the real brand/generic-VASP mark. A tag THIS
+  // browser session submitted and has not been corroborated yet
+  // (node.communityTag — see submitManualLabel) is drawn distinctly: amber
+  // and dashed, never the solid green a sourced claim gets, so an
+  // investigator's own unverified guess can never be mistaken for one.
+  if (node.label) {
+    const lbx = x + w - 18, lby = y + 17;
+    ctx.beginPath(); ctx.arc(lbx, lby, badgeR, 0, 2 * Math.PI);
+    ctx.fillStyle = "#0a1524"; ctx.fill();
+    ctx.lineWidth = 1.3; ctx.strokeStyle = "#34d399"; ctx.stroke();
+    const img = iconImage(entityIconSvg(node.label), "#34d399");
+    if (img.complete && img.naturalWidth) {
+      ctx.drawImage(img, lbx - badgeR + 2, lby - badgeR + 2, (badgeR - 2) * 2, (badgeR - 2) * 2);
+    }
+  } else if (node.leadTag) {
+    // A public-explorer lead: real brand mark so it is recognisable, but in
+    // the lead's amber and DASHED, never the solid green a sourced claim
+    // gets. The icon aids recognition; the colour still carries the standing.
+    const lbx = x + w - 18, lby = y + 17;
+    ctx.setLineDash([3, 2]);
+    ctx.beginPath(); ctx.arc(lbx, lby, badgeR, 0, 2 * Math.PI);
+    ctx.fillStyle = "#0a1524"; ctx.fill();
+    ctx.lineWidth = 1.3; ctx.strokeStyle = "#fcd34d"; ctx.stroke();
+    ctx.setLineDash([]);
+    const limg = iconImage(entityIconSvg(node.leadTag), "#fcd34d");
+    if (limg.complete && limg.naturalWidth) {
+      ctx.drawImage(limg, lbx - badgeR + 2, lby - badgeR + 2, (badgeR - 2) * 2, (badgeR - 2) * 2);
+    }
+  } else if (node.communityTag) {
+    const lbx = x + w - 18, lby = y + 17;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.arc(lbx, lby, badgeR, 0, 2 * Math.PI);
+    ctx.fillStyle = "#0a1524"; ctx.fill();
+    ctx.lineWidth = 1.3; ctx.strokeStyle = "#fbbf24"; ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = "700 " + Math.max(badgeR * 1.1, 5) + "px ui-sans-serif, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillText("?", lbx, lby + 0.5);
+  }
+
+  // The MetaSleuth-style "+" badge: present exactly on nodes nothing has
+  // asked about yet, now hung off the card's right edge. Its hit-box is
+  // drawn again, invisibly, in paintManualPointerArea — that is what
+  // onNodeClick tests against.
+  if (!node.expanded) {
+    const bx = x + w + 12, by = node.y;
+    ctx.beginPath(); ctx.arc(bx, by, 9, 0, 2 * Math.PI);
+    ctx.fillStyle = "#0a1524"; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = "#00f0ff"; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx - 4.5, by); ctx.lineTo(bx + 4.5, by);
+    ctx.moveTo(bx, by - 4.5); ctx.lineTo(bx, by + 4.5);
+    ctx.lineWidth = 1.8; ctx.strokeStyle = "#00f0ff"; ctx.stroke();
+    node.__badge = { x: bx, y: by, r: 9 };
+  } else {
+    node.__badge = null;
+  }
+
+  // A FIXED world-unit size, not scaled against `scale` — the card itself
+  // (MCARD_W/H) is fixed world units too, so text has to shrink WITH it as
+  // the view zooms out, or it outgrows a card that is shrinking around it.
+  // A prior version compensated for zoom to hold a constant SCREEN size,
+  // which is right for a label floating beside a small dot (the old
+  // design) and wrong for text meant to stay INSIDE a box — on a graph with
+  // enough expanded nodes to force a low zoomToFit, that read as oversized
+  // text spilling out of shrunken slivers instead of a card.
+  const fontSize = 14;
+  ctx.font = fontSize + "px ui-monospace, Menlo, monospace";
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = "#dbe9f7";
+  ctx.fillText(shortAddrManual(node.address), x + 32, y + 17);
+
+  // What the SYSTEM concluded from behaviour, on the same rule the automated
+  // graph uses — degree over this address's counterparties, thresholds and
+  // confidence curve shared from analysis/heuristics/service.py. A ROLE, not
+  // an identity: it says "behaves like an exchange", never which one. Amber
+  // and explicitly a percentage, exactly like the automated CHECK chip, so it
+  // can never be mistaken for the green of a sourced label.
+  if (node.service && node.service.meets_threshold) {
+    const pct = Math.round(node.service.confidence * 100);
+    const chip = "SEEMS VASP · " + pct + "%";
+    ctx.font = "600 11px ui-monospace, Menlo, monospace";
+    const cw = ctx.measureText(chip).width + 10;
+    const cx = x + w - cw - 8, cy = y + h - 20;
+    ctx.fillStyle = "rgba(251,146,60,.16)";
+    roundRectPath(ctx, cx, cy, cw, 15, 7);
+    ctx.fill();
+    ctx.strokeStyle = "#fb923c"; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = "#fb923c";
+    ctx.fillText(chip, cx + 5, cy + 8);
+  }
+  // Precedence is the honesty order, strongest claim first: a sourced ACTIVE
+  // label, then this analyst's own submitted tag, then what a public explorer
+  // calls it (a lead — prefixed with ⚑ and never coloured like the other
+  // two), then nothing known. Same three-tier language the automated graph's
+  // caption/.glead chip already speaks.
+  const secondLine = node.label
+    || (node.communityTag ? node.communityTag + " (unconfirmed)" : null)
+    || (node.leadTag ? "⚑ " + node.leadTag + " — unverified" : null)
+    || "unattributed";
+  ctx.fillStyle = node.label ? "#7ee8bf"
+    : node.communityTag ? "#fbbf24"
+    : node.leadTag ? "#fcd34d"
+    : "#5c7591";
+  ctx.font = (node.label ? "600 " : "") + 12 + "px ui-monospace, Menlo, monospace";
+  // Leaves room for the SEEMS VASP chip on the same line when there is one.
+  const capWidth = ((node.service && node.service.meets_threshold) ? w * 0.52 : w - 16);
+  ctx.fillText(truncateToWidth(ctx, secondLine, capWidth), x + 10, y + h - 13);
+}
+
+// Canvas has no text-overflow:ellipsis — measured by hand, once per paint,
+// against the current font (caller sets it first) so a long entity name
+// (community tags are free text) cannot spill off the card.
+function truncateToWidth(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (ctx.measureText(text.slice(0, mid) + "…").width <= maxWidth) lo = mid; else hi = mid - 1;
+  }
+  return lo ? text.slice(0, lo) + "…" : "";
+}
+
+function paintManualPointerArea(node, color, ctx) {
+  // node.__w/__h are set by paintManualNode, which force-graph always runs
+  // for every node before it ever needs a hit-test; the card size constants
+  // are the fallback for the (never actually reached) frame where it hasn't.
+  const w = node.__w || (node.isRoot ? MCARD_W_ROOT : MCARD_W), h = node.__h || MCARD_H;
+  ctx.fillStyle = color;
+  roundRectPath(ctx, node.x - w / 2, node.y - h / 2, w, h, 8);
+  ctx.fill();
+  if (node.__badge) {
+    ctx.beginPath();
+    ctx.arc(node.__badge.x, node.__badge.y, node.__badge.r + 4, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+}
+
+// Edges are drawn as quadratic curves rather than straight lines. This is not
+// only decoration: with X pinned into columns, many edges run between the same
+// two columns and a set of straight ones overlap into a single thick bar that
+// says nothing about how many flows it represents. The library's own
+// linkCurvature does not apply here — a custom linkCanvasObject owns its
+// drawing entirely — so the curve is computed rather than configured.
+const MLINK_CURVE = 0.12;
+
+function manualLinkGeometry(s, t) {
+  const mx = (s.x + t.x) / 2, my = (s.y + t.y) / 2;
+  const dx = t.x - s.x, dy = t.y - s.y;
+  // Control point pushed along the edge's own normal, so the bow is
+  // perpendicular to the line and scales with its length.
+  return { cx: mx + dy * MLINK_CURVE, cy: my - dx * MLINK_CURVE };
+}
+
+function paintManualLink(link, ctx, scale) {
+  const s = link.source, t = link.target;
+  if (typeof s !== "object" || typeof t !== "object") return;
+  const { cx, cy } = manualLinkGeometry(s, t);
+  ctx.beginPath();
+  ctx.moveTo(s.x, s.y);
+  ctx.quadraticCurveTo(cx, cy, t.x, t.y);
+  ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.65)" : "rgba(56,189,248,.65)";
+  ctx.lineWidth = Math.max(1, 1.6 / scale);
+  ctx.stroke();
+  if (scale > 0.5 && link.amountLabel) {
+    // The label rides ON the curve (its t=0.5 point), not on the straight
+    // midpoint the curve has now left behind.
+    const mx = 0.25 * s.x + 0.5 * cx + 0.25 * t.x;
+    const my = 0.25 * s.y + 0.5 * cy + 0.25 * t.y;
+    const fs = Math.max(9 / scale, 3);
+    ctx.font = fs + "px ui-monospace, Menlo, monospace";
+    const w = ctx.measureText(link.amountLabel).width + 6;
+    ctx.fillStyle = "rgba(4,10,18,.85)";
+    ctx.fillRect(mx - w / 2, my - fs / 2 - 2, w, fs + 4);
+    ctx.fillStyle = "#e8f6ff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(link.amountLabel, mx, my);
+  }
+}
+
+function handleManualNodeClick(node, event) {
+  if (node.__badge && manualGraph) {
+    const coords = manualGraph.screen2GraphCoords(event.offsetX, event.offsetY);
+    const dx = coords.x - node.__badge.x, dy = coords.y - node.__badge.y;
+    // "+" expands directly — it is the fast path, and a badge that only
+    // opened a panel read as a broken button. Picking specific rows is still
+    // available from the Related Address table ("Add selected"); the two are
+    // complementary rather than alternatives.
+    if (Math.hypot(dx, dy) <= node.__badge.r + 4) {
+      expandManualNode(node);
+      return;
+    }
+  }
+  openManualInspector(node);
+}
+
+// Horizontal spacing between columns. Cards are 118-138 wide, and the gap has
+// to clear both the widest card AND the amount chip drawn at each edge's
+// midpoint — at less than this the labels sit on top of the cards they belong
+// between.
+const MCOLUMN_GAP = 300;
+
+//: The smallest scale the auto-fit is allowed to settle at. At 0.7 a 118px
+//: card is ~83px on screen — its address still reads. Below that the fit is
+//: producing a picture of a graph rather than a graph you can work in.
+const MZOOM_FLOOR = 0.7;
+
+// Bring the whole graph back into frame. Called after an expansion as well as
+// after the first explore: a new column appears to the left or right of
+// everything already on screen, so the node just opened is exactly the one
+// most likely to land outside the viewport.
+//
+// This REQUESTS a fit rather than performing one, because the honest moment to
+// measure the graph is when the simulation has stopped moving it — a fit on a
+// guessed timer framed a layout that was still spreading, and left it clipped.
+// `onEngineStop` (wired in ensureManualGraph) does the actual fit and clears
+// the flag, so a fit only ever happens when one was asked for and never
+// fights a pan the investigator just made.
+// Callers only ever request a fit straight after adding nodes, and adding
+// nodes reheats the simulation by itself — so an explicit reheat here is both
+// unnecessary and actively harmful: called in that window it runs d3 over
+// links whose source/target are still the string ids force-graph has not
+// resolved into node objects yet ("Cannot create property 'vx' on string …").
+let manualFitPending = false;
+function manualFit() {
+  manualFitPending = true;
+}
+
+// Make the stage reach exactly to the bottom of the window, measured rather
+// than assumed. The CSS fallback subtracts a fixed header height, which is
+// wrong as soon as the toolbar wraps or the hint line appears — and wrong in
+// the direction that pushes the graph off the bottom of the screen.
+function sizeManualStage() {
+  const wrap = $("manualStageWrap");
+  if (!wrap || wrap.offsetParent === null) return;   // hidden: nothing to measure
+  const top = wrap.getBoundingClientRect().top + window.scrollY;
+  const height = Math.max(480, window.innerHeight - top - 8);
+  wrap.style.height = height + "px";
+  if (manualGraph) {
+    manualGraph.width($("manualStage").clientWidth).height(height);
+  }
+}
+window.addEventListener("resize", sizeManualStage);
+
+// Which column a node belongs in, from the edge that discovered it: money
+// coming IN sits to the LEFT of the address it funded, money going OUT sits to
+// the RIGHT. The root is 0, so a trace reads left-to-right as value moves —
+// the arrangement MetaSleuth uses and the one an investigator narrates in.
+//
+// Assigned ONCE, at discovery. An address reached again by another path keeps
+// its first column: re-assigning would let a node with two inbound routes
+// oscillate between columns every repaint, and the first path that found it is
+// the one the picture is explaining.
+function addManualNode(chain, address, isRoot, parentColumn, direction) {
+  const data = manualData();
+  const key = manualKey(chain, address);
+  let node = data.nodes.find(n => n.id === key);
+  if (node) return node;
+  const saved = manualAnnotations[key];
+  const column = isRoot ? 0
+    : (parentColumn || 0) + (direction === "in" ? -1 : 1);
+  // Seed Y spread down the column rather than letting every new node start at
+  // the same point and relying on repulsion to untangle it. A column of 15
+  // counterparties seeded together settles as a PILE: charge falls off with
+  // distance, so nodes starting coincident push each other apart only weakly
+  // and the simulation freezes before separating them. Seeding a card-height
+  // apart leaves the physics refining a good layout instead of rescuing a bad
+  // one. Alternates out from the centre — 0, +1, -1, +2, -2 … — so a column
+  // grows symmetrically around its parent's row instead of trailing downward.
+  const rank = data.nodes.filter(n => n.column === column).length;
+  const seedY = Math.ceil(rank / 2) * (MCARD_H + 34) * (rank % 2 === 1 ? 1 : -1);
+  node = {
+    id: key, address, chain, isRoot: !!isRoot, expanded: false,
+    label: null, tag: saved ? saved.color : null, note: saved ? saved.note : "",
+    // Restored from the browser only — the /expand response this node was
+    // built from already told us the server side has no ACTIVE claim here
+    // (that would have set `label` instead), so this is just "you tagged
+    // this before", not a re-check of whether it got corroborated since.
+    communityTag: saved ? saved.communityTag || null : null,
+    column: column,
+    // BOTH axes pinned, so the layout is decided here rather than negotiated
+    // by the simulation. Leaving Y to the physics looked reasonable and
+    // wasn't: charge pulled a 15-card column back to ~55px spacing for 58px
+    // cards, i.e. touching, which is what read as "so tangled". A ladder of
+    // exact rows is also deterministic — the same trace draws the same way
+    // twice, and nothing shifts under the reader when a later expansion
+    // adds a column somewhere else.
+    fx: column * MCOLUMN_GAP,
+    fy: seedY,
+    x: column * MCOLUMN_GAP,
+    y: seedY,
+  };
+  manualNodes.push(node);
+  applyManualFilter();
+  return node;
+}
+
+function addManualLink(srcKey, cp) {
+  const lkey = srcKey + "|" + manualKey(cp.chain, cp.address) + "|" + cp.direction;
+  if (manualLinks.some(l => l.__key === lkey)) return;
+  manualLinks.push({
+    __key: lkey, source: srcKey, target: manualKey(cp.chain, cp.address),
+    direction: cp.direction,
+    amountLabel: formatUnits(cp.amount, cp.asset_decimals) + " " + (cp.asset_symbol || ""),
+    tx_hash: cp.tx_hash,
+  });
+  applyManualFilter();
+}
+
+async function expandManualNode(node) {
+  if (node.expanding) return;
+  node.expanding = true;
+  $("mHint").textContent = "Expanding " + shortAddrManual(node.address) + "…";
+  try {
+    const res = await api("/addresses/" + encodeURIComponent(node.address)
+      + "/expand?limit=25&chain=" + encodeURIComponent(node.chain));
+    for (const cp of res.counterparties) {
+      cp.chain = node.chain;
+      const cnode = addManualNode(node.chain, cp.address, false, node.column, cp.direction);
+      if (cp.label) { cnode.label = cp.label.entity; }
+      addManualLink(node.id, cp);
+    }
+    // The system's own read on this address, from the counterparties it just
+    // returned — same rule the automated graph marks with.
+    node.service = res.service_endpoint || null;
+    node.expanded = true;
+    applyManualFilter(); // repaint (badge state changed)
+    $("mHint").textContent = res.truncated
+      ? ("Showing the largest " + res.counterparties.length + " of " + res.total_count
+         + " counterparties for " + shortAddrManual(node.address) + " — bounded for legibility, not coverage.")
+      : "";
+    renderManualLegend();
+    // A new column just appeared beside everything already placed; refit so
+    // the nodes this click produced are actually on screen.
+    manualFit();
+    fetchManualLeads();   // fire-and-forget: names arrive after the cards do
+  } catch (e) {
+    $("mHint").textContent = "Could not expand " + shortAddrManual(node.address) + ": " + e.message;
+  } finally {
+    node.expanding = false;
+  }
+}
+
+// What a public explorer calls the addresses on this canvas. The automated
+// view has asked this question since the "Find names" button existed
+// (intel/leads.py); until now the manual view could not, so an address
+// TronScan calls "Bybit" sat here reading "unattributed" while a commercial
+// tool two tabs over named it. Same reader, same unverified standing: these
+// land as node.leadTag and are drawn amber and dashed, never as the green a
+// sourced claim gets.
+//
+// Fired after the cards are already on screen, never awaited by the caller:
+// the reader spaces its requests to stay welcome at a free public API, so
+// this is seconds of background work that must not hold up the graph.
+const MANUAL_LEAD_BATCH = 12;   // matches the endpoint's own cap
+let manualLeadsInFlight = false;
+
+async function fetchManualLeads() {
+  if (manualLeadsInFlight || !manualGraph) return;
+  const data = manualData();
+  // Only addresses nothing has named yet, and only ones never asked about —
+  // a miss is a real answer ("the explorer does not know this one") and
+  // re-asking it every expand would spend the API's goodwill on nothing.
+  const pending = data.nodes.filter(n => !n.label && !n.leadTag && !n.leadAsked);
+  if (!pending.length) return;
+  const batch = pending.slice(0, MANUAL_LEAD_BATCH);
+  const chain = batch[0].chain;
+  const sameChain = batch.filter(n => n.chain === chain);
+  manualLeadsInFlight = true;
+  try {
+    const res = await api("/addresses/leads", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chain: chain, addresses: sameChain.map(n => n.address) }),
+    });
+    sameChain.forEach(n => { n.leadAsked = true; });
+    if (res.unsupported_chain) return;
+    const byAddress = new Map(res.leads.map(l => [l.address, l]));
+    let named = 0;
+    for (const n of sameChain) {
+      const lead = byAddress.get(n.address);
+      if (lead) { n.leadTag = lead.entity; n.leadSource = lead.source; named++; }
+    }
+    if (named) {
+      applyManualFilter();
+      renderManualLegend();
+    }
+  } catch (e) {
+    // A canvas with fewer names is not a failed lookup worth shouting about;
+    // the same "failure is always soft" rule intel/explorer_tags.py holds.
+    sameChain.forEach(n => { n.leadAsked = true; });
+  } finally {
+    manualLeadsInFlight = false;
+    // More cards than one batch holds: keep going until nothing is unasked.
+    if (manualData().nodes.some(n => !n.label && !n.leadTag && !n.leadAsked)) {
+      setTimeout(fetchManualLeads, 250);
+    }
+  }
+}
+
+// The panel's headline answer to "what IS this address", stated at the top
+// with its BASIS, because the basis is what decides how far it can be
+// trusted. Three tiers, strongest first, never blended:
+//   sourced label  → an ACTIVE claim from a trusted method (green)
+//   system sweep   → our own degree heuristic, with its % (amber)
+//   explorer lead  → what a public explorer calls it, unverified (amber)
+function renderManualVasp(node) {
+  const host = $("mInspVasp");
+  clear(host);
+  const parts = [];
+  if (node.label) {
+    host.className = "mvasp sourced";
+    parts.push(["VASP — " + node.label,
+                "Active, sourced label. This is the only tier the automated engine will cite."]);
+  } else if (node.service && node.service.meets_threshold) {
+    const pct = Math.round(node.service.confidence * 100);
+    host.className = "mvasp";
+    parts.push(["SEEMS VASP · " + pct + "% — operator unnamed",
+      "System sweep: collects from " + node.service.senders + " and pays out to "
+      + node.service.recipients + " distinct addresses on the history read so far"
+      + (node.service.page_bounded ? " (one page — a busier address may score higher)" : "")
+      + ". Behaviour identifies the ROLE only; naming the operator needs a sourced label."]);
+  } else if (node.leadTag) {
+    host.className = "mvasp";
+    parts.push(["⚑ " + node.leadTag + " — unverified",
+      "A public explorer's name for this address. A lead to check, never evidence: "
+      + "it is filed as a pending claim and cannot name an endpoint anywhere else."]);
+  }
+  // Measured and did NOT qualify: say so with the numbers. Showing nothing
+  // would be indistinguishable from never having looked, and on a
+  // page-bounded read that distinction is the whole point — "Load data"
+  // reads further and the degree can still cross the line.
+  if (node.service && !node.service.meets_threshold) {
+    parts.push(["Not a service endpoint on what has been read",
+      "Degree so far: " + node.service.senders + " in / " + node.service.recipients
+      + " out — under the 25 in / 25 out the system requires before calling an "
+      + "address custodial infrastructure. Load data reads further back."]);
+  }
+  if (!parts.length) { host.classList.add("hidden"); return; }
+  host.classList.remove("hidden");
+  for (const [title, why] of parts) {
+    host.appendChild(el("div", "vtitle", title));
+    host.appendChild(el("div", "vwhy", why));
+  }
+}
+
+// ── balance ─────────────────────────────────────────────────────────────────
+// Cached per node for the panel's lifetime: the server never caches a balance
+// (CachePolicy.NEVER — a cached balance is a wrong balance), so every fetch is
+// a live call against the same 30/min budget the expansions spend.
+async function loadManualBalance(node) {
+  const host = $("mInspBalance");
+  if (node.__balance) { renderManualBalance(node.__balance); return; }
+  host.classList.remove("hidden");
+  host.textContent = "Reading balance…";
+  try {
+    const res = await api("/addresses/" + encodeURIComponent(node.address)
+      + "/balance?chain=" + encodeURIComponent(node.chain));
+    node.__balance = res;
+    renderManualBalance(res);
+  } catch (e) {
+    clear(host);
+    host.appendChild(el("div", "bnone", "Balance unavailable: " + e.message));
+  }
+}
+
+function renderManualBalance(res) {
+  const host = $("mInspBalance");
+  clear(host);
+  host.classList.remove("hidden");
+  // native === null is the server saying it could NOT read, which is a
+  // different fact from a balance of zero and is never rendered as "0".
+  if (!res.native) {
+    host.appendChild(el("div", "bnone", res.unavailable || "Balance unavailable."));
+    return;
+  }
+  const n = res.native;
+  host.appendChild(el("div", "bamount",
+    formatUnits(n.amount, n.decimals) + " " + n.symbol));
+  if (res.staked) {
+    host.appendChild(el("div", "bstaked",
+      "+ " + formatUnits(res.staked.amount, res.staked.decimals) + " "
+      + res.staked.symbol + " staked (frozen, not spendable today)"));
+  }
+  if (n.value) {
+    host.appendChild(el("div", "busd", "≈ $" + Number(n.value.usd).toLocaleString(
+      undefined, { maximumFractionDigits: 0 })));
+    // The price never appears without who said it and when. `as_of` is the
+    // market's own quote time, which is the number that goes stale.
+    const src = el("div", "bsrc" + (n.value.stale ? " bstale" : ""));
+    src.textContent = (n.value.stale ? "stale — " : "")
+      + "@ $" + n.value.unit_price_usd + "/" + n.symbol
+      + " · " + n.value.source + " · " + ago(n.value.as_of);
+    host.appendChild(src);
+  } else if (res.price_unavailable) {
+    host.appendChild(el("div", "bsrc", res.price_unavailable));
+  }
+}
+
+// ── inspector data tables ───────────────────────────────────────────────────
+// The panel's two readings of the same history page: WHO this address dealt
+// with (folded, one row per counterparty) and WHAT happened (unfolded, one row
+// per movement). Selecting rows here — rather than dumping every counterparty
+// onto the canvas at once — is what keeps a 200-counterparty address readable.
+let mTab = "related";           // "related" | "transfer"
+let mRows = [];                 // the rows currently rendered
+let mSelected = new Set();      // counterparty addresses ticked for adding
+
+function manualTableState(node) {
+  // Cached per node so switching tabs, or reopening a node, does not re-spend
+  // the rate limit on history already fetched.
+  node.__data = node.__data || { related: null, transfer: null };
+  return node.__data;
+}
+
+// Selects the tab only. Loading is the caller's call, so opening the panel
+// does not fetch twice (once for the tab, once for the open).
+function setManualTab(tab) {
+  mTab = tab;
+  $("mTabRelated").classList.toggle("active", tab === "related");
+  $("mTabTransfer").classList.toggle("active", tab === "transfer");
+}
+function selectManualTab(tab) {
+  setManualTab(tab);
+  if (manualInspecting) loadManualTable(manualInspecting);
+}
+$("mTabRelated").addEventListener("click", () => selectManualTab("related"));
+$("mTabTransfer").addEventListener("click", () => selectManualTab("transfer"));
+
+// `more` asks the provider for the NEXT page and appends it, rather than
+// re-reading the first one. Rows are merged by identity — a counterparty can
+// legitimately appear on several history pages, and the ranking that orders
+// them is per-page, so paging widens the set rather than continuing one
+// ordering (see one_hop_counterparties' docstring).
+async function loadManualTable(node, more) {
+  const state = manualTableState(node);
+  const host = $("mDataTable");
+  const have = state[mTab];
+  if (!more && have) { renderManualTable(node, have); return; }
+  if (more && have && !have.next_cursor) {
+    $("mDataCoverage").textContent =
+      "No further pages — the provider says this is the end of the history it can serve.";
+    return;
+  }
+  const btn = $("mLoadData");
+  btn.disabled = true;
+  if (!have) host.textContent = "Loading…";
+  try {
+    const isRelated = mTab === "related";
+    let q = "?limit=" + (isRelated ? 25 : 50) + "&chain=" + encodeURIComponent(node.chain);
+    if (more && have && have.next_cursor) q += "&cursor=" + encodeURIComponent(have.next_cursor);
+    const path = isRelated ? "/expand" : "/transfers";
+    const res = await api("/addresses/" + encodeURIComponent(node.address) + path + q);
+
+    if (more && have) {
+      const key = isRelated
+        ? (r) => r.address + "|" + r.direction
+        : (r) => r.tx_hash + "|" + r.counterparty + "|" + r.direction + "|" + r.amount;
+      const rowsOf = (r) => isRelated ? r.counterparties : r.transfers;
+      const seen = new Set(rowsOf(have).map(key));
+      for (const row of rowsOf(res)) {
+        if (!seen.has(key(row))) { rowsOf(have).push(row); seen.add(key(row)); }
+      }
+      have.total_count += res.total_count;
+      have.truncated = res.truncated;
+      have.next_cursor = res.next_cursor;
+      renderManualTable(node, have);
+    } else {
+      state[mTab] = res;
+      if (isRelated) {
+        node.service = res.service_endpoint || null;
+        renderManualVasp(node);   // the sweep verdict only exists once loaded
+        if (manualGraph) applyManualFilter();
+      }
+      renderManualTable(node, res);
+    }
+  } catch (e) {
+    if (!have) host.textContent = "";
+    $("mDataCoverage").className = "hint err";
+    $("mDataCoverage").textContent = "Could not load: " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderManualTable(node, res) {
+  const host = $("mDataTable");
+  clear(host);
+  mSelected = new Set();
+  updateAddSelected();
+
+  const rows = (mTab === "related" ? res.counterparties : res.transfers) || [];
+  mRows = rows;
+  const shown = rows.length;
+  // The same wording the canvas hint uses. "Bounded for legibility" is the
+  // honest claim; "N of M" alone would read as completeness.
+  $("mDataCoverage").className = "hint";
+  $("mDataCoverage").textContent = res.truncated
+    ? shown + " of " + res.total_count + " read so far — bounded for legibility, not coverage."
+      + (res.next_cursor ? " Load data reads further back." : "")
+    : shown + (shown === 1 ? " row" : " rows") + " — the whole history the provider served.";
+
+  if (!shown) { host.textContent = "Nothing on this page."; return; }
+
+  const table = el("table");
+  const thead = el("thead");
+  const hrow = el("tr");
+  const headers = mTab === "related"
+    ? ["", "Counterparty", "Dir", "Token", "Amount"]
+    : ["Date", "Counterparty", "Dir", "Amount", "Tx"];
+  for (const h of headers) hrow.appendChild(el("th", null, h));
+  thead.appendChild(hrow);
+  table.appendChild(thead);
+
+  const tbody = el("tbody");
+  const onCanvas = new Set(manualData().nodes.map(n => n.address));
+  for (const r of rows) {
+    const addr = mTab === "related" ? r.address : r.counterparty;
+    const tr = el("tr");
+    if (onCanvas.has(addr)) tr.className = "onchart";
+
+    if (mTab === "related") {
+      const tdPick = el("td");
+      // Already-placed counterparties get no checkbox: adding one twice is
+      // a no-op, and offering it implies something would happen.
+      if (!onCanvas.has(addr)) {
+        const box = el("input"); box.type = "checkbox";
+        box.addEventListener("change", () => {
+          if (box.checked) mSelected.add(addr); else mSelected.delete(addr);
+          updateAddSelected();
+        });
+        tdPick.appendChild(box);
+      }
+      tr.appendChild(tdPick);
+    } else {
+      tr.appendChild(el("td", null, (r.timestamp || "").slice(0, 10)));
+    }
+
+    const tdAddr = el("td");
+    tdAddr.appendChild(el("div", "cpaddr", shortAddrManual(addr)));
+    if (r.label) tdAddr.appendChild(el("div", "cplabel", r.label.entity));
+    else {
+      // A name this session already fetched from a public explorer. Shown
+      // with the same ⚑ + amber the card uses, never as a sourced label.
+      const known = manualData().nodes.find(n => n.address === addr);
+      if (known && known.leadTag) tdAddr.appendChild(el("div", "cplead", "⚑ " + known.leadTag));
+    }
+    tr.appendChild(tdAddr);
+
+    tr.appendChild(el("td", "dir-" + r.direction, r.direction));
+
+    if (mTab === "related") {
+      tr.appendChild(el("td", null, r.asset_symbol || ""));
+      tr.appendChild(el("td", null, formatUnits(r.amount, r.asset_decimals)));
+    } else {
+      tr.appendChild(el("td", null,
+        formatUnits(r.amount, r.asset_decimals) + " " + (r.asset_symbol || "")));
+      const tdTx = el("td");
+      const exp = TX_EXPLORERS[node.chain];
+      if (exp) {
+        const a = el("a", "cpaddr", r.tx_hash.slice(0, 8) + "…");
+        a.href = exp(r.tx_hash); a.target = "_blank"; a.rel = "noopener";
+        tdTx.appendChild(a);
+      } else {
+        tdTx.appendChild(el("div", "cpaddr", r.tx_hash.slice(0, 8) + "…"));
+      }
+      tr.appendChild(tdTx);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  host.appendChild(table);
+}
+
+function updateAddSelected() {
+  const btn = $("mAddSelected");
+  btn.disabled = mSelected.size === 0;
+  btn.textContent = mSelected.size ? "Add " + mSelected.size : "Add selected";
+}
+
+// Only the ticked rows join the graph — the reason the table exists rather
+// than a button that adds all 25 regardless of how wide the fan-out is.
+$("mAddSelected").addEventListener("click", () => {
+  const node = manualInspecting;
+  if (!node || !mSelected.size) return;
+  const state = manualTableState(node);
+  const source = (state.related && state.related.counterparties) || [];
+  let added = 0;
+  for (const cp of source) {
+    if (!mSelected.has(cp.address)) continue;
+    cp.chain = node.chain;
+    const cnode = addManualNode(node.chain, cp.address, false, node.column, cp.direction);
+    if (cp.label) cnode.label = cp.label.entity;
+    addManualLink(node.id, cp);
+    added++;
+  }
+  if (added) {
+    node.expanded = true;
+    applyManualFilter();
+    setManualTab("related");                  // state.related only renders on that tab
+    renderManualTable(node, state.related);   // re-render: rows are now on-canvas
+    renderManualLegend();
+    manualFit();
+    fetchManualLeads();
+  }
+});
+
+$("mLoadData").addEventListener("click", () => {
+  if (manualInspecting) loadManualTable(manualInspecting, true);   // true = next page
+});
+
+// Zoom controls. The graph could always be zoomed with the wheel; without
+// visible buttons that was undiscoverable, and there was no way to read the
+// current scale at all.
+function manualZoomBy(factor) {
+  if (!manualGraph) return;
+  manualGraph.zoom(Math.min(4, Math.max(0.05, manualGraph.zoom() * factor)), 250);
+}
+$("mZoomIn").addEventListener("click", () => manualZoomBy(1.3));
+$("mZoomOut").addEventListener("click", () => manualZoomBy(1 / 1.3));
+$("mZoomFit").addEventListener("click", () => {
+  if (manualGraph) manualGraph.zoomToFit(400, 80);
+});
+
+// Prune to what the investigator has actually flagged. Nothing is deleted —
+// the full graph is still in manualNodes/manualLinks and one more click
+// brings it back, so this can never lose work.
+$("mMarkedOnly").addEventListener("click", () => {
+  manualMarkedOnly = !manualMarkedOnly;
+  const btn = $("mMarkedOnly");
+  btn.classList.toggle("active", manualMarkedOnly);
+  const marked = manualNodes.filter(n => n.tag).length;
+  btn.textContent = manualMarkedOnly ? "Show all" : "Marked only";
+  applyManualFilter();
+  $("mHint").textContent = manualMarkedOnly
+    ? (marked
+        ? "Showing only the " + marked + " address(es) you marked. Nothing was removed."
+        : "No addresses are marked yet — mark one from its panel and it will appear here.")
+    : "";
+  manualFit();
+});
+
+function renderManualZoomLevel() {
+  if (!manualGraph) return;
+  $("mZoomLevel").textContent = Math.round(manualGraph.zoom() * 100) + "%";
+}
+
+function renderManualColors(node) {
+  const host = $("mColorRow"); clear(host);
+  for (const c of MANUAL_COLORS) {
+    const b = el("button", "mswatch" + (node.tag === c.key ? " active" : ""));
+    b.style.background = c.color; b.title = c.label; b.type = "button";
+    b.addEventListener("click", () => {
+      node.tag = node.tag === c.key ? null : c.key;
+      persistManualNode(node);
+      renderManualColors(node);
+      applyManualFilter();
+      renderManualLegend();
+    });
+    host.appendChild(b);
+  }
+}
+
+function persistManualNode(node) {
+  manualAnnotations[node.id] = {
+    color: node.tag || null, note: node.note || "", communityTag: node.communityTag || null,
+  };
+  saveManualAnnotations();
+}
+
+function openManualInspector(node, tab) {
+  manualInspecting = node;
+  $("mInspAddr").textContent = node.address;
+  $("mInspLabel").textContent = node.label
+    ? ("Labelled: " + node.label) : "No active, sourced label for this address.";
+  $("mInspNote").value = node.note || "";
+  const exp = EXPLORERS[node.chain];
+  const link = $("mInspExplorer");
+  if (exp) { link.href = exp(node.address); link.classList.remove("hidden"); }
+  else link.classList.add("hidden");
+  renderManualColors(node);
+  // An address that already carries an ACTIVE label has nothing for a
+  // manual tag to add — the form is for the gap, not a second opinion on a
+  // name the engine already trusts.
+  $("mLabelForm").classList.toggle("hidden", !!node.label);
+  $("mLabelEntity").value = "";
+  const status = $("mLabelStatus");
+  status.className = "hint";
+  status.textContent = node.communityTag
+    ? ("You tagged this “" + node.communityTag + "” — pending, needs corroboration.")
+    : "";
+  $("manualInspector").classList.remove("hidden");
+  // Reset to the requested tab (the "+" badge asks for Related Address) and
+  // load it. Cached per node, so reopening costs nothing.
+  setManualTab(tab || mTab);
+  renderManualVasp(node);
+  loadManualTable(node);
+  loadManualBalance(node);
+}
+
+async function submitManualLabel() {
+  const node = manualInspecting;
+  if (!node) return;
+  const entity = $("mLabelEntity").value.trim();
+  const status = $("mLabelStatus");
+  if (!entity) { status.className = "hint err"; status.textContent = "Enter an entity name first."; return; }
+  const button = $("mLabelSubmit");
+  button.disabled = true;
+  status.className = "hint"; status.textContent = "Submitting…";
+  try {
+    const res = await api("/addresses/" + encodeURIComponent(node.address) + "/label", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chain: node.chain, entity: entity, category: "vasp" }),
+    });
+    node.communityTag = res.entity;
+    persistManualNode(node);
+    applyManualFilter();
+    status.className = "hint pending";
+    status.textContent = "Submitted as “" + res.entity + "” — " + res.status
+      + ", needs a trusted source to corroborate it before it can name this address anywhere else.";
+    $("mLabelEntity").value = "";
+  } catch (e) {
+    status.className = "hint err";
+    status.textContent = "Could not submit: " + e.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+$("mLabelSubmit").addEventListener("click", submitManualLabel);
+$("mLabelEntity").addEventListener("keydown", (e) => { if (e.key === "Enter") submitManualLabel(); });
+$("mInspClose").addEventListener("click", () => $("manualInspector").classList.add("hidden"));
+$("mInspNote").addEventListener("input", () => {
+  if (!manualInspecting) return;
+  manualInspecting.note = $("mInspNote").value;
+  persistManualNode(manualInspecting);
+});
+
+function renderManualLegend() {
+  const host = $("mLegend"); clear(host);
+  const rows = [
+    ["#00f0ff", "Root — address you started from"],
+    ["#34d399", "Has an active, sourced label"],
+    ["#38bdf8", "Unattributed"],
+  ];
+  for (const c of MANUAL_COLORS) rows.push([c.color, c.label + " (your mark)"]);
+  for (const [color, text] of rows) {
+    const row = el("span");
+    const i = el("i"); i.style.background = color;
+    row.appendChild(i); row.appendChild(el("span", null, text));
+    host.appendChild(row);
+  }
+  // Only the chains actually on screen get a badge legend row — a key for
+  // chains that never appeared would suggest this session looked for them
+  // and did not find them, same reasoning the automated graph's own legend
+  // already follows (renderLegend, above).
+  const data = manualData();
+  const chainsSeen = new Set(data.nodes.map(n => n.chain));
+  for (const chain of Array.from(chainsSeen).sort()) {
+    const info = chainGlyph(chain);
+    const row = el("span");
+    const sw = el("span", "swatch");
+    sw.textContent = info.glyph;
+    sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = info.color;
+    row.appendChild(sw);
+    row.appendChild(el("span", null, info.name + " address (top-left badge)"));
+    host.appendChild(row);
+  }
+  if (data.nodes.some(n => n.label)) {
+    const row = el("span");
+    const sw = el("span", "swatch");
+    sw.textContent = "✓";
+    sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = "#34d399";
+    row.appendChild(sw);
+    row.appendChild(el("span", null, "active, sourced label — entity mark, top-right"));
+    host.appendChild(row);
+  }
+  if (data.nodes.some(n => n.communityTag)) {
+    const row = el("span");
+    const sw = el("span", "swatch");
+    sw.textContent = "?";
+    sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = "#fbbf24";
+    row.appendChild(sw);
+    row.appendChild(el("span", null, "your tag, not yet corroborated — dashed, top-right"));
+    host.appendChild(row);
+  }
+}
+
+function offerManualChainChoice(candidates) {
+  const host = $("mChainPick"); clear(host);
+  for (const chain of candidates) {
+    const b = el("button", null, chain);
+    b.addEventListener("click", () => manualExplore(chain));
+    host.appendChild(b);
+  }
+  host.classList.remove("hidden");
+  $("mChainPickLabel").classList.remove("hidden");
+}
+
+async function manualExplore(forcedChain) {
+  const address = $("mAddress").value.trim();
+  if (!address) { $("mHint").textContent = "Enter an address first."; return; }
+  ensureManualGraph();
+  if (!manualGraph) return;
+  $("mChainPick").classList.add("hidden");
+  $("mChainPickLabel").classList.add("hidden");
+  $("manualInspector").classList.add("hidden");
+  $("mHint").textContent = "Looking up…";
+  manualNodes = []; manualLinks = [];
+  manualGraph.graphData({ nodes: [], links: [] });
+  try {
+    const chainQ = forcedChain ? ("&chain=" + encodeURIComponent(forcedChain)) : "";
+    const res = await api("/addresses/" + encodeURIComponent(address) + "/expand?limit=25" + chainQ);
+    const root = addManualNode(res.chain, address, true);
+    root.expanded = true;
+    root.service = res.service_endpoint || null;
+    for (const cp of res.counterparties) {
+      cp.chain = res.chain;
+      const cnode = addManualNode(res.chain, cp.address, false, root.column, cp.direction);
+      if (cp.label) cnode.label = cp.label.entity;
+      addManualLink(root.id, cp);
+    }
+    manualFit();
+    $("mHint").textContent = res.truncated
+      ? ("Showing the largest " + res.counterparties.length + " of " + res.total_count + " counterparties.")
+      : "";
+    renderManualLegend();
+    fetchManualLeads();   // fire-and-forget: names arrive after the cards do
+  } catch (e) {
+    const detail = e.detail;
+    if (detail && detail.reason === "ambiguous" && detail.candidates && detail.candidates.length) {
+      $("mHint").textContent = detail.message;
+      offerManualChainChoice(detail.candidates);
+      return;
+    }
+    $("mHint").textContent = "Could not look up that address: " + e.message;
+  }
+}
+$("mExplore").addEventListener("click", () => manualExplore());
+$("mAddress").addEventListener("keydown", (e) => { if (e.key === "Enter") manualExplore(); });
 
 fetch(API + "/healthz").then(r => r.json()).then(() => {
   $("engineStatus").textContent = "ONLINE";

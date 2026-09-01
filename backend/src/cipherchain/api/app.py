@@ -33,9 +33,11 @@ import logging
 import os
 import re
 import tempfile
+import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
@@ -46,34 +48,60 @@ from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from cipherchain.analysis.assets import AssetPolicy, build_asset_policy
+from cipherchain.analysis.heuristics.service import (
+    is_sentinel_address,
+    meets_service_thresholds,
+    service_confidence,
+)
 from cipherchain.api.auth import ApiKeyAuth, AuthenticatedKey, Scope
 from cipherchain.api.schemas import (
+    AddressBalanceResponse,
+    AddressExpandResponse,
+    AddressTransfersResponse,
     AnswerOut,
+    CounterpartyOut,
     CoverageOut,
     FindingOut,
     FindingsResponse,
     GraphEdgeOut,
     GraphNodeOut,
     GraphResponse,
+    HoldingOut,
     InvestigationStatusResponse,
+    LeadLookupRequest,
+    LeadLookupResponse,
+    LeadOut,
+    ManualLabelOut,
+    ManualLabelRequest,
+    ManualLabelResponse,
     ResumeInvestigationRequest,
+    ServiceEndpointOut,
     StartInvestigationRequest,
     StartInvestigationResponse,
     SyncStatusResponse,
+    TransferOut,
     UnverifiedTagOut,
+    UsdValueOut,
 )
 from cipherchain.chains.base import ChainRegistry
 from cipherchain.core.config import Settings, get_settings
-from cipherchain.core.errors import UnknownChain
+from cipherchain.core.errors import AllProvidersFailed, CapabilityNotSupported, UnknownChain
 from cipherchain.core.logging import configure_logging
 from cipherchain.core.models import Address
 from cipherchain.harvest.runs import CycleAlreadyRunning, start_cycle, sync_status
 from cipherchain.harvest.scheduler import DEFAULT_DROP_DIR
 from cipherchain.intel.attributor_source import build_store_attributor
+from cipherchain.intel.explorer_tags import TAG_CONFIDENCE as MANUAL_TAG_CONFIDENCE
+from cipherchain.intel.explorer_tags import TAG_METHOD as MANUAL_TAG_METHOD
+from cipherchain.intel.explorer_tags import claim_from_tag, lookup_tags
 from cipherchain.intel.leads import SUPPORTED_CHAINS, enrich_investigation
+from cipherchain.intel.policy import IntelClaim, arrival_status
+from cipherchain.intel.prices import PriceFeed, value_usd
+from cipherchain.intel.service import IntelService
 from cipherchain.investigation.answers import RankedFinding, select_answers
 from cipherchain.investigation.budgets import Budgets
 from cipherchain.investigation.engine import InvestigationEngine
+from cipherchain.investigation.manual_expand import one_hop_counterparties, one_hop_transfers
 from cipherchain.investigation.objectives import Objective
 from cipherchain.reporting import (
     ChromiumNotFound,
@@ -110,6 +138,31 @@ _leads_in_flight: dict[uuid.UUID, asyncio.Task[None]] = {}
 
 RunLauncher = Callable[[uuid.UUID], Awaitable[None]]
 
+# GET /addresses/{address}/expand calls adapter.address_history/normalize
+# directly, outside any InvestigationEngine.run() loop — so it is outside
+# Budgets too (investigation/budgets.py governs cost only inside a started
+# investigation). In-process and per-key, same tradeoff as _leads_in_flight
+# above: a second worker enforcing this slightly wrong costs one extra 429,
+# not a wrong answer, so a durable store is a lifecycle this does not need.
+_EXPAND_RATE_LIMIT = 30  # lookups per key per rolling minute
+_EXPAND_WINDOW_SECONDS = 60.0
+_expand_calls: dict[str, list[float]] = {}
+
+
+def _check_expand_rate_limit(key_id: str) -> None:
+    now = time.monotonic()
+    calls = [t for t in _expand_calls.get(key_id, ()) if now - t < _EXPAND_WINDOW_SECONDS]
+    if len(calls) >= _EXPAND_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Manual expansion is limited to {_EXPAND_RATE_LIMIT} lookups per "
+                "minute per key — this makes a live chain-API call on every click."
+            ),
+        )
+    calls.append(now)
+    _expand_calls[key_id] = calls
+
 # How many nodes one graph read returns by default, and the ceiling a caller
 # may ask for. A real theft trace reaches four figures of addresses; drawing
 # all of them is unreadable, so the view is bounded and SAYS it is bounded.
@@ -130,6 +183,17 @@ GRAPH_PER_LEVEL = 20
 # an edge to ~315, which puts the ceiling near 1.8 MB — and every node inside it
 # is one the receiving renderer has to lay out.
 GRAPH_NODE_MAX = 2500
+
+
+@lru_cache(maxsize=1)
+def _price_feed() -> PriceFeed:
+    """One feed per process, because the CACHE is the point.
+
+    A new PriceFeed per request would defeat its TTL and turn every panel
+    open into a request against a free public API — the exact thing its
+    single batched fetch exists to prevent.
+    """
+    return PriceFeed()
 
 
 @lru_cache(maxsize=1)
@@ -321,6 +385,375 @@ def create_app(
         status = row.status if row else "created"
         return StartInvestigationResponse(
             investigation_id=investigation_id, status=status, chain=chain
+        )
+
+    @app.get(
+        "/addresses/{address}/expand",
+        response_model=AddressExpandResponse,
+        dependencies=[investigator],
+    )
+    async def expand_address(
+        address: str,
+        chain: str | None = None,
+        limit: int = 25,
+        cursor: str | None = None,
+        key: AuthenticatedKey = investigator,
+    ) -> AddressExpandResponse:
+        """One hop of an address's counterparties, for the manual explorer.
+
+        Unlike POST /investigations this creates no investigation record,
+        spends no Budgets, and runs no heuristics — a human clicking through a
+        graph one node at a time decides what to look at next, not the
+        engine. It still refuses to invent an operator name: a counterparty
+        is labelled only from an ACTIVE, sourced claim, the same rule the
+        automated engine holds everywhere else.
+
+        `Budgets` (investigation/budgets.py) governs cost inside a started
+        investigation; nothing does for a raw address_history/normalize call
+        made outside one, and this route makes exactly that call on every
+        hit. `_check_expand_rate_limit` is this route's own ceiling, since it
+        would otherwise be the one caller in this codebase with none at all.
+        """
+        _check_expand_rate_limit(key.key_id)
+        active = resolve()
+        resolved_chain = chain or await _resolve_chain(active.registry, address)
+        adapter = active.registry.get(resolved_chain)
+        bounded_limit = max(1, min(limit, 100))
+        counterparties, truncated, total, next_cursor, degree = await one_hop_counterparties(
+            adapter, resolved_chain, address, limit=bounded_limit, cursor=cursor
+        )
+        # The SAME rule the autonomous engine applies (analysis/heuristics/
+        # service.py), so the manual explorer marks custodial-looking
+        # addresses instead of leaving a human to spot them by eye. Role
+        # only — never an identity, which needs a sourced label.
+        # Always reported, qualifying or not. The counterparty degree IS the
+        # evidence, and a reader who only ever sees the mark when it fires
+        # cannot tell "measured, did not qualify" from "never measured" —
+        # which on a page-bounded read is the difference that matters.
+        qualifies = not is_sentinel_address(address) and meets_service_thresholds(
+            degree.senders, degree.recipients
+        )
+        service = ServiceEndpointOut(
+            senders=degree.senders,
+            recipients=degree.recipients,
+            confidence=(
+                service_confidence(degree.senders, degree.recipients) if qualifies else None
+            ),
+            meets_threshold=qualifies,
+            page_bounded=degree.page_bounded,
+        )
+
+        async with session_factory() as session:
+            labels = LabelRepository(session)
+            out: list[CounterpartyOut] = []
+            for cp in counterparties:
+                claims = await labels.claims_for(resolved_chain, cp.address)
+                active_claims = sorted(
+                    (c for c in claims if c.status == "active"),
+                    key=lambda c: -c.confidence,
+                )
+                label = (
+                    ManualLabelOut(
+                        entity=active_claims[0].entity,
+                        confidence=active_claims[0].confidence,
+                        source=active_claims[0].source,
+                    )
+                    if active_claims
+                    else None
+                )
+                out.append(
+                    CounterpartyOut(
+                        address=cp.address,
+                        direction=cp.direction,
+                        amount=str(cp.amount),
+                        asset_symbol=cp.asset_symbol,
+                        asset_decimals=cp.asset_decimals,
+                        tx_hash=cp.tx_hash,
+                        timestamp=cp.timestamp,
+                        label=label,
+                    )
+                )
+
+        return AddressExpandResponse(
+            address=address,
+            chain=resolved_chain,
+            counterparties=out,
+            truncated=truncated,
+            total_count=total,
+            next_cursor=next_cursor,
+            service_endpoint=service,
+        )
+
+    @app.get(
+        "/addresses/{address}/balance",
+        response_model=AddressBalanceResponse,
+        dependencies=[investigator],
+    )
+    async def address_balance(
+        address: str,
+        chain: str | None = None,
+        key: AuthenticatedKey = investigator,
+    ) -> AddressBalanceResponse:
+        """What this address holds now, and what that is worth.
+
+        Two failures, kept apart because they mean different things:
+
+        - the BALANCE could not be read (chain cannot serve it, or every
+          provider failed) — ``native`` is null and ``unavailable`` says so.
+          Never ``"0"``: a zero balance and an unreadable one are different
+          facts and an investigation must not confuse them.
+        - the PRICE could not be read — the balance is returned in full and
+          only ``price_unavailable`` is set. A market outage must never cost
+          an investigator the chain fact.
+
+        Balance is ``CachePolicy.NEVER`` by design, so every call is live;
+        the shared expansion budget is therefore the only ceiling on it.
+        """
+        _check_expand_rate_limit(key.key_id)
+        active = resolve()
+        resolved_chain = chain or await _resolve_chain(active.registry, address)
+        adapter = active.registry.get(resolved_chain)
+
+        try:
+            snapshot = await adapter.address_balance(
+                Address(resolved_chain, adapter.canonical_address(address))
+            )
+        except (CapabilityNotSupported, AllProvidersFailed, NotImplementedError) as exc:
+            return AddressBalanceResponse(
+                address=address, chain=resolved_chain, native=None, unavailable=str(exc)
+            )
+
+        holdings = [snapshot.native, *([snapshot.staked] if snapshot.staked else []),
+                    *snapshot.tokens]
+        price_unavailable: str | None = None
+        try:
+            quotes = await _price_feed().quotes({h.asset.symbol for h in holdings})
+        except Exception:  # pragma: no cover - PriceFeed.quotes is soft by contract
+            quotes = {}
+        if not quotes:
+            price_unavailable = (
+                "No USD quote available right now — the balances above are unaffected."
+            )
+
+        def as_holding(balance: Any) -> HoldingOut:
+            quote = quotes.get(balance.asset.symbol)
+            value = None
+            if quote is not None:
+                converted = value_usd(balance.amount, balance.asset.decimals, quote)
+                value = UsdValueOut(
+                    usd=float(converted),
+                    unit_price_usd=float(quote.usd),
+                    source=quote.source,
+                    source_url=quote.source_url,
+                    as_of=quote.quoted_at or quote.retrieved_at,
+                    retrieved_at=quote.retrieved_at,
+                    stale=quote.stale,
+                )
+            return HoldingOut(
+                symbol=balance.asset.symbol,
+                decimals=balance.asset.decimals,
+                amount=str(balance.amount),
+                contract=balance.asset.contract,
+                value=value,
+            )
+
+        out = [as_holding(h) for h in holdings]
+        # Only when EVERY holding is priced. A partial cross-asset total is a
+        # wrong number, not a rounded one.
+        total = (
+            sum(h.value.usd for h in out if h.value is not None)
+            if out and all(h.value is not None for h in out)
+            else None
+        )
+        return AddressBalanceResponse(
+            address=address,
+            chain=resolved_chain,
+            native=out[0],
+            staked=out[1] if snapshot.staked else None,
+            tokens=out[(2 if snapshot.staked else 1):],
+            retrieved_at=snapshot.retrieved_at,
+            total_usd=total,
+            price_unavailable=price_unavailable,
+        )
+
+    @app.get(
+        "/addresses/{address}/transfers",
+        response_model=AddressTransfersResponse,
+        dependencies=[investigator],
+    )
+    async def address_transfers(
+        address: str,
+        chain: str | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
+        key: AuthenticatedKey = investigator,
+    ) -> AddressTransfersResponse:
+        """The movements behind the counterparties `/expand` returns.
+
+        Same page, same rate-limit budget and the same labelling rule as
+        `/expand` — a counterparty is named only from an ACTIVE sourced
+        claim. This exists because folding movements into counterparties
+        throws away the transaction-by-transaction reading an investigator
+        needs to check any of it, and `tx_hash` was already being fetched
+        and then dropped on the floor.
+        """
+        _check_expand_rate_limit(key.key_id)
+        active = resolve()
+        resolved_chain = chain or await _resolve_chain(active.registry, address)
+        adapter = active.registry.get(resolved_chain)
+        bounded_limit = max(1, min(limit, 200))
+        transfers, truncated, total, next_cursor = await one_hop_transfers(
+            adapter, resolved_chain, address, limit=bounded_limit, cursor=cursor
+        )
+
+        async with session_factory() as session:
+            labels = LabelRepository(session)
+            # One lookup per distinct counterparty, not per row: a busy
+            # address returns the same counterparty many times over and
+            # re-asking the store for each row would turn a 200-row page
+            # into 200 queries for a handful of answers.
+            claims_by_address: dict[str, ManualLabelOut | None] = {}
+            out: list[TransferOut] = []
+            for tr in transfers:
+                if tr.counterparty not in claims_by_address:
+                    claims = await labels.claims_for(resolved_chain, tr.counterparty)
+                    active_claims = sorted(
+                        (c for c in claims if c.status == "active"),
+                        key=lambda c: -c.confidence,
+                    )
+                    claims_by_address[tr.counterparty] = (
+                        ManualLabelOut(
+                            entity=active_claims[0].entity,
+                            confidence=active_claims[0].confidence,
+                            source=active_claims[0].source,
+                        )
+                        if active_claims
+                        else None
+                    )
+                out.append(
+                    TransferOut(
+                        counterparty=tr.counterparty,
+                        direction=tr.direction,
+                        amount=str(tr.amount),
+                        asset_symbol=tr.asset_symbol,
+                        asset_decimals=tr.asset_decimals,
+                        tx_hash=tr.tx_hash,
+                        timestamp=tr.timestamp,
+                        label=claims_by_address[tr.counterparty],
+                    )
+                )
+
+        return AddressTransfersResponse(
+            address=address,
+            chain=resolved_chain,
+            transfers=out,
+            truncated=truncated,
+            total_count=total,
+            next_cursor=next_cursor,
+        )
+
+    @app.post(
+        "/addresses/leads",
+        response_model=LeadLookupResponse,
+        dependencies=[investigator],
+    )
+    async def lookup_leads(
+        body: LeadLookupRequest,
+        key: AuthenticatedKey = investigator,
+    ) -> LeadLookupResponse:
+        """What a public explorer calls these addresses — leads, never evidence.
+
+        The automated view already asks this question after a run
+        (intel/leads.py, the "Find names" button); the manual explorer could
+        not, so an address TronScan calls "Bybit" read as "unattributed" on
+        this canvas while the same address was named two tabs over. Same
+        reader, same ``community`` method, same pending status — the only new
+        thing here is that a human clicking through a graph can reach it.
+
+        Tags are ingested as pending claims exactly as the automated path
+        does, so a name fetched once is cached for every later lookup instead
+        of costing the explorer another request.
+        """
+        _check_expand_rate_limit(key.key_id)
+        if body.chain not in SUPPORTED_CHAINS:
+            return LeadLookupResponse(
+                chain=body.chain, leads=[], examined=0, unsupported_chain=True
+            )
+        # Same client lifetime the automated enrichment path uses (below): a
+        # per-call client, since this is a short bounded burst, not a
+        # long-lived pool.
+        async with httpx.AsyncClient(timeout=25) as http:
+            tags = await lookup_tags(
+                list(body.addresses),
+                chain=body.chain,
+                http=http,
+                max_lookups=len(body.addresses),
+            )
+        if tags:
+            async with session_factory() as session:
+                intel = IntelService(session)
+                for tag in tags:
+                    claim = claim_from_tag(tag)
+                    if claim is not None:
+                        try:
+                            await intel.ingest(claim)
+                        except Exception:
+                            logger.exception("could not ingest explorer tag for %s", tag.address)
+                await session.commit()
+        return LeadLookupResponse(
+            chain=body.chain,
+            leads=[LeadOut(address=t.address, entity=t.tag, source=t.source) for t in tags],
+            examined=min(len(body.addresses), len(body.addresses)),
+        )
+
+    @app.post(
+        "/addresses/{address}/label",
+        response_model=ManualLabelResponse,
+        dependencies=[investigator],
+    )
+    async def label_address(
+        address: str,
+        body: ManualLabelRequest,
+        key: AuthenticatedKey = investigator,
+    ) -> ManualLabelResponse:
+        """An investigator's own tag on an address, from the manual explorer.
+
+        Written through the SAME lifecycle a public explorer tag goes
+        through (intel/explorer_tags.py, intel/policy.py): method
+        ``"community"``, so it arrives ``pending`` and the automated engine's
+        ``active_labels()`` load cannot see it until a trusted-method source
+        (a PoR signature, a licensed dataset) corroborates it. That is not a
+        limitation to work around here — a human's uncorroborated guess
+        printing as a confirmed VASP name is the exact failure the lifecycle
+        exists to prevent, so this route does not get a shortcut around it.
+
+        ``source`` embeds the key id (never a raw claim of authority) so two
+        different analysts tagging the same address are two distinct,
+        independently-corroborable claims, not one row overwriting the other
+        (LabelRepository.upsert_claim keys on (chain, address, source)).
+        """
+        _check_expand_rate_limit(key.key_id)  # same budget: both hit chain/DB per call
+        claim = IntelClaim(
+            chain=body.chain,
+            address=address,
+            entity=body.entity,
+            category=body.category,
+            role="unknown",
+            confidence=MANUAL_TAG_CONFIDENCE,
+            method=MANUAL_TAG_METHOD,
+            source=f"manual:{key.key_id}",
+            retrieved_at=datetime.now(UTC),
+            reporter=key.key_id,
+        )
+        async with session_factory() as session:
+            outcome = await IntelService(session).ingest(claim)
+            await session.commit()
+        return ManualLabelResponse(
+            chain=body.chain,
+            address=address,
+            entity=body.entity,
+            status=arrival_status(MANUAL_TAG_METHOD),
+            outcome=outcome,
         )
 
     @app.post(
