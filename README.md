@@ -56,12 +56,14 @@ The engine expands outward in both directions, claiming counterparties by value 
 written as it goes, so the graph grows while you watch it. Mixers, sweeps, peel chains and
 consolidation patterns are detected as they are reached.
 
-<div align="center"><img src="images/graph.gif" alt="The trace graph" width="820"></div>
+<div align="center"><img src="images/graph.gif" alt="A trace building live" width="820"></div>
+
+<sub>One real run, unedited: **56 → 133 → 186 → 189 addresses** as the engine works, the answer
+resolving from "Tracing…" to a named endpoint, and the status line counting API calls and
+transactions as it spends them.</sub>
 
 Every card says what it is and on what basis. A **sourced** VASP carries its entity mark and a solid
 border; a behavioural guess carries `CHECK · N%` and a dashed one. The two are never drawn alike.
-
-<div align="center"><img src="images/automated-icons.gif" alt="Reading the finished trace" width="820"></div>
 
 ### 3 · Get a report you can hand over
 
@@ -70,6 +72,12 @@ the confidence, the source each name rests on — and a full statement of everyt
 read.
 
 <div align="center"><img src="images/report.gif" alt="The investigation report" width="820"></div>
+
+<div align="center"><img src="images/report-top.png" alt="The report's summary block" width="900"></div>
+
+<sub>The summary names an operator only where a sourced claim supports it — here **OKX at 90%**, with
+the claim's date and age printed beside it. The other direction says **"No operator can be named"**
+rather than offering the nearest guess, and the behavioural leads are boxed off as inferences.</sub>
 
 ### Everything it does, in one table
 
@@ -398,7 +406,13 @@ Left of centre is where the money came **from**; right is where it **went**. The
 middle.
 
 **Controls:** `Fit` · `−` / `+` zoom · `Expand frontier` (unfold the collapsed unexplored cards) ·
-`Full screen` · `Minimize`.
+`Find names` (ask a public explorer to name what behaviour found) · `Full screen` · `Minimize`.
+
+<div align="center"><img src="images/automated.gif" alt="The automated view, end to end" width="820"></div>
+
+<sub>The whole automated side in one pass: the answer and the source each name rests on, the coverage
+statement, the Label sync panel, every graph control in turn — zoom, `Fit`, `Expand frontier`,
+`Find names`, `Full screen` — and the findings list with the evidence under each one.</sub>
 
 **Node colours and marks**
 
@@ -500,8 +514,9 @@ for. The **Manual** tab is that: the same chain data, opened one address at a ti
 
 <div align="center"><img src="images/manual.gif" alt="Exploring a trace by hand" width="820"></div>
 
-<sub>Explore an address · expand a counterparty with `+` · open its panel · read the transfers · mark it
-and prune to what you marked.</sub>
+<sub>The whole manual side in one pass: pan the plane · zoom · expand a counterparty with `+` · open
+its panel · read the balance and the VASP basis · tick rows and add only those · `Load data` for more
+history · the Transfer list · tag it as a VASP · mark it, note it, and prune to what you marked.</sub>
 
 Flow reads left to right: money **in** on the left, the address you started from in the centre, money
 **out** on the right. Positions are fixed — a node never drifts, and expanding something on one side
