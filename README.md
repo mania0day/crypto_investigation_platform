@@ -71,6 +71,35 @@ read.
 
 <div align="center"><img src="images/report.gif" alt="The investigation report" width="820"></div>
 
+### Everything it does, in one table
+
+| | Feature | Where |
+|---|---|---|
+| **Trace** | Start from one address; chain auto-detected | [A · Starting an investigation](#a--starting-an-investigation) |
+| | Walks backward (funding) and forward (cash-out) at once | [What it does](#what-it-does) |
+| | Budgets — API calls, time, depth, nodes — with automatic extension | [B · Choosing budgets](#b--choosing-budgets--the-part-people-get-wrong) |
+| | Resume a run that stopped short, on fresh budgets | [F · Resuming a run](#f--resuming-a-run) |
+| | Mixer crossing, sweeps, peel chains, consolidation, obfuscation | [C · Reading the graph](#c--reading-the-graph) |
+| **Read** | Live trace graph, written as the run goes | [2 · Watch the trace build](#2--watch-the-trace-build) |
+| | Expand frontier, find names, full screen, zoom | [C · Reading the graph](#c--reading-the-graph) |
+| | The answer, with the address to quote and its confidence | [D · Reading the answer](#d--reading-the-answer) |
+| | Coverage — everything the run did **not** read | [It says what it did not read](#it-says-what-it-did-not-read) |
+| | Report as HTML or PDF | [G · The report](#g--the-report) |
+| **Explore** | Drive it yourself, one address at a time | [Manual exploration](#manual-exploration) |
+| | Left-to-right plane; pan, zoom, fixed positions | [Manual exploration](#manual-exploration) |
+| | Counterparties and transfers, paged with **Load data** | [Related Address, and Transfer](#related-address-and-transfer) |
+| | Pick which counterparties join the canvas | [Related Address, and Transfer](#related-address-and-transfer) |
+| | Live balance with a USD value that states its source and age | [The panel](#the-panel) |
+| | Mark addresses, annotate them, prune to what you marked | [Marking, and pruning to what you marked](#marking-and-pruning-to-what-you-marked) |
+| **Attribute** | Sourced labels — the only kind that may name an operator | [The evidence taxonomy](#the-evidence-taxonomy--four-kinds-frozen) |
+| | Behavioural service-endpoint detection, with confidence | [Why it is different](#why-it-is-different) |
+| | Explorer leads — a name to check, never evidence | [4 · Explorer leads](#4--naming-what-behaviour-found-explorer-leads) |
+| | File your own VASP, from the CLI or the UI | [3 · Adding a VASP yourself](#3--adding-a-vasp-yourself) |
+| | Daily label harvest, with a sync panel that states each source | [2 · Label data](#2--label-data--batch-out-of-band) |
+| **Operate** | Scoped API keys (`read` / `investigate`) | [API reference](#api-reference) |
+| | Every route documented, OpenAPI at `/docs` | [API reference](#api-reference) |
+| | Provider ladder with failover, caching, circuit breaking | [How data is gathered](#how-data-is-gathered) |
+
 ---
 
 ## Why it is different
@@ -93,6 +122,16 @@ Every finding carries evidence, and every piece of evidence is exactly one of th
 and pays out to 27 *behaves* like custodial infrastructure — that is a `heuristic_inference`, and it
 earns the words "service endpoint, operator unnamed" at ~60% confidence. It never earns the word
 "Binance".
+
+That distinction is drawn, not just documented. Zoom in on any card and it tells you which kind of
+claim it is resting on:
+
+<div align="center"><img src="images/vasp.gif" alt="How a VASP is marked, and on what basis" width="820"></div>
+
+<sub>A sourced label (`✓ OKX labeled 'vasp'`) is solid and green. A behavioural read
+(`SEEMS VASP — UNCONFIRMED · CHECK 59%`) is dashed, amber, and carries its confidence. A public
+explorer's name (`⚑ Bybit — unverified`) is amber too, and says so. The same three tiers appear on
+the manual canvas and in its panel.</sub>
 
 This is the whole design. A tool whose output may become a subpoena target does not get to guess at
 who runs an address.
