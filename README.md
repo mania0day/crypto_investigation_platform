@@ -58,6 +58,11 @@ consolidation patterns are detected as they are reached.
 
 <div align="center"><img src="images/graph.gif" alt="The trace graph" width="820"></div>
 
+Every card says what it is and on what basis. A **sourced** VASP carries its entity mark and a solid
+border; a behavioural guess carries `CHECK · N%` and a dashed one. The two are never drawn alike.
+
+<div align="center"><img src="images/automated-icons.gif" alt="Reading the finished trace" width="820"></div>
+
 ### 3 · Get a report you can hand over
 
 An investigation report as HTML or PDF: the money-in and money-out endpoints, the address to quote,
@@ -454,11 +459,16 @@ The engine decides for itself where to go. Sometimes you want to decide instead 
 counterparty because you recognise it, ignore the other twenty, and stop when you have what you came
 for. The **Manual** tab is that: the same chain data, opened one address at a time by hand.
 
-<div align="center"><img src="images/manual-graph.png" alt="The manual explorer" width="960"></div>
+<div align="center"><img src="images/manual.gif" alt="Exploring a trace by hand" width="820"></div>
+
+<sub>Explore an address · expand a counterparty with `+` · open its panel · read the transfers · mark it
+and prune to what you marked.</sub>
 
 Flow reads left to right: money **in** on the left, the address you started from in the centre, money
 **out** on the right. Positions are fixed — a node never drifts, and expanding something on one side
 does not shuffle what you were already reading. Pan by dragging the plane, zoom with `−` / `+` / `Fit`.
+
+<div align="center"><img src="images/manual-graph.png" alt="The manual explorer" width="960"></div>
 
 ### The panel
 
