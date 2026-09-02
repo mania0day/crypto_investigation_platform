@@ -3192,6 +3192,7 @@ $("tabAuto").addEventListener("click", () => setMode("auto"));
 $("tabManual").addEventListener("click", () => setMode("manual"));
 
 const MANUAL_USAGE_HINT = "Drag a card to rearrange · drag empty space to pan · scroll to zoom · click + to expand";
+const MANUAL_EXPAND_PAGE = 8;
 const MANUAL_COLORS = [
   { key: "watch",   label: "Watching",     color: "#fbbf24" },
   { key: "suspect", label: "Suspicious",   color: "#fb7185" },
@@ -3307,16 +3308,15 @@ function ensureManualGraph() {
     .onEngineStop(() => {
       if (!manualFitPending) return;   // never re-frame a view the user panned
       manualFitPending = false;
-      // Freeze every node where it settled. fx already pins the column; this
-      // pins the row, so nothing drifts afterwards and a later expansion
-      // cannot shuffle the nodes already on screen out from under the reader.
       for (const n of manualNodes) { if (n.fy == null && n.y != null) n.fy = n.y; }
+      const focus = manualCenterNode;
+      manualCenterNode = null;
+      if (focus && focus.x != null) {
+        if (manualGraph.zoom() < MZOOM_FLOOR) manualGraph.zoom(MZOOM_FLOOR, 300);
+        manualGraph.centerAt(focus.x, focus.y, 400);
+        return;
+      }
       manualGraph.zoomToFit(400, 80);
-      // zoomToFit will shrink without limit to get EVERYTHING on screen, and
-      // on a wide fan-out that lands at a scale where the cards are specks —
-      // which is not a view of anything. Past this floor, stop zooming out and
-      // let the investigator pan the plane instead: seeing part of the graph
-      // legibly beats seeing all of it illegibly.
       if (manualGraph.zoom() < MZOOM_FLOOR) {
         const root = manualData().nodes.find(n => n.isRoot);
         manualGraph.zoom(MZOOM_FLOOR, 400);
@@ -3351,7 +3351,7 @@ function ensureManualGraph() {
 // graph actually settles at, rather than only when zoomed right in. The
 // earlier 118x40 was legible at 1:1 and a smear at the ~0.7 the fit floor
 // allows, which is where this view is normally read.
-const MCARD_W = 210, MCARD_W_ROOT = 232, MCARD_H = 66;
+const MCARD_W = 230, MCARD_W_ROOT = 248, MCARD_H = 66;
 
 function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -3369,6 +3369,25 @@ function manualNodeColor(node) {
   if (node.isRoot) return "#d97706";
   if (node.label) return "#34d399";
   return "#38bdf8";
+}
+
+// What the card's TOP line is allowed to claim. Null means "no name" — the
+// painter then uses the address itself, never a canned "Wallet" that makes
+// every unlabeled card look the same. Honesty order is sourced ACTIVE label,
+// then this session's unconfirmed tag, then a public-explorer lead.
+function manualNodeTitle(node) {
+  if (node.label) return node.label;
+  if (node.communityTag) return node.communityTag + " (unconfirmed)";
+  if (node.leadTag) return node.leadTag;
+  return null;
+}
+
+function manualNodeRole(node) {
+  if (node.isRoot) return "Focus";
+  const chain = chainGlyph(node.chain).name;
+  if (node.viaDirection === "in") return chain + " · inflow";
+  if (node.viaDirection === "out") return chain + " · outflow";
+  return chain;
 }
 
 // Investigation-style boxed card: left icon, name on top, truncated address
@@ -3463,9 +3482,10 @@ function paintManualNode(node, ctx, scale) {
     }
   }
 
-  // The MetaSleuth-style "+" badge: on the OUTER side of the card so it
-  // does not sit on top of the edges that already attach to the inner edge.
-  if (!node.expanded) {
+  // The MetaSleuth-style "+" badge: on the OUTER side. Stays while there
+  // are more counterparties to page in; only disappears when this address
+  // has nothing further to show.
+  if (manualNodeShowPlus(node)) {
     const outerRight = (node.column || 0) >= 0;
     const bx = outerRight ? x + w + 12 : x - 12, by = node.y;
     ctx.beginPath(); ctx.arc(bx, by, 9, 0, 2 * Math.PI);
@@ -3487,7 +3507,7 @@ function paintManualNode(node, ctx, scale) {
     const chip = "VASP " + pct + "%";
     ctx.font = "600 9px ui-monospace, Menlo, monospace";
     chipW = ctx.measureText(chip).width + 10;
-    const cx = x + w - chipW - 8, cy = y + 8;
+    const cx = x + w - chipW - 8, cy = y + h - 20;
     ctx.fillStyle = "rgba(251,146,60,.16)";
     roundRectPath(ctx, cx, cy, chipW, 13, 6);
     ctx.fill();
@@ -3497,25 +3517,31 @@ function paintManualNode(node, ctx, scale) {
     ctx.fillText(chip, cx + 5, cy + 7);
   }
 
-  // Name on top, address below — MetaSleuth order. Precedence is the honesty
-  // order: sourced ACTIVE label, then this analyst's unconfirmed tag, then a
-  // public-explorer lead, then a generic "Wallet" rather than inventing a name.
-  const title = node.label
-    || (node.communityTag ? node.communityTag + " (unconfirmed)" : null)
-    || (node.leadTag ? node.leadTag : null)
-    || "Wallet";
+  // Identity first: a real name when we have one, otherwise the address
+  // itself so unlabeled cards stay unique. The VASP chip sits bottom-right
+  // so it cannot steal width from the title.
+  const named = manualNodeTitle(node);
   const textX = ix + iconS + 8;
-  const titleWidth = w - (textX - x) - 10 - (hasService ? chipW + 4 : 0);
+  const titleWidth = w - (textX - x) - 10;
+  const subWidth = titleWidth - (hasService ? chipW + 6 : 0);
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  ctx.fillStyle = node.label ? "#7ee8bf"
-    : node.communityTag ? "#fbbf24"
-    : node.leadTag ? "#fcd34d"
-    : "#e8eef5";
-  ctx.font = (node.label ? "600 " : "600 ") + "13px ui-sans-serif, sans-serif";
-  ctx.fillText(truncateToWidth(ctx, title, titleWidth), textX, y + 24);
-  ctx.fillStyle = "#7f95ae";
-  ctx.font = "12px ui-monospace, Menlo, monospace";
-  ctx.fillText(truncateToWidth(ctx, shortAddrManual(node.address), w - (textX - x) - 10), textX, y + h - 20);
+  if (named) {
+    ctx.fillStyle = node.label ? "#7ee8bf"
+      : node.communityTag ? "#fbbf24"
+      : "#fcd34d";
+    ctx.font = "600 13px ui-sans-serif, sans-serif";
+    ctx.fillText(truncateToWidth(ctx, named, titleWidth), textX, y + 24);
+    ctx.fillStyle = "#7f95ae";
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText(truncateToWidth(ctx, node.address, subWidth), textX, y + h - 20);
+  } else {
+    ctx.fillStyle = "#e8eef5";
+    ctx.font = "600 12px ui-monospace, Menlo, monospace";
+    ctx.fillText(truncateToWidth(ctx, node.address, titleWidth), textX, y + 24);
+    ctx.fillStyle = "#7f95ae";
+    ctx.font = "11px ui-sans-serif, sans-serif";
+    ctx.fillText(truncateToWidth(ctx, manualNodeRole(node), subWidth), textX, y + h - 20);
+  }
 
   if (manualInspecting && !selected && !hovered) {
     roundRectPath(ctx, x, y, w, h, 8);
@@ -3597,13 +3623,53 @@ function manualCardWidth(node) {
   return node.__w || (node.isRoot ? MCARD_W_ROOT : MCARD_W);
 }
 
-function manualLinkGeometry(s, t) {
+function amountMagnitude(raw, decimals) {
+  const parts = splitUnits(raw, decimals);
+  if (!parts) return 0.0001;
+  const n = Number((parts.neg ? "-" : "") + parts.int + "." + (parts.frac.slice(0, 8) || "0"));
+  return Number.isFinite(n) && n !== 0 ? Math.abs(n) : 0.0001;
+}
+
+function otherLinkEnd(link, node) {
+  const s = link.source, t = link.target;
+  if (typeof s !== "object" || typeof t !== "object") return null;
+  return s.id === node.id ? t : s;
+}
+
+function linksOnNode(node) {
+  return manualLinks.filter(l => {
+    const s = l.source, t = l.target;
+    if (typeof s !== "object" || typeof t !== "object") return false;
+    return s.id === node.id || t.id === node.id;
+  }).sort((a, b) => {
+    const ay = (otherLinkEnd(a, node) || {}).y || 0;
+    const by = (otherLinkEnd(b, node) || {}).y || 0;
+    return ay - by;
+  });
+}
+
+function attachY(node, link) {
+  const sibs = linksOnNode(node);
+  const i = sibs.findIndex(l => l.__key === link.__key);
+  const n = sibs.length;
+  const h = (node.__h || MCARD_H) * 0.5;
+  if (n <= 1 || i < 0) return node.y;
+  const u = i / (n - 1);
+  return node.y + (u - 0.5) * h;
+}
+
+function bezierPoint(p0, p1, p2, p3, t) {
+  const u = 1 - t;
+  return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
+}
+
+function manualLinkGeometry(s, t, link) {
   const sw = manualCardWidth(s), tw = manualCardWidth(t);
   const fromRight = t.x >= s.x;
   const x1 = s.x + (fromRight ? sw / 2 : -sw / 2);
-  const y1 = s.y;
+  const y1 = link ? attachY(s, link) : s.y;
   const x2 = t.x + (fromRight ? -tw / 2 : tw / 2);
-  const y2 = t.y;
+  const y2 = link ? attachY(t, link) : t.y;
   const dx = (x2 - x1) * MLINK_CURVE;
   return { x1, y1, x2, y2, c1x: x1 + dx, c1y: y1, c2x: x2 - dx, c2y: y2 };
 }
@@ -3621,16 +3687,20 @@ function paintManualArrow(ctx, fromX, fromY, toX, toY, size) {
 function paintManualLink(link, ctx, scale) {
   const s = link.source, t = link.target;
   if (typeof s !== "object" || typeof t !== "object") return;
-  const g = manualLinkGeometry(s, t);
+  const g = manualLinkGeometry(s, t, link);
   const hex = assetLinkColor(link.asset_symbol);
   const focus = manualHovered || manualInspecting;
+  const maxMag = Math.max.apply(null, manualLinks.map(l => l.amountMag || 0).concat([1]));
+  const mag = link.amountMag || 0.0001;
+  const thick = Math.log10(1 + mag) / Math.log10(1 + maxMag);
   let alpha = 0.7;
-  let width = Math.max(1.2, 1.8 / scale);
+  let width = 1.2 + 3.0 * thick;
   if (focus && (s.id === focus.id || t.id === focus.id)) {
-    alpha = 0.95; width = Math.max(1.6, 2.6 / scale);
+    alpha = 0.95; width = Math.max(width, 2.4);
   } else if (focus) {
     alpha = 0.18;
   }
+  width = Math.max(1.1, width / Math.max(scale, 0.55));
   ctx.beginPath();
   ctx.moveTo(g.x1, g.y1);
   ctx.bezierCurveTo(g.c1x, g.c1y, g.c2x, g.c2y, g.x2, g.y2);
@@ -3644,8 +3714,12 @@ function paintManualLink(link, ctx, scale) {
   const meta = (link.seq != null ? "[" + link.seq + "] " : "") + (link.timeLabel || "");
   const amount = link.amountLabel || "";
   if (!meta.trim() && !amount) return;
-  const mx = 0.125 * g.x1 + 0.375 * g.c1x + 0.375 * g.c2x + 0.125 * g.x2;
-  const my = 0.125 * g.y1 + 0.375 * g.c1y + 0.375 * g.c2y + 0.125 * g.y2;
+  const sibs = linksOnNode(s);
+  const i = Math.max(sibs.findIndex(l => l.__key === link.__key), 0);
+  const n = Math.max(sibs.length, 1);
+  const tt = 0.35 + 0.30 * ((i + 0.5) / n);
+  const mx = bezierPoint(g.x1, g.c1x, g.c2x, g.x2, tt);
+  const my = bezierPoint(g.y1, g.c1y, g.c2y, g.y2, tt);
   const fs = Math.max(9 / scale, 8);
   ctx.font = fs + "px ui-monospace, Menlo, monospace";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -3714,7 +3788,13 @@ const MZOOM_FLOOR = 0.7;
 // links whose source/target are still the string ids force-graph has not
 // resolved into node objects yet ("Cannot create property 'vx' on string …").
 let manualFitPending = false;
+let manualCenterNode = null;
 function manualFit() {
+  manualCenterNode = null;
+  manualFitPending = true;
+}
+function manualFocusNode(node) {
+  manualCenterNode = node;
   manualFitPending = true;
 }
 
@@ -3775,6 +3855,7 @@ function addManualNode(chain, address, isRoot, parent, direction) {
     // this before", not a re-check of whether it got corroborated since.
     communityTag: saved ? saved.communityTag || null : null,
     column: column,
+    viaDirection: isRoot ? null : (direction || null),
     // WHICH node discovered this one. The layout places children beside
     // their own parent rather than in a shared per-column stack — without
     // this, expanding a node on the left put its outgoing counterparties
@@ -3835,17 +3916,36 @@ function relayoutManual() {
     }
     const auto = nodes.filter(n => !n.__userPlaced);
     if (!auto.length) continue;
+    const groups = new Map();
     for (const n of auto) {
-      const p = n.parentId ? byId.get(n.parentId) : null;
-      n.__want = (p && p.__y != null) ? p.__y : 0;
+      const pid = n.parentId || "__root__";
+      if (!groups.has(pid)) groups.set(pid, []);
+      groups.get(pid).push(n);
     }
-    // Stable within a parent: siblings keep the order the API returned them
-    // in, which is by value, so the biggest flow sits nearest its parent.
-    auto.sort((a, b) => (a.__want - b.__want)
-      || manualNodes.indexOf(a) - manualNodes.indexOf(b));
-    const wantMid = auto.reduce((acc, n) => acc + n.__want, 0) / auto.length;
-    const start = wantMid - ((auto.length - 1) * MROW_GAP) / 2;
-    auto.forEach((n, i) => { n.__y = start + i * MROW_GAP; });
+    const packs = [];
+    for (const [pid, sibs] of groups) {
+      sibs.sort((a, b) => manualNodes.indexOf(a) - manualNodes.indexOf(b));
+      const p = pid !== "__root__" ? byId.get(pid) : null;
+      const want = (p && p.__y != null) ? p.__y : 0;
+      const start = want - ((sibs.length - 1) * MROW_GAP) / 2;
+      packs.push({
+        sibs: sibs,
+        start: start,
+        end: start + (sibs.length - 1) * MROW_GAP,
+        want: want,
+      });
+    }
+    packs.sort((a, b) => a.want - b.want || a.start - b.start);
+    let prevEnd = -Infinity;
+    for (const pack of packs) {
+      if (pack.start < prevEnd + MROW_GAP) {
+        const shift = prevEnd + MROW_GAP - pack.start;
+        pack.start += shift;
+        pack.end += shift;
+      }
+      pack.sibs.forEach((n, i) => { n.__y = pack.start + i * MROW_GAP; });
+      prevEnd = pack.end;
+    }
   }
 
   for (const n of manualNodes) {
@@ -3879,6 +3979,7 @@ function addManualLink(srcKey, cp) {
     __key: lkey, source: from, target: to,
     direction: cp.direction,
     amountLabel: formatUnits(cp.amount, cp.asset_decimals) + " " + (cp.asset_symbol || ""),
+    amountMag: amountMagnitude(cp.amount, cp.asset_decimals),
     asset_symbol: cp.asset_symbol || "",
     tx_hash: cp.tx_hash,
     timestamp: cp.timestamp,
@@ -3888,33 +3989,54 @@ function addManualLink(srcKey, cp) {
   applyManualFilter();
 }
 
+function manualNodeShowPlus(node) {
+  if (!node.expanded) return true;
+  return !!(node.expandTruncated || node.expandCursor);
+}
+
+function countLinksForNode(node) {
+  return manualLinks.filter(l => {
+    const s = typeof l.source === "object" ? l.source.id : l.source;
+    const t = typeof l.target === "object" ? l.target.id : l.target;
+    return s === node.id || t === node.id;
+  }).length;
+}
+
+function applyExpandPage(node, res) {
+  const chain = res.chain || node.chain;
+  for (const cp of res.counterparties) {
+    cp.chain = chain;
+    const cnode = addManualNode(chain, cp.address, false, node, cp.direction);
+    if (cp.label) cnode.label = cp.label.entity;
+    addManualLink(node.id, cp);
+  }
+  if (res.service_endpoint) node.service = res.service_endpoint;
+  node.expanded = true;
+  node.expandCursor = res.next_cursor || null;
+  node.expandTruncated = !!res.truncated;
+  const shown = countLinksForNode(node);
+  $("mHint").textContent = (node.expandTruncated || node.expandCursor)
+    ? ("Showing the largest " + shown + " of " + res.total_count
+       + " counterparties for " + shortAddrManual(node.address) + " — click + for more.")
+    : MANUAL_USAGE_HINT;
+}
+
 async function expandManualNode(node) {
   if (node.expanding) return;
+  if (node.expanded && !manualNodeShowPlus(node)) return;
   node.expanding = true;
   $("mHint").textContent = "Expanding " + shortAddrManual(node.address) + "…";
   try {
-    const res = await api("/addresses/" + encodeURIComponent(node.address)
-      + "/expand?limit=25&chain=" + encodeURIComponent(node.chain));
-    for (const cp of res.counterparties) {
-      cp.chain = node.chain;
-      const cnode = addManualNode(node.chain, cp.address, false, node, cp.direction);
-      if (cp.label) { cnode.label = cp.label.entity; }
-      addManualLink(node.id, cp);
-    }
-    // The system's own read on this address, from the counterparties it just
-    // returned — same rule the automated graph marks with.
-    node.service = res.service_endpoint || null;
-    node.expanded = true;
-    applyManualFilter(); // repaint (badge state changed)
-    $("mHint").textContent = res.truncated
-      ? ("Showing the largest " + res.counterparties.length + " of " + res.total_count
-         + " counterparties for " + shortAddrManual(node.address) + " — bounded for legibility, not coverage.")
-      : MANUAL_USAGE_HINT;
+    let q = "/addresses/" + encodeURIComponent(node.address)
+      + "/expand?limit=" + MANUAL_EXPAND_PAGE
+      + "&chain=" + encodeURIComponent(node.chain);
+    if (node.expandCursor) q += "&cursor=" + encodeURIComponent(node.expandCursor);
+    const res = await api(q);
+    applyExpandPage(node, res);
+    applyManualFilter();
     renderManualLegend();
-    // A new column just appeared beside everything already placed; refit so
-    // the nodes this click produced are actually on screen.
-    manualFit();
-    fetchManualLeads();   // fire-and-forget: names arrive after the cards do
+    manualFocusNode(node);
+    fetchManualLeads();
   } catch (e) {
     $("mHint").textContent = "Could not expand " + shortAddrManual(node.address) + ": " + e.message;
   } finally {
@@ -4276,12 +4398,11 @@ $("mAddSelected").addEventListener("click", () => {
     added++;
   }
   if (added) {
-    node.expanded = true;
     applyManualFilter();
     setManualTab("related");                  // state.related only renders on that tab
     renderManualTable(node, state.related);   // re-render: rows are now on-canvas
     renderManualLegend();
-    manualFit();
+    manualFocusNode(node);
     fetchManualLeads();
   }
 });
@@ -4515,22 +4636,13 @@ async function manualExplore(forcedChain) {
   manualGraph.graphData({ nodes: [], links: [] });
   try {
     const chainQ = forcedChain ? ("&chain=" + encodeURIComponent(forcedChain)) : "";
-    const res = await api("/addresses/" + encodeURIComponent(address) + "/expand?limit=25" + chainQ);
+    const res = await api("/addresses/" + encodeURIComponent(address)
+      + "/expand?limit=" + MANUAL_EXPAND_PAGE + chainQ);
     const root = addManualNode(res.chain, address, true);
-    root.expanded = true;
-    root.service = res.service_endpoint || null;
-    for (const cp of res.counterparties) {
-      cp.chain = res.chain;
-      const cnode = addManualNode(res.chain, cp.address, false, root, cp.direction);
-      if (cp.label) cnode.label = cp.label.entity;
-      addManualLink(root.id, cp);
-    }
+    applyExpandPage(root, res);
     manualFit();
-    $("mHint").textContent = res.truncated
-      ? ("Showing the largest " + res.counterparties.length + " of " + res.total_count + " counterparties.")
-      : MANUAL_USAGE_HINT;
     renderManualLegend();
-    fetchManualLeads();   // fire-and-forget: names arrive after the cards do
+    fetchManualLeads();
   } catch (e) {
     const detail = e.detail;
     if (detail && detail.reason === "ambiguous" && detail.candidates && detail.candidates.length) {
