@@ -704,7 +704,16 @@
   .mempty-title { font-size: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #fff; }
   .mempty-copy { margin-top: 8px; max-width: 420px; font-size: 13px; color: var(--muted); line-height: 1.5; }
   .mzoom .ghost { min-height: 36px; min-width: 36px; }
+  /* Wrap rather than run off the canvas. On desktop the legend must also stop
+     short of the zoom bar in the bottom-right corner: the legend is anchored
+     bottom-left and grows UPWARD as it wraps, so once the asset-colour chips
+     push it to a second line it rises straight into those buttons. Below 720px
+     the legend moves to the TOP of the stage (see the media query below), so
+     it needs the full width back there. */
   .mlegend { flex-wrap: wrap; max-width: calc(100% - 24px); }
+  @media (min-width: 721px) {
+    .mlegend { max-width: calc(100% - 360px); }
+  }
 
   @media (max-width: 900px) {
     .minspector { width: min(420px, calc(100% - 24px)); }
@@ -3316,12 +3325,7 @@ function ensureManualGraph() {
         manualGraph.centerAt(focus.x, focus.y, 400);
         return;
       }
-      manualGraph.zoomToFit(400, 80);
-      if (manualGraph.zoom() < MZOOM_FLOOR) {
-        const root = manualData().nodes.find(n => n.isRoot);
-        manualGraph.zoom(MZOOM_FLOOR, 400);
-        if (root) manualGraph.centerAt(root.x, root.y, 400);
-      }
+      fitManualWithFloor();
     })
     .cooldownTicks(220)
     .d3AlphaDecay(0.018);
@@ -3770,6 +3774,26 @@ const MCOLUMN_GAP = 520;
 //: card is ~83px on screen — its address still reads. Below that the fit is
 //: producing a picture of a graph rather than a graph you can work in.
 const MZOOM_FLOOR = 0.7;
+
+// Fit the graph, then enforce that floor. Both callers need the clamp and it
+// has to be measured off an INSTANT fit: zoomToFit animates when handed a
+// duration, so a zoom() read taken straight afterwards still sees the PRE-fit
+// scale and skips the clamp entirely. That is why the post-explore view used
+// to settle at 40% — cards as specks — while the Fit button clamped correctly
+// to 70%. One function, so the two paths cannot drift apart again.
+function fitManualWithFloor() {
+  if (!manualGraph) return;
+  manualGraph.zoomToFit(0, 80);
+  // zoomToFit shrinks without limit to get EVERYTHING on screen; on a wide
+  // fan-out that is a picture of a graph rather than a graph you can work in.
+  // Past the floor, stop zooming out and let the investigator pan instead:
+  // seeing part of the trace legibly beats seeing all of it illegibly.
+  if (manualGraph.zoom() < MZOOM_FLOOR) {
+    const root = manualData().nodes.find(n => n.isRoot);
+    manualGraph.zoom(MZOOM_FLOOR, 0);
+    if (root) manualGraph.centerAt(root.x, root.y, 0);
+  }
+}
 
 // Bring the whole graph back into frame. Called after an expansion as well as
 // after the first explore: a new column appears to the left or right of
@@ -4421,16 +4445,7 @@ function manualZoomBy(factor) {
 $("mZoomIn").addEventListener("click", () => manualZoomBy(1.3));
 $("mZoomOut").addEventListener("click", () => manualZoomBy(1 / 1.3));
 $("mZoomFit").addEventListener("click", () => {
-  if (!manualGraph) return;
-  // Instant, then enforce the floor: zoomToFit is async when given a duration,
-  // so a follow-up zoom() read would still see the pre-fit scale and skip the
-  // clamp, leaving cards as specks.
-  manualGraph.zoomToFit(0, 80);
-  if (manualGraph.zoom() < MZOOM_FLOOR) {
-    const root = manualData().nodes.find(n => n.isRoot);
-    manualGraph.zoom(MZOOM_FLOOR, 0);
-    if (root) manualGraph.centerAt(root.x, root.y, 0);
-  }
+  fitManualWithFloor();
 });
 
 // Prune to what the investigator has actually flagged. Nothing is deleted —
