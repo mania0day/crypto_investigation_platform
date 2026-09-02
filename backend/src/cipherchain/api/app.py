@@ -1165,10 +1165,26 @@ def create_app(
 
             Re-read per request rather than cached at startup so editing the
             page is a refresh, not a restart.
+
+            That re-read is only half the promise, though: with no caching
+            directive at all a browser is free to reuse this document from its
+            own cache without ever asking again, so an edited page kept showing
+            the previous build to whoever had already loaded it while a
+            colleague on a cold cache saw the new one. The header below is what
+            actually makes an edit a refresh.
+
+            The two paths differ deliberately. When a demo key is embedded the
+            document carries a live credential, so ``no-store`` — never write it
+            to the disk cache. Without one it is an ordinary static document and
+            ``no-cache`` is enough: revalidate every time, and FileResponse's
+            own ETag/Last-Modified turn the usual answer into a cheap 304.
             """
             if embedded is None:
-                return FileResponse(index)
-            return HTMLResponse(_with_demo_key(index.read_text(encoding="utf-8"), embedded))
+                return FileResponse(index, headers={"Cache-Control": "no-cache"})
+            return HTMLResponse(
+                _with_demo_key(index.read_text(encoding="utf-8"), embedded),
+                headers={"Cache-Control": "no-store"},
+            )
 
     return app
 

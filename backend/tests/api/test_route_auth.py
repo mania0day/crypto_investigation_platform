@@ -415,6 +415,40 @@ async def test_a_token_that_is_not_key_shaped_is_never_written_into_the_page(
     assert "CIPHERCHAIN_API_KEY" not in page.text
 
 
+async def test_the_demo_page_is_never_served_from_a_stale_browser_cache(
+    sessions: async_sessionmaker[AsyncSession],
+    investigation_engine: InvestigationEngine,
+    tmp_path: Path,
+) -> None:
+    """An edit to the bundled UI has to be one refresh away, for everyone.
+
+    The route re-reads the file per request, which makes the SERVER always
+    current — but that is only half of it. Served with no caching directive at
+    all, a browser may reuse the document from its own cache without asking
+    again, and the page then keeps showing a previous build to whoever already
+    had it while a colleague on a cold cache sees the new one. That is a real
+    failure this project hit: two people on the same commit, looking at
+    different UIs, with nothing in the server logs to show for it.
+
+    The directive also differs by path on purpose, so both are asserted here.
+    """
+    key = await mint(sessions, Scope.READ, Scope.INVESTIGATE, label="demo")
+    with_key = demo_app(sessions, investigation_engine, tmp_path, demo_api_key=key.token)
+    without_key = demo_app(sessions, investigation_engine, tmp_path)
+
+    async with client_for(with_key) as anonymous:
+        embedded = await anonymous.get("/")
+    async with client_for(without_key) as anonymous:
+        plain = await anonymous.get("/")
+
+    # Carrying a live credential: never written to the disk cache at all.
+    assert embedded.headers["cache-control"] == "no-store"
+    assert key.token in embedded.text
+
+    # No credential, so revalidating is enough — and a 304 makes it cheap.
+    assert plain.headers["cache-control"] == "no-cache"
+
+
 def test_the_bundled_ui_is_found_in_the_layout_this_repo_actually_uses() -> None:
     """A 404 at "/" is the one deployment failure that looks like success.
 
