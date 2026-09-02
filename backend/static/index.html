@@ -563,7 +563,9 @@
   }
   #manualStage { width: 100%; height: 100%; cursor: grab; touch-action: none; }
   #manualStage:active { cursor: grabbing; }
-  #manualStage.is-over-node { cursor: pointer; }
+  #manualStage.is-over-node { cursor: grab; }
+  #manualStage.is-dragging-node,
+  #manualStage.is-dragging-node:active { cursor: grabbing; }
   .mtoolbar input { flex: 1; min-width: 0; }
   #mExplore { flex: none; min-height: 40px; padding: 8px 16px; }
   .minspector {
@@ -885,7 +887,7 @@
   <div id="manualView" class="hidden">
     <div class="panel mtoolbarpanel">
       <div class="mtoolbar">
-        <input id="mAddress" placeholder="Paste any address — 0x…, bc1…, 1…, 3…, T… — click a node to inspect, mark, or expand it"
+        <input id="mAddress" placeholder="Paste any address — 0x…, bc1…, 1…, 3…, T… — drag cards, pan the canvas, click + to expand"
                spellcheck="false" autocomplete="off">
         <button id="mExplore">Explore</button>
       </div>
@@ -898,7 +900,7 @@
       <div class="mempty" id="mEmpty">
         <div>
           <div class="mempty-title">Explore an address</div>
-          <div class="mempty-copy">Paste a wallet above, then drag to pan and scroll to zoom. Click a card to inspect it, or the + to expand counterparties.</div>
+          <div class="mempty-copy">Paste a wallet above. Drag a card to rearrange · drag empty space to pan · scroll to zoom · click + to expand.</div>
         </div>
       </div>
       <div class="minspector hidden" id="manualInspector">
@@ -3177,11 +3179,19 @@ function setMode(mode) {
   document.body.classList.toggle("manualfull", !auto);
   // Sized only once visible — an element inside a `display:none` parent
   // measures as zero, so this has to run after the class toggle above.
-  if (!auto) { sizeManualStage(); ensureManualGraph(); updateManualEmpty(); }
+  if (!auto) {
+    sizeManualStage();
+    ensureManualGraph();
+    updateManualEmpty();
+    if (manualNodes.length && !$("mHint").textContent) {
+      $("mHint").textContent = MANUAL_USAGE_HINT;
+    }
+  }
 }
 $("tabAuto").addEventListener("click", () => setMode("auto"));
 $("tabManual").addEventListener("click", () => setMode("manual"));
 
+const MANUAL_USAGE_HINT = "Drag a card to rearrange · drag empty space to pan · scroll to zoom · click + to expand";
 const MANUAL_COLORS = [
   { key: "watch",   label: "Watching",     color: "#fbbf24" },
   { key: "suspect", label: "Suspicious",   color: "#fb7185" },
@@ -3215,6 +3225,7 @@ function chainGlyph(chain) {
 let manualGraph = null;
 let manualInspecting = null;
 let manualHovered = null;
+let manualLinkSeq = 0;
 
 // The canonical graph. `manualGraph.graphData()` holds only what is currently
 // DRAWN, which stops being the whole graph the moment a filter is on — so
@@ -3260,13 +3271,32 @@ function ensureManualGraph() {
     .nodeCanvasObject(paintManualNode)
     .nodePointerAreaPaint(paintManualPointerArea)
     .linkCanvasObject(paintManualLink)
-    .linkDirectionalArrowLength(5)
-    .linkDirectionalArrowRelPos(0.85)
-    // A node is a position in a layout, not a thing to rearrange by hand:
-    // dragging one tore the columns apart and re-heated the simulation, which
-    // is the "graph moves on click and drag" complaint. Pan and zoom still
-    // move the VIEW; the graph itself stays where it settled.
-    .enableNodeDrag(false)
+    // Custom linkCanvasObject owns the stroke AND the arrow; the library's
+    // own arrow would sit on the straight chord, not on the Bézier.
+    .linkDirectionalArrowLength(0)
+    // Cards can be dragged; pan still happens on empty canvas. Pins (fx/fy)
+    // keep a dropped card where it was put so the column layout does not
+    // yank the rest of the graph around.
+    .enableNodeDrag(true)
+    .onNodeDrag((node) => {
+      if (!node) return;
+      if (!node.__dragOrigin) node.__dragOrigin = { x: node.x, y: node.y };
+      node.fx = node.x;
+      node.fy = node.y;
+      $("manualStage").classList.add("is-dragging-node");
+    })
+    .onNodeDragEnd((node) => {
+      $("manualStage").classList.remove("is-dragging-node");
+      if (!node) return;
+      const origin = node.__dragOrigin;
+      node.__dragOrigin = null;
+      node.__justDragged = !!(origin && Math.hypot(node.x - origin.x, node.y - origin.y) > 4);
+      // The library clears fx/fy on drag end, then calls this. Re-pin so the
+      // card stays put and a later expand cannot restack it.
+      node.fx = node.x;
+      node.fy = node.y;
+      if (node.__justDragged) node.__userPlaced = true;
+    })
     .onNodeClick(handleManualNodeClick)
     .onNodeHover((node) => {
       manualHovered = node || null;
@@ -3294,9 +3324,6 @@ function ensureManualGraph() {
       }
     })
     .cooldownTicks(220)
-    // A gentle curve, so parallel edges between the same two columns stay
-    // individually followable instead of collapsing into one thick line.
-    .linkCurvature(0.12)
     .d3AlphaDecay(0.018);
   // X is pinned per column (see addManualNode), so charge can only act
   // VERTICALLY here — its horizontal component is discarded by fx every tick.
@@ -3324,7 +3351,7 @@ function ensureManualGraph() {
 // graph actually settles at, rather than only when zoomed right in. The
 // earlier 118x40 was legible at 1:1 and a smear at the ~0.7 the fit floor
 // allows, which is where this view is normally read.
-const MCARD_W = 190, MCARD_W_ROOT = 215, MCARD_H = 58;
+const MCARD_W = 210, MCARD_W_ROOT = 232, MCARD_H = 66;
 
 function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -3339,38 +3366,37 @@ function roundRectPath(ctx, x, y, w, h, r) {
 function manualNodeColor(node) {
   const tag = MANUAL_COLORS.find(c => c.key === node.tag);
   if (tag) return tag.color;
-  if (node.isRoot) return "#00f0ff";
+  if (node.isRoot) return "#d97706";
   if (node.label) return "#34d399";
   return "#38bdf8";
 }
 
-// A MetaSleuth-style boxed card (was: a small dot with text floating below
-// it). Everything the dot version put in separate badges lives ON the card
-// now — full address, full label, no zooming in to read either — which is
-// the "expandable with full plain [text]" request this replaced the dot for.
+// Investigation-style boxed card: left icon, name on top, truncated address
+// below. Honesty still lives in colour and dash — sourced green, lead/unconfirmed
+// amber dashed — never as a invented identity. The root is the amber focus
+// card, not a cyan outline.
 function paintManualNode(node, ctx, scale) {
   const w = node.isRoot ? MCARD_W_ROOT : MCARD_W, h = MCARD_H;
   const x = node.x - w / 2, y = node.y - h / 2;
   const color = manualNodeColor(node);
   node.__w = w; node.__h = h;   // read back by paintManualPointerArea, below
-
-  // A soft cast shadow — cheap depth cue at this size, and the one thing a
-  // flat canvas fill can't otherwise say that the automated graph's real
-  // box-shadow CSS (.gnode) already does. Reset immediately: shadowBlur
-  // bleeds into every draw call after it (the badges, the text) until
-  // something clears it, which is not a mistake to make once and repaint
-  // every physics tick.
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,.55)"; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-  roundRectPath(ctx, x, y, w, h, 8);
-  ctx.fillStyle = "#0e1929f0";
-  ctx.fill();
-  ctx.restore();
-  ctx.lineWidth = node.isRoot ? 2.2 : 1.4;
-  ctx.strokeStyle = color;
-  ctx.stroke();
   const selected = manualInspecting && manualInspecting.id === node.id;
   const hovered = manualHovered && manualHovered.id === node.id;
+
+  // Shadow/glow reset immediately: shadowBlur bleeds into every later stroke
+  // (icons, text, the + badge) until something clears it.
+  ctx.save();
+  ctx.shadowColor = node.isRoot ? "rgba(217,119,6,.6)" : "rgba(0,0,0,.55)";
+  ctx.shadowBlur = node.isRoot ? 18 : 12;
+  ctx.shadowOffsetY = node.isRoot ? 0 : 3;
+  roundRectPath(ctx, x, y, w, h, 8);
+  ctx.fillStyle = "#141a22";
+  ctx.fill();
+  ctx.restore();
+  roundRectPath(ctx, x, y, w, h, 8);
+  ctx.lineWidth = node.isRoot ? 2.4 : 1.3;
+  ctx.strokeStyle = color;
+  ctx.stroke();
   if (selected) {
     roundRectPath(ctx, x - 3, y - 3, w + 6, h + 6, 10);
     ctx.lineWidth = 1.8;
@@ -3379,150 +3405,118 @@ function paintManualNode(node, ctx, scale) {
   } else if (hovered) {
     roundRectPath(ctx, x - 1, y - 1, w + 2, h + 2, 9);
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(255,255,255,.55)";
+    ctx.strokeStyle = "rgba(255,255,255,.5)";
     ctx.stroke();
   }
-  // Left accent stripe — the same "role colour on the left edge" language
-  // the automated graph's own .gnode card uses (index.html, .gnode CSS).
-  roundRectPath(ctx, x, y, 4, h, 2);
-  ctx.fillStyle = color;
+
+  // Left rounded-square icon. Sourced claims get the entity mark in solid
+  // green; a public-explorer lead or this-session tag is the same mark in
+  // amber with a dashed border, so they can never be mistaken for a sourced
+  // claim. Unlabelled cards show the chain glyph instead of inventing a name.
+  const iconS = 28;
+  const ix = x + 10, iy = y + (h - iconS) / 2;
+  roundRectPath(ctx, ix, iy, iconS, iconS, 6);
+  ctx.fillStyle = "#0c1218";
   ctx.fill();
-
-  // Chain badge, inside the card at top-left: a real mark for Tron, the
-  // existing letter/symbol glyph for every other chain (chainIconSvg only
-  // covers the one brand this view can draw on sight — see its own comment).
-  const chainInfo = chainGlyph(node.chain);
-  const badgeR = 10;
-  const cbx = x + 18, cby = y + 17;
-  ctx.beginPath(); ctx.arc(cbx, cby, badgeR, 0, 2 * Math.PI);
-  ctx.fillStyle = chainInfo.color; ctx.fill();
-  const chainIcon = chainIconSvg(node.chain);
-  if (chainIcon) {
-    const img = iconImage(chainIcon);
-    if (img.complete && img.naturalWidth) {
-      ctx.save();
-      ctx.beginPath(); ctx.arc(cbx, cby, badgeR - 1, 0, 2 * Math.PI); ctx.clip();
-      ctx.drawImage(img, cbx - badgeR, cby - badgeR, badgeR * 2, badgeR * 2);
-      ctx.restore();
-    }
-  } else {
-    ctx.font = "700 " + Math.max(badgeR * 1.1, 5) + "px ui-sans-serif, sans-serif";
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillStyle = "#0a1524";
-    ctx.fillText(chainInfo.glyph, cbx, cby + 0.5);
-  }
-
-  // Entity mark, top-right: an ACTIVE, sourced claim (node.label, filled
-  // only from api/app.py's expand_address — same rule the automated view's
-  // classifyNode holds) gets the real brand/generic-VASP mark. A tag THIS
-  // browser session submitted and has not been corroborated yet
-  // (node.communityTag — see submitManualLabel) is drawn distinctly: amber
-  // and dashed, never the solid green a sourced claim gets, so an
-  // investigator's own unverified guess can never be mistaken for one.
   if (node.label) {
-    const lbx = x + w - 18, lby = y + 17;
-    ctx.beginPath(); ctx.arc(lbx, lby, badgeR, 0, 2 * Math.PI);
-    ctx.fillStyle = "#0a1524"; ctx.fill();
-    ctx.lineWidth = 1.3; ctx.strokeStyle = "#34d399"; ctx.stroke();
-    const img = iconImage(entityIconSvg(node.label), "#34d399");
-    if (img.complete && img.naturalWidth) {
-      ctx.drawImage(img, lbx - badgeR + 2, lby - badgeR + 2, (badgeR - 2) * 2, (badgeR - 2) * 2);
-    }
+    ctx.strokeStyle = "#34d399"; ctx.lineWidth = 1.4; ctx.stroke();
   } else if (node.leadTag) {
-    // A public-explorer lead: real brand mark so it is recognisable, but in
-    // the lead's amber and DASHED, never the solid green a sourced claim
-    // gets. The icon aids recognition; the colour still carries the standing.
-    const lbx = x + w - 18, lby = y + 17;
     ctx.setLineDash([3, 2]);
-    ctx.beginPath(); ctx.arc(lbx, lby, badgeR, 0, 2 * Math.PI);
-    ctx.fillStyle = "#0a1524"; ctx.fill();
-    ctx.lineWidth = 1.3; ctx.strokeStyle = "#fcd34d"; ctx.stroke();
+    ctx.strokeStyle = "#fcd34d"; ctx.lineWidth = 1.4; ctx.stroke();
     ctx.setLineDash([]);
-    const limg = iconImage(entityIconSvg(node.leadTag), "#fcd34d");
-    if (limg.complete && limg.naturalWidth) {
-      ctx.drawImage(limg, lbx - badgeR + 2, lby - badgeR + 2, (badgeR - 2) * 2, (badgeR - 2) * 2);
+  } else if (node.communityTag) {
+    ctx.setLineDash([2, 2]);
+    ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.strokeStyle = chainGlyph(node.chain).color; ctx.lineWidth = 1; ctx.stroke();
+  }
+  const iconPad = 4;
+  if (node.label || node.leadTag) {
+    const tint = node.label ? "#34d399" : "#fcd34d";
+    const img = iconImage(entityIconSvg(node.label || node.leadTag), tint);
+    if (img.complete && img.naturalWidth) {
+      ctx.drawImage(img, ix + iconPad, iy + iconPad, iconS - iconPad * 2, iconS - iconPad * 2);
     }
   } else if (node.communityTag) {
-    const lbx = x + w - 18, lby = y + 17;
-    ctx.setLineDash([2, 2]);
-    ctx.beginPath(); ctx.arc(lbx, lby, badgeR, 0, 2 * Math.PI);
-    ctx.fillStyle = "#0a1524"; ctx.fill();
-    ctx.lineWidth = 1.3; ctx.strokeStyle = "#fbbf24"; ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.font = "700 " + Math.max(badgeR * 1.1, 5) + "px ui-sans-serif, sans-serif";
+    ctx.font = "700 14px ui-sans-serif, sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = "#fbbf24";
-    ctx.fillText("?", lbx, lby + 0.5);
+    ctx.fillText("?", ix + iconS / 2, iy + iconS / 2 + 0.5);
+  } else {
+    const chainInfo = chainGlyph(node.chain);
+    const chainIcon = chainIconSvg(node.chain);
+    if (chainIcon) {
+      const img = iconImage(chainIcon);
+      if (img.complete && img.naturalWidth) {
+        ctx.save();
+        roundRectPath(ctx, ix + 1, iy + 1, iconS - 2, iconS - 2, 5);
+        ctx.clip();
+        ctx.drawImage(img, ix, iy, iconS, iconS);
+        ctx.restore();
+      }
+    } else {
+      ctx.font = "700 13px ui-sans-serif, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = chainInfo.color;
+      ctx.fillText(chainInfo.glyph, ix + iconS / 2, iy + iconS / 2 + 0.5);
+    }
   }
 
-  // The MetaSleuth-style "+" badge: present exactly on nodes nothing has
-  // asked about yet, now hung off the card's right edge. Its hit-box is
-  // drawn again, invisibly, in paintManualPointerArea — that is what
-  // onNodeClick tests against.
+  // The MetaSleuth-style "+" badge: on the OUTER side of the card so it
+  // does not sit on top of the edges that already attach to the inner edge.
   if (!node.expanded) {
-    const bx = x + w + 12, by = node.y;
+    const outerRight = (node.column || 0) >= 0;
+    const bx = outerRight ? x + w + 12 : x - 12, by = node.y;
     ctx.beginPath(); ctx.arc(bx, by, 9, 0, 2 * Math.PI);
-    ctx.fillStyle = "#0a1524"; ctx.fill();
-    ctx.lineWidth = 1.2; ctx.strokeStyle = "#00f0ff"; ctx.stroke();
+    ctx.fillStyle = "#0c1218"; ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = "#f59e0b"; ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(bx - 4.5, by); ctx.lineTo(bx + 4.5, by);
     ctx.moveTo(bx, by - 4.5); ctx.lineTo(bx, by + 4.5);
-    ctx.lineWidth = 1.8; ctx.strokeStyle = "#00f0ff"; ctx.stroke();
+    ctx.lineWidth = 1.8; ctx.strokeStyle = "#f59e0b"; ctx.stroke();
     node.__badge = { x: bx, y: by, r: 9 };
   } else {
     node.__badge = null;
   }
 
-  // A FIXED world-unit size, not scaled against `scale` — the card itself
-  // (MCARD_W/H) is fixed world units too, so text has to shrink WITH it as
-  // the view zooms out, or it outgrows a card that is shrinking around it.
-  // A prior version compensated for zoom to hold a constant SCREEN size,
-  // which is right for a label floating beside a small dot (the old
-  // design) and wrong for text meant to stay INSIDE a box — on a graph with
-  // enough expanded nodes to force a low zoomToFit, that read as oversized
-  // text spilling out of shrunken slivers instead of a card.
-  const fontSize = 14;
-  ctx.font = fontSize + "px ui-monospace, Menlo, monospace";
-  ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  ctx.fillStyle = "#dbe9f7";
-  ctx.fillText(shortAddrManual(node.address), x + 32, y + 17);
-
-  // What the SYSTEM concluded from behaviour, on the same rule the automated
-  // graph uses — degree over this address's counterparties, thresholds and
-  // confidence curve shared from analysis/heuristics/service.py. A ROLE, not
-  // an identity: it says "behaves like an exchange", never which one. Amber
-  // and explicitly a percentage, exactly like the automated CHECK chip, so it
-  // can never be mistaken for the green of a sourced label.
-  if (node.service && node.service.meets_threshold) {
+  const hasService = node.service && node.service.meets_threshold;
+  let chipW = 0;
+  if (hasService) {
     const pct = Math.round(node.service.confidence * 100);
-    const chip = "SEEMS VASP · " + pct + "%";
-    ctx.font = "600 11px ui-monospace, Menlo, monospace";
-    const cw = ctx.measureText(chip).width + 10;
-    const cx = x + w - cw - 8, cy = y + h - 20;
+    const chip = "VASP " + pct + "%";
+    ctx.font = "600 9px ui-monospace, Menlo, monospace";
+    chipW = ctx.measureText(chip).width + 10;
+    const cx = x + w - chipW - 8, cy = y + 8;
     ctx.fillStyle = "rgba(251,146,60,.16)";
-    roundRectPath(ctx, cx, cy, cw, 15, 7);
+    roundRectPath(ctx, cx, cy, chipW, 13, 6);
     ctx.fill();
     ctx.strokeStyle = "#fb923c"; ctx.lineWidth = 0.8; ctx.stroke();
     ctx.fillStyle = "#fb923c";
-    ctx.fillText(chip, cx + 5, cy + 8);
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(chip, cx + 5, cy + 7);
   }
-  // Precedence is the honesty order, strongest claim first: a sourced ACTIVE
-  // label, then this analyst's own submitted tag, then what a public explorer
-  // calls it (a lead — prefixed with ⚑ and never coloured like the other
-  // two), then nothing known. Same three-tier language the automated graph's
-  // caption/.glead chip already speaks.
-  const secondLine = node.label
+
+  // Name on top, address below — MetaSleuth order. Precedence is the honesty
+  // order: sourced ACTIVE label, then this analyst's unconfirmed tag, then a
+  // public-explorer lead, then a generic "Wallet" rather than inventing a name.
+  const title = node.label
     || (node.communityTag ? node.communityTag + " (unconfirmed)" : null)
-    || (node.leadTag ? "⚑ " + node.leadTag + " — unverified" : null)
-    || "unattributed";
+    || (node.leadTag ? node.leadTag : null)
+    || "Wallet";
+  const textX = ix + iconS + 8;
+  const titleWidth = w - (textX - x) - 10 - (hasService ? chipW + 4 : 0);
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = node.label ? "#7ee8bf"
     : node.communityTag ? "#fbbf24"
     : node.leadTag ? "#fcd34d"
-    : "#5c7591";
-  ctx.font = (node.label ? "600 " : "") + 12 + "px ui-monospace, Menlo, monospace";
-  // Leaves room for the SEEMS VASP chip on the same line when there is one.
-  const capWidth = ((node.service && node.service.meets_threshold) ? w * 0.52 : w - 16);
-  ctx.fillText(truncateToWidth(ctx, secondLine, capWidth), x + 10, y + h - 13);
+    : "#e8eef5";
+  ctx.font = (node.label ? "600 " : "600 ") + "13px ui-sans-serif, sans-serif";
+  ctx.fillText(truncateToWidth(ctx, title, titleWidth), textX, y + 24);
+  ctx.fillStyle = "#7f95ae";
+  ctx.font = "12px ui-monospace, Menlo, monospace";
+  ctx.fillText(truncateToWidth(ctx, shortAddrManual(node.address), w - (textX - x) - 10), textX, y + h - 20);
+
   if (manualInspecting && !selected && !hovered) {
     roundRectPath(ctx, x, y, w, h, 8);
     ctx.fillStyle = "rgba(2,8,16,.42)";
@@ -3558,56 +3552,125 @@ function paintManualPointerArea(node, color, ctx) {
   }
 }
 
-// Edges are drawn as quadratic curves rather than straight lines. This is not
-// only decoration: with X pinned into columns, many edges run between the same
-// two columns and a set of straight ones overlap into a single thick bar that
-// says nothing about how many flows it represents. The library's own
-// linkCurvature does not apply here — a custom linkCanvasObject owns its
-// drawing entirely — so the curve is computed rather than configured.
-// How far the control points sit along the horizontal run. 0.5 gives the
-// symmetric S every left-to-right flow diagram uses: the edge leaves its
-// source going sideways and arrives at its target going sideways, so the
-// direction of travel is legible even where dozens of edges converge.
+// Edges are drawn as cubic Bézier curves that attach to the LEFT/RIGHT sides
+// of cards, not the card centre. Straight centre-to-centre lines collapse into
+// one thick bar between columns; side-attached S-curves stay individually
+// followable and read as a fund-flow. The library's own linkCurvature does
+// not apply — a custom linkCanvasObject owns drawing entirely.
 const MLINK_CURVE = 0.5;
 
+const ASSET_LINK_COLORS = {
+  USDT: "#2dd4bf", USDC: "#14b8a6",
+  TRX: "#f43f5e", ETH: "#60a5fa", WETH: "#3b82f6",
+  BTC: "#f7931a", WBTC: "#f59e0b",
+};
+const ASSET_LINK_FALLBACK = ["#a78bfa", "#22d3ee", "#fb7185", "#84cc16", "#e879f9", "#38bdf8"];
+
+function assetLinkColor(symbol) {
+  const s = String(symbol || "").toUpperCase();
+  if (ASSET_LINK_COLORS[s]) return ASSET_LINK_COLORS[s];
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return ASSET_LINK_FALLBACK[s ? h % ASSET_LINK_FALLBACK.length : 0];
+}
+
+function hexToRgba(hex, a) {
+  const h = String(hex || "").replace("#", "");
+  const full = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const n = parseInt(full.slice(0, 6), 16);
+  if (Number.isNaN(n)) return "rgba(56,189,248," + a + ")";
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+}
+
+function formatManualTs(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) {
+    return String(ts).replace("T", " ").slice(0, 16);
+  }
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate())
+    + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+function manualCardWidth(node) {
+  return node.__w || (node.isRoot ? MCARD_W_ROOT : MCARD_W);
+}
+
 function manualLinkGeometry(s, t) {
-  const dx = (t.x - s.x) * MLINK_CURVE;
-  return { c1x: s.x + dx, c1y: s.y, c2x: t.x - dx, c2y: t.y };
+  const sw = manualCardWidth(s), tw = manualCardWidth(t);
+  const fromRight = t.x >= s.x;
+  const x1 = s.x + (fromRight ? sw / 2 : -sw / 2);
+  const y1 = s.y;
+  const x2 = t.x + (fromRight ? -tw / 2 : tw / 2);
+  const y2 = t.y;
+  const dx = (x2 - x1) * MLINK_CURVE;
+  return { x1, y1, x2, y2, c1x: x1 + dx, c1y: y1, c2x: x2 - dx, c2y: y2 };
+}
+
+function paintManualArrow(ctx, fromX, fromY, toX, toY, size) {
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - size * Math.cos(angle - Math.PI / 6), toY - size * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(toX - size * Math.cos(angle + Math.PI / 6), toY - size * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
 }
 
 function paintManualLink(link, ctx, scale) {
   const s = link.source, t = link.target;
   if (typeof s !== "object" || typeof t !== "object") return;
   const g = manualLinkGeometry(s, t);
-  ctx.beginPath();
-  ctx.moveTo(s.x, s.y);
-  ctx.bezierCurveTo(g.c1x, g.c1y, g.c2x, g.c2y, t.x, t.y);
-  ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.65)" : "rgba(56,189,248,.65)";
-  ctx.lineWidth = Math.max(1, 1.6 / scale);
+  const hex = assetLinkColor(link.asset_symbol);
   const focus = manualHovered || manualInspecting;
+  let alpha = 0.7;
+  let width = Math.max(1.2, 1.8 / scale);
   if (focus && (s.id === focus.id || t.id === focus.id)) {
-    ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.95)" : "rgba(0,240,255,.95)";
-    ctx.lineWidth = Math.max(1.4, 2.4 / scale);
+    alpha = 0.95; width = Math.max(1.6, 2.6 / scale);
   } else if (focus) {
-    ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.22)" : "rgba(56,189,248,.22)";
+    alpha = 0.18;
   }
+  ctx.beginPath();
+  ctx.moveTo(g.x1, g.y1);
+  ctx.bezierCurveTo(g.c1x, g.c1y, g.c2x, g.c2y, g.x2, g.y2);
+  ctx.strokeStyle = hexToRgba(hex, alpha);
+  ctx.lineWidth = width;
   ctx.stroke();
-  if (scale > 0.5 && link.amountLabel) {
-    // The label rides ON the curve at t=0.5, not on the straight midpoint
-    // the curve has left behind.
-    const mx = 0.125 * s.x + 0.375 * g.c1x + 0.375 * g.c2x + 0.125 * t.x;
-    const my = 0.125 * s.y + 0.375 * g.c1y + 0.375 * g.c2y + 0.125 * t.y;
-    const fs = Math.max(9 / scale, 3);
-    ctx.font = fs + "px ui-monospace, Menlo, monospace";
-    const w = ctx.measureText(link.amountLabel).width + 6;
-    ctx.fillStyle = "rgba(4,10,18,.85)";
-    ctx.fillRect(mx - w / 2, my - fs / 2 - 2, w, fs + 4);
-    ctx.fillStyle = "#e8f6ff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(link.amountLabel, mx, my);
+  ctx.fillStyle = hexToRgba(hex, alpha);
+  paintManualArrow(ctx, g.c2x, g.c2y, g.x2, g.y2, Math.max(6, 8 / scale));
+
+  if (scale <= 0.45) return;
+  const meta = (link.seq != null ? "[" + link.seq + "] " : "") + (link.timeLabel || "");
+  const amount = link.amountLabel || "";
+  if (!meta.trim() && !amount) return;
+  const mx = 0.125 * g.x1 + 0.375 * g.c1x + 0.375 * g.c2x + 0.125 * g.x2;
+  const my = 0.125 * g.y1 + 0.375 * g.c1y + 0.375 * g.c2y + 0.125 * g.y2;
+  const fs = Math.max(9 / scale, 8);
+  ctx.font = fs + "px ui-monospace, Menlo, monospace";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const line1 = meta.trim();
+  const line2 = amount.trim();
+  const w1 = line1 ? ctx.measureText(line1).width : 0;
+  const w2 = line2 ? ctx.measureText(line2).width : 0;
+  const tw = Math.max(w1, w2) + 10;
+  const lines = (line1 ? 1 : 0) + (line2 ? 1 : 0);
+  const th = fs * lines + 8;
+  ctx.fillStyle = "rgba(8,12,18,.88)";
+  roundRectPath(ctx, mx - tw / 2, my - th / 2, tw, th, 4);
+  ctx.fill();
+  ctx.fillStyle = "#e8eef5";
+  if (line1 && line2) {
+    ctx.fillText(line1, mx, my - fs * 0.45);
+    ctx.fillStyle = hex;
+    ctx.fillText(line2, mx, my + fs * 0.55);
+  } else {
+    ctx.fillText(line1 || line2, mx, my);
   }
 }
 
 function handleManualNodeClick(node, event) {
+  if (node.__justDragged) { node.__justDragged = false; return; }
   if (node.__badge && manualGraph) {
     const coords = manualGraph.screen2GraphCoords(event.offsetX, event.offsetY);
     const dx = coords.x - node.__badge.x, dy = coords.y - node.__badge.y;
@@ -3627,7 +3690,7 @@ function handleManualNodeClick(node, event) {
 // to clear both the widest card AND the amount chip drawn at each edge's
 // midpoint — at less than this the labels sit on top of the cards they belong
 // between.
-const MCOLUMN_GAP = 460;
+const MCOLUMN_GAP = 520;
 
 //: The smallest scale the auto-fit is allowed to settle at. At 0.7 a 118px
 //: card is ~83px on screen — its address still reads. Below that the fit is
@@ -3745,7 +3808,10 @@ const MROW_GAP = MCARD_H + 34;
 //   3. They are then spread apart just enough not to touch, keeping the
 //      order — so a parent's children stay together and near it.
 //
-// Deterministic: the same expansions always produce the same picture.
+// Deterministic for nodes the investigator has not moved: the same expansions
+// always produce the same picture. Cards the investigator dragged keep their
+// fx/fy; new children of a dragged parent sit at parent.x ± column gap,
+// stacked around parent.y, instead of snapping back onto the global grid.
 function relayoutManual() {
   if (!manualNodes.length) { applyManualFilter(); return; }
   const byId = new Map(manualNodes.map(n => [n.id, n]));
@@ -3760,36 +3826,64 @@ function relayoutManual() {
 
   for (const col of order) {
     const nodes = columns.get(col);
-    if (col === 0 && nodes.length === 1 && nodes[0].isRoot) { nodes[0].__y = 0; continue; }
     for (const n of nodes) {
+      if (n.__userPlaced) n.__y = n.fy != null ? n.fy : (n.y || 0);
+    }
+    if (col === 0 && nodes.length === 1 && nodes[0].isRoot && !nodes[0].__userPlaced) {
+      nodes[0].__y = 0;
+      continue;
+    }
+    const auto = nodes.filter(n => !n.__userPlaced);
+    if (!auto.length) continue;
+    for (const n of auto) {
       const p = n.parentId ? byId.get(n.parentId) : null;
       n.__want = (p && p.__y != null) ? p.__y : 0;
     }
     // Stable within a parent: siblings keep the order the API returned them
     // in, which is by value, so the biggest flow sits nearest its parent.
-    nodes.sort((a, b) => (a.__want - b.__want)
+    auto.sort((a, b) => (a.__want - b.__want)
       || manualNodes.indexOf(a) - manualNodes.indexOf(b));
-    // Centre the run on what it wanted, then push apart to the pitch.
-    const wantMid = nodes.reduce((acc, n) => acc + n.__want, 0) / nodes.length;
-    const start = wantMid - ((nodes.length - 1) * MROW_GAP) / 2;
-    nodes.forEach((n, i) => { n.__y = start + i * MROW_GAP; });
+    const wantMid = auto.reduce((acc, n) => acc + n.__want, 0) / auto.length;
+    const start = wantMid - ((auto.length - 1) * MROW_GAP) / 2;
+    auto.forEach((n, i) => { n.__y = start + i * MROW_GAP; });
   }
 
   for (const n of manualNodes) {
-    n.fx = n.column * MCOLUMN_GAP; n.x = n.fx;
-    n.fy = n.__y || 0;             n.y = n.fy;
+    if (n.__userPlaced) {
+      n.fx = n.fx != null ? n.fx : n.x;
+      n.fy = n.fy != null ? n.fy : n.y;
+      n.x = n.fx; n.y = n.fy;
+      continue;
+    }
+    const p = n.parentId ? byId.get(n.parentId) : null;
+    const originX = p ? (p.fx != null ? p.fx : p.column * MCOLUMN_GAP) : 0;
+    const originCol = p ? p.column : 0;
+    n.fx = originX + (n.column - originCol) * MCOLUMN_GAP;
+    n.x = n.fx;
+    n.fy = n.__y || 0;
+    n.y = n.fy;
   }
   applyManualFilter();
 }
 
 function addManualLink(srcKey, cp) {
-  const lkey = srcKey + "|" + manualKey(cp.chain, cp.address) + "|" + cp.direction;
+  const cpKey = manualKey(cp.chain, cp.address);
+  const lkey = srcKey + "|" + cpKey + "|" + cp.direction;
   if (manualLinks.some(l => l.__key === lkey)) return;
+  // Graph source/target follow MONEY, not discovery: inflows point at the
+  // expanded address, outflows point away from it. Arrows then match the
+  // left-to-right fund-flow the columns already describe.
+  const from = cp.direction === "in" ? cpKey : srcKey;
+  const to = cp.direction === "in" ? srcKey : cpKey;
   manualLinks.push({
-    __key: lkey, source: srcKey, target: manualKey(cp.chain, cp.address),
+    __key: lkey, source: from, target: to,
     direction: cp.direction,
     amountLabel: formatUnits(cp.amount, cp.asset_decimals) + " " + (cp.asset_symbol || ""),
+    asset_symbol: cp.asset_symbol || "",
     tx_hash: cp.tx_hash,
+    timestamp: cp.timestamp,
+    timeLabel: formatManualTs(cp.timestamp),
+    seq: ++manualLinkSeq,
   });
   applyManualFilter();
 }
@@ -3815,7 +3909,7 @@ async function expandManualNode(node) {
     $("mHint").textContent = res.truncated
       ? ("Showing the largest " + res.counterparties.length + " of " + res.total_count
          + " counterparties for " + shortAddrManual(node.address) + " — bounded for legibility, not coverage.")
-      : "";
+      : MANUAL_USAGE_HINT;
     renderManualLegend();
     // A new column just appeared beside everything already placed; refit so
     // the nodes this click produced are actually on screen.
@@ -4206,7 +4300,16 @@ function manualZoomBy(factor) {
 $("mZoomIn").addEventListener("click", () => manualZoomBy(1.3));
 $("mZoomOut").addEventListener("click", () => manualZoomBy(1 / 1.3));
 $("mZoomFit").addEventListener("click", () => {
-  if (manualGraph) manualGraph.zoomToFit(400, 80);
+  if (!manualGraph) return;
+  // Instant, then enforce the floor: zoomToFit is async when given a duration,
+  // so a follow-up zoom() read would still see the pre-fit scale and skip the
+  // clamp, leaving cards as specks.
+  manualGraph.zoomToFit(0, 80);
+  if (manualGraph.zoom() < MZOOM_FLOOR) {
+    const root = manualData().nodes.find(n => n.isRoot);
+    manualGraph.zoom(MZOOM_FLOOR, 0);
+    if (root) manualGraph.centerAt(root.x, root.y, 0);
+  }
 });
 
 // Prune to what the investigator has actually flagged. Nothing is deleted —
@@ -4223,7 +4326,7 @@ $("mMarkedOnly").addEventListener("click", () => {
     ? (marked
         ? "Showing only the " + marked + " address(es) you marked. Nothing was removed."
         : "No addresses are marked yet — mark one from its panel and it will appear here.")
-    : "";
+    : MANUAL_USAGE_HINT;
   manualFit();
 });
 
@@ -4327,7 +4430,7 @@ $("mInspNote").addEventListener("input", () => {
 function renderManualLegend() {
   const host = $("mLegend"); clear(host);
   const rows = [
-    ["#00f0ff", "Root — address you started from"],
+    ["#d97706", "Root — address you started from"],
     ["#34d399", "Has an active, sourced label"],
     ["#38bdf8", "Unattributed"],
   ];
@@ -4351,7 +4454,7 @@ function renderManualLegend() {
     sw.textContent = info.glyph;
     sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = info.color;
     row.appendChild(sw);
-    row.appendChild(el("span", null, info.name + " address (top-left badge)"));
+    row.appendChild(el("span", null, info.name + " address (left icon)"));
     host.appendChild(row);
   }
   if (data.nodes.some(n => n.label)) {
@@ -4360,7 +4463,7 @@ function renderManualLegend() {
     sw.textContent = "✓";
     sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = "#34d399";
     row.appendChild(sw);
-    row.appendChild(el("span", null, "active, sourced label — entity mark, top-right"));
+    row.appendChild(el("span", null, "active, sourced label — solid green left icon"));
     host.appendChild(row);
   }
   if (data.nodes.some(n => n.communityTag)) {
@@ -4369,7 +4472,19 @@ function renderManualLegend() {
     sw.textContent = "?";
     sw.style.border = "none"; sw.style.width = "auto"; sw.style.color = "#fbbf24";
     row.appendChild(sw);
-    row.appendChild(el("span", null, "your tag, not yet corroborated — dashed, top-right"));
+    row.appendChild(el("span", null, "your tag, not yet corroborated — dashed, left icon"));
+    host.appendChild(row);
+  }
+  const assets = [...new Set(data.links.map(l => String(l.asset_symbol || "").toUpperCase()).filter(Boolean))];
+  for (const sym of assets.sort()) {
+    const row = el("span");
+    const i = el("i");
+    i.style.background = assetLinkColor(sym);
+    i.style.borderRadius = "2px";
+    i.style.width = "14px";
+    i.style.height = "3px";
+    row.appendChild(i);
+    row.appendChild(el("span", null, sym + " flow"));
     host.appendChild(row);
   }
 }
@@ -4395,6 +4510,7 @@ async function manualExplore(forcedChain) {
   closeManualInspector();
   $("mHint").textContent = "Looking up…";
   manualNodes = []; manualLinks = [];
+  manualLinkSeq = 0;
   updateManualEmpty();
   manualGraph.graphData({ nodes: [], links: [] });
   try {
@@ -4412,7 +4528,7 @@ async function manualExplore(forcedChain) {
     manualFit();
     $("mHint").textContent = res.truncated
       ? ("Showing the largest " + res.counterparties.length + " of " + res.total_count + " counterparties.")
-      : "";
+      : MANUAL_USAGE_HINT;
     renderManualLegend();
     fetchManualLeads();   // fire-and-forget: names arrive after the cards do
   } catch (e) {
