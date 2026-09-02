@@ -70,7 +70,9 @@ def test_no_browser_at_all_is_a_clear_error_naming_where_it_looked(
     """'chromium not found' sends a reader hunting a bug; a path list does not."""
     monkeypatch.delenv(CHROMIUM_ENV, raising=False)
     monkeypatch.setattr("cipherchain.reporting.pdf.PLAYWRIGHT_ROOT", tmp_path / "nothing-here")
-    monkeypatch.setattr("cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "nothing-here"])
+    monkeypatch.setattr(
+        "cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "nothing-here"]
+    )
     monkeypatch.setattr("cipherchain.reporting.pdf._installed_browser_candidates", lambda: [])
     monkeypatch.setattr("cipherchain.reporting.pdf.shutil.which", lambda _: None)
     assert find_chromium() is None
@@ -177,7 +179,9 @@ def test_the_html_path_does_not_depend_on_a_browser_existing(
     """Losing the PDF renderer must cost the PDF and nothing else."""
     monkeypatch.delenv(CHROMIUM_ENV, raising=False)
     monkeypatch.setattr("cipherchain.reporting.pdf.PLAYWRIGHT_ROOT", tmp_path / "nothing-here")
-    monkeypatch.setattr("cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "nothing-here"])
+    monkeypatch.setattr(
+        "cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "nothing-here"]
+    )
     monkeypatch.setattr("cipherchain.reporting.pdf._installed_browser_candidates", lambda: [])
     monkeypatch.setattr("cipherchain.reporting.pdf.shutil.which", lambda _: None)
     html = render_html(report_with_both_answers())
