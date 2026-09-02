@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     alchemy_api_key: str | None = None
     quicknode_endpoint_url: str | None = None
     chainstack_endpoint_url: str | None = None
+    chainstack_platform_api_key: str | None = None
     getblock_access_token: str | None = None
     # Tron works without a key; a free key only raises the rate limit.
     trongrid_api_key: str | None = None

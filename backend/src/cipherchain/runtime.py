@@ -69,6 +69,21 @@ def _rpc_endpoints(settings: Settings, chain: str) -> list[tuple[str, str]]:
         key = getattr(settings, attr, None)
         if key:
             endpoints.append((vendor, template.format(key=key)))
+    # These are full URLs, not {key} templates — one endpoint is typically
+    # provisioned per chain. Wire Ethereum only unless a dedicated URL exists.
+    if chain == "ethereum":
+        if settings.quicknode_endpoint_url:
+            endpoints.append(("quicknode", settings.quicknode_endpoint_url))
+        if settings.chainstack_endpoint_url:
+            endpoints.append(("chainstack", settings.chainstack_endpoint_url))
+        token = settings.getblock_access_token
+        if token:
+            url = (
+                token
+                if token.startswith(("http://", "https://"))
+                else f"https://go.getblock.io/{token}/"
+            )
+            endpoints.append(("getblock", url))
     return endpoints
 
 

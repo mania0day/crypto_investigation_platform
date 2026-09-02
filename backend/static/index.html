@@ -524,9 +524,15 @@
      the cards were fine, there was simply nowhere to put them. Manual mode
      therefore drops the hero and pins the stage to the viewport; the
      automated view is untouched and keeps its full page furniture. */
-  body.manualfull header,
-  body.manualfull .tagline,
-  body.manualfull .chains { display: none; }
+  body.manualfull header {
+    display: block; padding: 0; margin: 0; border: none;
+  }
+  body.manualfull header h1,
+  body.manualfull header .tagline,
+  body.manualfull header .chains { display: none; }
+  body.manualfull .hdr-top {
+    margin: 0; padding: 8px 12px 0;
+  }
   body.manualfull .wrap { max-width: none; padding: 0; }
   body.manualfull .modetabs { margin: 0; padding: 6px 12px 0; }
   body.manualfull .mtoolbarpanel {
@@ -536,8 +542,9 @@
   body.manualfull .mtoolbarpanel::after { display: none; }   /* HUD corner brackets */
   body.manualfull #manualStageWrap {
     /* Fixed, not just tall: nothing above it can push it down again, and the
-       page itself stops scrolling — you pan the plane instead. */
-    position: fixed; left: 0; right: 0; bottom: 0; width: 100vw;
+       page itself stops scrolling — you pan the plane instead.
+       width:auto (not 100vw) so a classic scrollbar does not overflow. */
+    position: fixed; left: 0; right: 0; bottom: 0; width: auto;
     margin: 0; border-bottom: none;
   }
   body.manualfull { overflow: hidden; }
@@ -554,7 +561,11 @@
     border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
     overflow: hidden;
   }
-  #manualStage { width: 100%; height: 100%; }
+  #manualStage { width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  #manualStage:active { cursor: grabbing; }
+  #manualStage.is-over-node { cursor: pointer; }
+  .mtoolbar input { flex: 1; min-width: 0; }
+  #mExplore { flex: none; min-height: 40px; padding: 8px 16px; }
   .minspector {
     /* Anchored LEFT, matching the reference tool, and wide enough to read a
        table in. On the right it covered the out-flow column, which is where
@@ -562,7 +573,7 @@
     /* Stops short of the legend strip along the bottom, which is an overlay
        on the same stage — at calc(100% - 24px) the panel's action buttons
        ended up underneath it. */
-    position: absolute; top: 12px; left: 12px; width: 560px; max-height: calc(100% - 64px);
+    position: absolute; top: 12px; left: 12px; width: min(560px, calc(100% - 24px)); max-height: calc(100% - 64px);
     overflow-y: auto; padding: 14px; z-index: 5;
     background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px;
     box-shadow: 0 12px 30px rgba(0,0,0,.5);
@@ -679,6 +690,46 @@
   }
   .mlegend span { display: flex; align-items: center; gap: 5px; }
   .mlegend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .minspector-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .minspector-head h3 { margin: 0; }
+  .minspector .ghost#mInspClose { width: auto; margin-top: 0; min-width: 36px; min-height: 32px; }
+  .mempty {
+    position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(8,18,32,.55), transparent 70%);
+  }
+  .mempty.hidden { display: none; }
+  .mempty-title { font-size: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #fff; }
+  .mempty-copy { margin-top: 8px; max-width: 420px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .mzoom .ghost { min-height: 36px; min-width: 36px; }
+  .mlegend { flex-wrap: wrap; max-width: calc(100% - 24px); }
+
+  @media (max-width: 900px) {
+    .minspector { width: min(420px, calc(100% - 24px)); }
+  }
+  @media (max-width: 720px) {
+    .modetabs { padding-left: 8px; padding-right: 8px; }
+    .mtoolbarpanel { padding: 8px 12px; }
+    .mtoolbar { flex-direction: column; align-items: stretch; }
+    .mtoolbar input { min-width: 0; width: 100%; }
+    #manualStageWrap { width: 100%; margin-left: 0; margin-right: 0; min-height: 240px; height: calc(100vh - 180px); }
+    .minspector {
+      top: auto; left: 0; right: 0; bottom: 0; width: 100%;
+      max-height: min(58vh, 520px); border-radius: 16px 16px 0 0;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+    .mlegend {
+      left: 8px; right: 8px; bottom: auto; top: 8px; gap: 8px 12px;
+      font-size: 10px; padding: 6px 8px;
+    }
+    .mzoom {
+      left: 8px; right: 8px; bottom: 10px; justify-content: center; flex-wrap: wrap;
+    }
+    #manualStageWrap.inspecting .mzoom { bottom: calc(min(58vh, 520px) + 8px); }
+    #manualStageWrap.inspecting .mlegend { display: none; }
+    .mtable { max-height: 180px; }
+    .mzoomlevel { min-width: 48px; }
+  }
 </style>
 <script defer src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
 </head>
@@ -686,7 +737,7 @@
 <div class="wrap">
   <header>
     <div class="hdr-top">
-      <a id="backLink" class="backlink" href="http://localhost:5173/dashboard">&#9666; CipherChain</a>
+      <a id="backLink" class="backlink" href="http://localhost:5173/dashboard">&#9666; Dashboard</a>
       <div class="hdr-status mono">ENGINE: <span id="engineStatus">&hellip;</span></div>
     </div>
     <h1>CipherChain<span> //</span> Wallet Intelligence</h1>
@@ -844,9 +895,17 @@
     </div>
     <div id="manualStageWrap">
       <div id="manualStage"></div>
+      <div class="mempty" id="mEmpty">
+        <div>
+          <div class="mempty-title">Explore an address</div>
+          <div class="mempty-copy">Paste a wallet above, then drag to pan and scroll to zoom. Click a card to inspect it, or the + to expand counterparties.</div>
+        </div>
+      </div>
       <div class="minspector hidden" id="manualInspector">
-        <button class="ghost" id="mInspClose" style="float:right;padding:2px 8px">&times;</button>
-        <h3>Address</h3>
+        <div class="minspector-head">
+          <h3>Address</h3>
+          <button class="ghost" id="mInspClose" aria-label="Close inspector">&times;</button>
+        </div>
         <div class="maddr" id="mInspAddr"></div>
         <div class="hint" id="mInspLabel"></div>
         <div class="mvasp hidden" id="mInspVasp"></div>
@@ -2725,6 +2784,7 @@ $("gMin").addEventListener("click", () => setPanelFolded("graph", !panelFolded.g
 $("fMin").addEventListener("click", () => setPanelFolded("findings", !panelFolded.findings));
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape" && isFullscreen()) setGraphFullscreen(false);
+  else if (ev.key === "Escape") closeManualInspector();
 });
 // A resized window is a resized stage. Never override a deliberate zoom.
 window.addEventListener("resize", () => { if (!userZoomed) fitGraph(); });
@@ -2733,14 +2793,41 @@ for (const ex of EXAMPLES) {
   b.addEventListener("click", () => { $("address").value = ex.address; $("hint").textContent = ""; });
   $("examples").appendChild(b);
 }
-// Header: live engine status + return path to CipherChain. If the user
-// arrived from a CipherChain instance on another port, honor that origin.
-try {
-  if (document.referrer) {
-    const ref = new URL(document.referrer);
-    if (ref.origin !== location.origin) $("backLink").href = ref.origin + "/dashboard";
+// Header: live engine status + return path to the CipherChain dashboard.
+// Prefer an explicit ?return= from the dashboard, then the referrer origin,
+// then the local Vite default. Only http(s) /dashboard URLs are accepted.
+function dashboardReturnUrl() {
+  const fallback = "http://localhost:5173/dashboard";
+  function asDashboard(raw) {
+    try {
+      const u = new URL(raw, location.href);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      if (u.pathname.replace(/\/+$/, "") !== "/dashboard") return null;
+      return u.origin + "/dashboard";
+    } catch (_) {
+      return null;
+    }
   }
-} catch (_) { /* opaque referrer: keep the default */ }
+  const explicit = new URLSearchParams(location.search).get("return");
+  if (explicit) {
+    const allowed = asDashboard(explicit);
+    if (allowed) return allowed;
+  }
+  if (document.referrer) {
+    try {
+      const ref = new URL(document.referrer);
+      if (ref.origin !== location.origin) return ref.origin + "/dashboard";
+    } catch (_) { /* keep looking */ }
+  }
+  return fallback;
+}
+$("backLink").href = dashboardReturnUrl();
+$("backLink").addEventListener("click", (ev) => {
+  const href = $("backLink").href;
+  if (!href) return;
+  ev.preventDefault();
+  location.assign(href);
+});
 
 // ?investigation=<uuid> reopens a finished trace without re-running it. An
 // investigation is a durable record, so its report should have a URL.
@@ -3090,7 +3177,7 @@ function setMode(mode) {
   document.body.classList.toggle("manualfull", !auto);
   // Sized only once visible — an element inside a `display:none` parent
   // measures as zero, so this has to run after the class toggle above.
-  if (!auto) { sizeManualStage(); ensureManualGraph(); }
+  if (!auto) { sizeManualStage(); ensureManualGraph(); updateManualEmpty(); }
 }
 $("tabAuto").addEventListener("click", () => setMode("auto"));
 $("tabManual").addEventListener("click", () => setMode("manual"));
@@ -3127,6 +3214,7 @@ function chainGlyph(chain) {
 
 let manualGraph = null;
 let manualInspecting = null;
+let manualHovered = null;
 
 // The canonical graph. `manualGraph.graphData()` holds only what is currently
 // DRAWN, which stops being the whole graph the moment a filter is on — so
@@ -3158,7 +3246,11 @@ function applyManualFilter() {
 }
 
 function ensureManualGraph() {
-  if (manualGraph) { manualGraph.width($("manualStage").clientWidth); return; }
+  if (manualGraph) {
+    const stage = $("manualStage");
+    if (stage) manualGraph.width(stage.clientWidth).height(stage.clientHeight);
+    return;
+  }
   if (typeof ForceGraph !== "function") {
     $("mHint").textContent = "Manual mode's graph library did not load — check your connection and reload.";
     return;
@@ -3176,6 +3268,11 @@ function ensureManualGraph() {
     // move the VIEW; the graph itself stays where it settled.
     .enableNodeDrag(false)
     .onNodeClick(handleManualNodeClick)
+    .onNodeHover((node) => {
+      manualHovered = node || null;
+      $("manualStage").classList.toggle("is-over-node", !!node);
+    })
+    .onBackgroundClick(() => closeManualInspector())
     .onZoom(renderManualZoomLevel)
     .onEngineStop(() => {
       if (!manualFitPending) return;   // never re-frame a view the user panned
@@ -3272,6 +3369,19 @@ function paintManualNode(node, ctx, scale) {
   ctx.lineWidth = node.isRoot ? 2.2 : 1.4;
   ctx.strokeStyle = color;
   ctx.stroke();
+  const selected = manualInspecting && manualInspecting.id === node.id;
+  const hovered = manualHovered && manualHovered.id === node.id;
+  if (selected) {
+    roundRectPath(ctx, x - 3, y - 3, w + 6, h + 6, 10);
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.stroke();
+  } else if (hovered) {
+    roundRectPath(ctx, x - 1, y - 1, w + 2, h + 2, 9);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,.55)";
+    ctx.stroke();
+  }
   // Left accent stripe — the same "role colour on the left edge" language
   // the automated graph's own .gnode card uses (index.html, .gnode CSS).
   roundRectPath(ctx, x, y, 4, h, 2);
@@ -3413,6 +3523,11 @@ function paintManualNode(node, ctx, scale) {
   // Leaves room for the SEEMS VASP chip on the same line when there is one.
   const capWidth = ((node.service && node.service.meets_threshold) ? w * 0.52 : w - 16);
   ctx.fillText(truncateToWidth(ctx, secondLine, capWidth), x + 10, y + h - 13);
+  if (manualInspecting && !selected && !hovered) {
+    roundRectPath(ctx, x, y, w, h, 8);
+    ctx.fillStyle = "rgba(2,8,16,.42)";
+    ctx.fill();
+  }
 }
 
 // Canvas has no text-overflow:ellipsis — measured by hand, once per paint,
@@ -3469,6 +3584,13 @@ function paintManualLink(link, ctx, scale) {
   ctx.bezierCurveTo(g.c1x, g.c1y, g.c2x, g.c2y, t.x, t.y);
   ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.65)" : "rgba(56,189,248,.65)";
   ctx.lineWidth = Math.max(1, 1.6 / scale);
+  const focus = manualHovered || manualInspecting;
+  if (focus && (s.id === focus.id || t.id === focus.id)) {
+    ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.95)" : "rgba(0,240,255,.95)";
+    ctx.lineWidth = Math.max(1.4, 2.4 / scale);
+  } else if (focus) {
+    ctx.strokeStyle = link.direction === "in" ? "rgba(52,211,153,.22)" : "rgba(56,189,248,.22)";
+  }
   ctx.stroke();
   if (scale > 0.5 && link.amountLabel) {
     // The label rides ON the curve at t=0.5, not on the straight midpoint
@@ -3540,14 +3662,29 @@ function manualFit() {
 function sizeManualStage() {
   const wrap = $("manualStageWrap");
   if (!wrap || wrap.offsetParent === null) return;   // hidden: nothing to measure
-  const top = wrap.getBoundingClientRect().top + window.scrollY;
-  const height = Math.max(480, window.innerHeight - top - 8);
+  const top = wrap.getBoundingClientRect().top;
+  const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  const minH = window.matchMedia("(max-width: 720px)").matches ? 220 : 420;
+  const height = Math.max(minH, Math.floor(vh - top));
   wrap.style.height = height + "px";
-  if (manualGraph) {
-    manualGraph.width($("manualStage").clientWidth).height(height);
+  const stage = $("manualStage");
+  if (manualGraph && stage) {
+    manualGraph.width(stage.clientWidth).height(stage.clientHeight || height);
   }
 }
 window.addEventListener("resize", sizeManualStage);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", sizeManualStage);
+
+function updateManualEmpty() {
+  const empty = $("mEmpty");
+  if (empty) empty.classList.toggle("hidden", manualNodes.length > 0);
+}
+
+function closeManualInspector() {
+  manualInspecting = null;
+  $("manualInspector").classList.add("hidden");
+  $("manualStageWrap").classList.remove("inspecting");
+}
 
 // Which column a node belongs in, from the edge that discovered it: money
 // coming IN sits to the LEFT of the address it funded, money going OUT sits to
@@ -3583,6 +3720,7 @@ function addManualNode(chain, address, isRoot, parent, direction) {
   };
   manualNodes.push(node);
   relayoutManual();
+  updateManualEmpty();
   return node;
 }
 
@@ -4139,6 +4277,7 @@ function openManualInspector(node, tab) {
     ? ("You tagged this “" + node.communityTag + "” — pending, needs corroboration.")
     : "";
   $("manualInspector").classList.remove("hidden");
+  $("manualStageWrap").classList.add("inspecting");
   // Reset to the requested tab (the "+" badge asks for Related Address) and
   // load it. Cached per node, so reopening costs nothing.
   setManualTab(tab || mTab);
@@ -4178,7 +4317,7 @@ async function submitManualLabel() {
 }
 $("mLabelSubmit").addEventListener("click", submitManualLabel);
 $("mLabelEntity").addEventListener("keydown", (e) => { if (e.key === "Enter") submitManualLabel(); });
-$("mInspClose").addEventListener("click", () => $("manualInspector").classList.add("hidden"));
+$("mInspClose").addEventListener("click", closeManualInspector);
 $("mInspNote").addEventListener("input", () => {
   if (!manualInspecting) return;
   manualInspecting.note = $("mInspNote").value;
@@ -4253,9 +4392,10 @@ async function manualExplore(forcedChain) {
   if (!manualGraph) return;
   $("mChainPick").classList.add("hidden");
   $("mChainPickLabel").classList.add("hidden");
-  $("manualInspector").classList.add("hidden");
+  closeManualInspector();
   $("mHint").textContent = "Looking up…";
   manualNodes = []; manualLinks = [];
+  updateManualEmpty();
   manualGraph.graphData({ nodes: [], links: [] });
   try {
     const chainQ = forcedChain ? ("&chain=" + encodeURIComponent(forcedChain)) : "";

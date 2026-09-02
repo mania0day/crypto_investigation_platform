@@ -7,8 +7,11 @@ checked twice — that it raises, and that it left nothing behind.
 
 from __future__ import annotations
 
+import os
 import re
 import stat
+import sys
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -29,10 +32,36 @@ A4_POINTS = (595.0, 842.0)
 
 def _fake_browser(directory: Path, script: str) -> Path:
     """A stand-in for Chromium that behaves badly in one specific way."""
-    path = directory / "fake-chrome"
-    path.write_text("#!/bin/sh\n" + script)
-    path.chmod(path.stat().st_mode | stat.S_IXUSR)
-    return path
+    if os.name != "nt":
+        path = directory / "fake-chrome"
+        path.write_text("#!/bin/sh\n" + script)
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+        return path
+    stub = directory / "fake-chrome.py"
+    stub.write_text(
+        textwrap.dedent(
+            f"""\
+            import sys, time
+            script = {script!r}
+            args = sys.argv[1:]
+            if "sleep 30" in script:
+                time.sleep(30)
+                raise SystemExit(0)
+            if "cannot open display" in script:
+                sys.stderr.write("cannot open display\\n")
+                raise SystemExit(3)
+            if "%PDF-1.4" in script:
+                for arg in args:
+                    if arg.startswith("--print-to-pdf="):
+                        open(arg.split("=", 1)[1], "w", encoding="utf-8").write("%PDF-1.4")
+                raise SystemExit(0)
+            raise SystemExit(0)
+            """
+        )
+    )
+    cmd = directory / "fake-chrome.cmd"
+    cmd.write_text(f'@echo off\r\n"{sys.executable}" "{stub}" %*\r\n', encoding="utf-8")
+    return cmd
 
 
 def test_no_browser_at_all_is_a_clear_error_naming_where_it_looked(
@@ -41,6 +70,8 @@ def test_no_browser_at_all_is_a_clear_error_naming_where_it_looked(
     """'chromium not found' sends a reader hunting a bug; a path list does not."""
     monkeypatch.delenv(CHROMIUM_ENV, raising=False)
     monkeypatch.setattr("cipherchain.reporting.pdf.PLAYWRIGHT_ROOT", tmp_path / "nothing-here")
+    monkeypatch.setattr("cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "nothing-here"])
+    monkeypatch.setattr("cipherchain.reporting.pdf._installed_browser_candidates", lambda: [])
     monkeypatch.setattr("cipherchain.reporting.pdf.shutil.which", lambda _: None)
     assert find_chromium() is None
 
@@ -67,6 +98,35 @@ def test_the_newest_playwright_build_is_the_one_used(
         binary.parent.mkdir(parents=True)
         binary.write_text("#!/bin/sh\n")
     assert find_chromium() == tmp_path / "chromium-1234" / "chrome-linux64" / "chrome"
+
+
+def test_a_windows_playwright_layout_is_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv(CHROMIUM_ENV, raising=False)
+    monkeypatch.setattr("cipherchain.reporting.pdf.PLAYWRIGHT_ROOT", tmp_path)
+    monkeypatch.setattr("cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path])
+    monkeypatch.setattr("cipherchain.reporting.pdf._installed_browser_candidates", lambda: [])
+    monkeypatch.setattr("cipherchain.reporting.pdf.shutil.which", lambda _: None)
+    binary = tmp_path / "chromium-2000" / "chrome-win64" / "chrome.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("x")
+    assert find_chromium() == binary
+
+
+def test_a_system_chrome_install_is_found_when_playwright_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chrome = tmp_path / "chrome.exe"
+    chrome.write_text("x")
+    monkeypatch.delenv(CHROMIUM_ENV, raising=False)
+    monkeypatch.setattr("cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "no-pw"])
+    monkeypatch.setattr("cipherchain.reporting.pdf.PLAYWRIGHT_ROOT", tmp_path / "no-pw")
+    monkeypatch.setattr("cipherchain.reporting.pdf.shutil.which", lambda _: None)
+    monkeypatch.setattr(
+        "cipherchain.reporting.pdf._installed_browser_candidates", lambda: [chrome]
+    )
+    assert find_chromium() == chrome
 
 
 def test_a_browser_that_writes_no_file_never_leaves_a_report_behind(tmp_path: Path) -> None:
@@ -117,6 +177,8 @@ def test_the_html_path_does_not_depend_on_a_browser_existing(
     """Losing the PDF renderer must cost the PDF and nothing else."""
     monkeypatch.delenv(CHROMIUM_ENV, raising=False)
     monkeypatch.setattr("cipherchain.reporting.pdf.PLAYWRIGHT_ROOT", tmp_path / "nothing-here")
+    monkeypatch.setattr("cipherchain.reporting.pdf._playwright_roots", lambda: [tmp_path / "nothing-here"])
+    monkeypatch.setattr("cipherchain.reporting.pdf._installed_browser_candidates", lambda: [])
     monkeypatch.setattr("cipherchain.reporting.pdf.shutil.which", lambda _: None)
     html = render_html(report_with_both_answers())
     assert "Coverage and caveats" in html

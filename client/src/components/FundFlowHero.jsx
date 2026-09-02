@@ -182,7 +182,7 @@ function buildGraph() {
   return { nodes, edges };
 }
 
-export default function FundFlowHero({ txIntervalMs = 700, onWalletIntelligence }) {
+export default function FundFlowHero({ txIntervalMs = 700 }) {
   const outerRef = useRef(null);
   const elsRef = useRef({});
   const logRef = useRef([]);
@@ -533,17 +533,6 @@ export default function FundFlowHero({ txIntervalMs = 700, onWalletIntelligence 
         {HUD_CORNERS.map((c, i) => (
           <div key={i} style={{ position: 'absolute', width: 22, height: 22, borderStyle: 'solid', borderColor: 'rgba(56,189,248,.4)', pointerEvents: 'none', zIndex: 12, animation: 'om-title .5s ease .08s backwards', ...c }} />
         ))}
-
-        {/* wallet intelligence CTA */}
-        <button
-          type="button"
-          className="ffh-cta"
-          onClick={onWalletIntelligence}
-          style={{ position: 'absolute', right: 40, top: 34, zIndex: 30, animation: 'om-rise .5s cubic-bezier(.2,.8,.2,1) .08s backwards' }}
-        >
-          WALLET INTELLIGENCE
-          <span className="ffh-cta-arrow">→</span>
-        </button>
 
         {/* 1 — description */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: 38, textAlign: 'center', zIndex: 10 }}>

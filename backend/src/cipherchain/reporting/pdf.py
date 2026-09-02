@@ -26,6 +26,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Sequence
 from datetime import datetime
@@ -38,7 +39,16 @@ from cipherchain.reporting.model import InvestigationReport
 logger = logging.getLogger(__name__)
 
 # Where Playwright puts the browser this repo already renders documents with.
+# Linux is the historical path; Windows/mac layouts are searched too so a
+# machine with Chrome installed can print without a Playwright cache.
 PLAYWRIGHT_GLOB = "chromium-*/chrome-linux64/chrome"
+PLAYWRIGHT_GLOBS = (
+    PLAYWRIGHT_GLOB,
+    "chromium-*/chrome-win64/chrome.exe",
+    "chromium-*/chrome-win/chrome.exe",
+    "chromium-*/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+    "chromium-*/chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium",
+)
 PLAYWRIGHT_ROOT = Path.home() / ".cache" / "ms-playwright"
 
 # Set to a browser binary to override discovery entirely.
@@ -50,6 +60,9 @@ _ON_PATH = (
     "google-chrome",
     "google-chrome-stable",
     "chrome",
+    "chrome.exe",
+    "msedge",
+    "msedge.exe",
 )
 
 _VERSION_DIGITS = re.compile(r"(\d+)")
@@ -79,6 +92,37 @@ class ChromiumNotFound(PdfRenderError):
         self.searched = tuple(searched)
 
 
+def _chromium_build_id(path: Path) -> int:
+    """Numeric Playwright build id, wherever it sits in the path."""
+    for part in path.parts:
+        match = re.fullmatch(r"chromium-(\d+)", part)
+        if match:
+            return int(match.group(1))
+    digits = _VERSION_DIGITS.findall(path.parts[-3] if len(path.parts) >= 3 else "")
+    return int(digits[0]) if digits else 0
+
+
+def _playwright_roots() -> list[Path]:
+    roots = [PLAYWRIGHT_ROOT]
+    if sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA")
+        roots.append(
+            Path(local) / "ms-playwright"
+            if local
+            else Path.home() / "AppData" / "Local" / "ms-playwright"
+        )
+    extra = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if extra:
+        roots.insert(0, Path(extra))
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for root in roots:
+        if root not in seen:
+            seen.add(root)
+            unique.append(root)
+    return unique
+
+
 def _playwright_candidates() -> list[Path]:
     """Playwright installs, newest build first.
 
@@ -86,13 +130,40 @@ def _playwright_candidates() -> list[Path]:
     sorts before ``chromium-982`` as text, which would pick an older browser
     whenever the build number gains a digit.
     """
-    matches = list(PLAYWRIGHT_ROOT.glob(PLAYWRIGHT_GLOB))
+    matches: list[Path] = []
+    for root in _playwright_roots():
+        for pattern in PLAYWRIGHT_GLOBS:
+            matches.extend(root.glob(pattern))
+    return sorted(matches, key=_chromium_build_id, reverse=True)
 
-    def build_id(path: Path) -> int:
-        digits = _VERSION_DIGITS.findall(path.parts[-3])
-        return int(digits[0]) if digits else 0
 
-    return sorted(matches, key=build_id, reverse=True)
+def _installed_browser_candidates() -> list[Path]:
+    """Vendor install locations that never appear on PATH (typical on Windows)."""
+    if sys.platform == "win32":
+        program_files = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
+        program_files_x86 = Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
+        local = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        return [
+            program_files / "Google" / "Chrome" / "Application" / "chrome.exe",
+            program_files_x86 / "Google" / "Chrome" / "Application" / "chrome.exe",
+            local / "Google" / "Chrome" / "Application" / "chrome.exe",
+            program_files / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            program_files_x86 / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+            local / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        ]
+    if sys.platform == "darwin":
+        return [
+            Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+            Path("/Applications/Chromium.app/Contents/MacOS/Chromium"),
+            Path("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+        ]
+    return [
+        Path("/usr/bin/google-chrome-stable"),
+        Path("/usr/bin/google-chrome"),
+        Path("/usr/bin/chromium-browser"),
+        Path("/usr/bin/chromium"),
+        Path("/snap/bin/chromium"),
+    ]
 
 
 def find_chromium(explicit: str | Path | None = None) -> Path | None:
@@ -111,15 +182,20 @@ def find_chromium(explicit: str | Path | None = None) -> Path | None:
         found = shutil.which(name)
         if found:
             return Path(found)
+    for candidate in _installed_browser_candidates():
+        if candidate.is_file():
+            return candidate
     return None
 
 
 def _searched_locations() -> list[str]:
-    return [
+    searched = [
         f"${CHROMIUM_ENV}",
-        str(PLAYWRIGHT_ROOT / PLAYWRIGHT_GLOB),
+        *(str(root / PLAYWRIGHT_GLOB) for root in _playwright_roots()),
         f"PATH ({', '.join(_ON_PATH)})",
     ]
+    searched.extend(str(path) for path in _installed_browser_candidates())
+    return searched
 
 
 def render_pdf(
